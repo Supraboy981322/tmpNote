@@ -1,13 +1,15 @@
 const std = @import("std");
+const hlp = @import("helpers.zig");
+const cTime = @cImport(
+    @cInclude("time.h")
+);
+
 const fs = std.fs;
 const fmt = std.fmt;
 const mem = std.mem;
 const net = std.net;
 const heap = std.heap;
 const http = std.http;
-const cTime = @cImport(
-    @cInclude("time.h")
-);
 
 //embeded web-ui files
 const web = struct {
@@ -131,18 +133,18 @@ fn newNote(serverConn:ServerConn) !void {
     }
 
     if (note.len == 0) try req.server.out.print("{s}", .{web.new}) else {
-        const id:[]u8 = try ranStr(16, globAlloc);
+        const id:[]u8 = try hlp.ranStr(16, globAlloc);
         defer globAlloc.free(id);
         const n:Note = .{
             .content = try globAlloc.dupe(u8, note),
             .Encrypt = false,
         };
         db.put(id, n) catch {
-            try sendHeaders(500, curTime, req);
+            try hlp.sendHeaders(500, curTime, req);
             req.server.out.print("failed to save", .{}) catch return;
             return;
         };
-        try sendHeaders(200, curTime, req);
+        try hlp.sendHeaders(200, curTime, req);
         try req.server.out.print("{s}\n", .{id});
     } try req.server.out.flush();
 }
@@ -175,7 +177,7 @@ fn viewNote(serverConn:ServerConn) !void {
     if (db.get(id)) |n| {
         note = try globAlloc.dupe(u8, n.content);
         if (!db.remove(id)) {
-            try sendHeaders(500, curTime, req);
+            try hlp.sendHeaders(500, curTime, req);
             req.server.out.print("failed to remove from db", .{}) catch return;
             return;
         }
@@ -187,45 +189,7 @@ fn viewNote(serverConn:ServerConn) !void {
     _ = mem.replace(u8, respPage, t, note, newPage);
     defer alloc.free(newPage);
 
-    try sendHeaders(200, curTime, req);
+    try hlp.sendHeaders(200, curTime, req);
     req.server.out.print("{s}", .{newPage}) catch return;
     req.server.out.flush() catch return;
-}
-
-fn ranStr(len:usize, alloc: mem.Allocator) ![]u8 {
-    const chars:[]const u8 = "qwertyuioplkjhgfdsazxcvbnmQWERTYUIOPKLJHGFDSAZXCVBNM1234567890";
-    var pran = std.crypto.random;
-    const buf = try alloc.alloc(u8, len);
-
-    for (buf) |*byte| {
-        const i = pran.intRangeAtMost(usize, 0, chars.len-1);
-        byte.* = chars[i];
-    }
-    return buf;
-}
-
-fn sendHeaders(status:i16, curTime: []u8, req:http.Server.Request) !void {
-    var gpa = heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const alloc = gpa.allocator();
-
-    const dateHeader = try fmt.allocPrint(alloc, "date: {s}", .{curTime});
-    defer alloc.free(dateHeader);
-    const headers = [_][]const u8 {
-        switch (status) {
-            400 => "HTTP/1.1 400 Bad Request",
-            200 => "HTTP/1.1 200 OK",
-            403 => "HTTP/1.1 403 FORBIDDEN",
-            404 => "HTTP/1.1 404 not found",
-            else => "HTTP/1.1 500 Internal Server Error",
-        },
-        "Content-Type: text/html",
-        "x-content-type-options: nosniff", 
-        "server: homebrew zig http server",
-        dateHeader,
-        ""
-    };for (headers) |h| {
-        req.server.out.print("{s}\r\n", .{h}) catch return;
-        req.server.out.flush() catch return;
-    }
 }

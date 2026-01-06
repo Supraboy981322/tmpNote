@@ -161,18 +161,18 @@ fn viewNote(serverConn:ServerConn) !void {
         var p = mem.splitScalar(u8, par, '=');
         while (p.next()) |k| {
             if (mem.eql(u8, k, "id")) {
-                idR = try mem.Allocator.dupe(alloc, u8, p.next().?);
+                idR = try globAlloc.dupe(u8, p.next().?);
                 break;
             } _ = p.next();
         }
-    } defer alloc.free(idR);
+    } defer globAlloc.free(idR);
     
     const respPage:[]const u8 = web.view;
     const id:[]u8 = try globAlloc.dupe(u8, idR); 
     defer globAlloc.free(id);
 
     var note:[]const u8 = "key not found";
-    if (db.get(id)) |n| note = n.content;
+    if (db.get(id)) |n| note = try globAlloc.dupe(u8, n.content);
 
     const t:[]const u8 = "<!-- split here -->";
     const newSi = mem.replacementSize(u8, respPage, t, note);

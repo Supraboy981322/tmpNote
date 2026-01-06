@@ -167,24 +167,22 @@ fn viewNote(serverConn:ServerConn) !void {
         }
     } defer alloc.free(idR);
     
-    var respPage:[]const u8 = web.view;
+    const respPage:[]const u8 = web.view;
     const id:[]u8 = try globAlloc.dupe(u8, idR); 
     defer globAlloc.free(id);
-    var note:[]const u8 = "key does not point to valid note";
-    if (db.get(id)) |n| {
-        note = n.content;
-        try sendHeaders(200, curTime, req);
-        req.server.out.print("{s}", .{n.content}) catch return;
-        return;
-    } else {
-        try sendHeaders(400, curTime, req);
-        req.server.out.print("id '{s}' not found\n", .{id}) catch return;
-        req.server.out.flush() catch return;
-        return;
-    } req.server.out.flush() catch return;
+
+    var note:[]const u8 = "key not found";
+    if (db.get(id)) |n| note = n.content;
+
+    const t:[]const u8 = "<!-- split here -->";
+    const newSi = mem.replacementSize(u8, respPage, t, note);
+    const newPage = try alloc.alloc(u8, newSi);
+    _ = mem.replace(u8, respPage, t, note, newPage);
+    defer alloc.free(newPage);
+
     try sendHeaders(200, curTime, req);
-    req.server.out.print("{s}", .{respPage}) catch return;
-    req.server.out.flush() catch return ;
+    req.server.out.print("{s}", .{newPage}) catch return;
+    req.server.out.flush() catch return;
 }
 
 fn ranStr(len:usize, alloc: mem.Allocator) ![]u8 {

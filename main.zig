@@ -53,7 +53,8 @@ pub fn hanConn(conn: net.Server.Connection) !void {
     var writer = conn.stream.writer(&buf);
     var http_server = http.Server.init(reader.interface(), &writer.interface);
     var req = try http_server.receiveHead();
-    const reqPage:[]const u8 = req.head.target[1..];
+    var reqPage:[]const u8 = req.head.target[1..];
+    if (std.mem.eql(u8, reqPage, "")) reqPage = "new";
     const l = [_][]const u8 {
         "\x1b[1;37m[\x1b[1;33mreq\x1b[1;37m]:\x1b[0m ",
         "\x1b[1;36mdate\x1b[1;37m{\x1b[0m",

@@ -32,9 +32,12 @@ var stdout_wr = fs.File.stdout().writer(&stdout_buf);
 const stdout = &stdout_wr.interface;
 
 var port:u16 = 7855;
-var db = std.AutoHashMap([]u8, Note).init(heap.page_allocator);
+
+const globAlloc = heap.page_allocator;
+var db = std.StringHashMap(Note).init(globAlloc);
 
 pub fn main() !void {
+    defer db.deinit();
     const addr = try net.Address.resolveIp("::", port);
     var server = try addr.listen(.{ .reuse_address = true });
     defer server.deinit();
@@ -45,7 +48,6 @@ pub fn main() !void {
     while (true) {
         try hanConn(try server.accept());
     }
-    db.deinit();
 }
 
 pub fn hanConn(conn: net.Server.Connection) !void {
@@ -115,31 +117,43 @@ pub fn hanConn(conn: net.Server.Connection) !void {
 fn newNote(serverConn:ServerConn) !void {
     const curTime = serverConn.reqTime;
     const req = serverConn.req;
-    const params = serverConn.params;
-    try stdout.print("{s}", .{params});
-    try stdout.flush();
 
     var gpa = heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const alloc = gpa.allocator();
 
-    const dateHeader = try fmt.allocPrint(alloc, "date: {s}", .{curTime});
-    const headers = [_][]const u8 {
-        "HTTP/1.1 200 OK",
-        "Content-Type: text/html",
-        "x-content-type-options: nosniff", 
-        "server: homebrew zig http server",
-        dateHeader,
-        ""
-    };for (headers) |h| {
-        try req.server.out.print("{s}\r\n", .{h});
-        try req.server.out.flush();
-    } alloc.free(dateHeader);
+    var note:[]const u8 = "";
+    var hItr = req.iterateHeaders();
+    while (hItr.next()) |h| {
+        if (mem.eql(u8, h.name, "note")) { note = h.value ; break; }
+    } {
+        const dateHeader = try fmt.allocPrint(alloc, "date: {s}", .{curTime});
+        const headers = [_][]const u8 {
+            "HTTP/1.1 200 OK",
+            "Content-Type: text/html",
+            "x-content-type-options: nosniff", 
+            "server: homebrew zig http server",
+            dateHeader,
+            ""
+        };for (headers) |h| {
+            try req.server.out.print("{s}\r\n", .{h});
+            try req.server.out.flush();
+        } alloc.free(dateHeader);
+    }
 
-
-    
-    try req.server.out.print("{s}", .{web.new});
-    try req.server.out.flush();
+    if (note.len == 0) try req.server.out.print("{s}", .{web.new}) else {
+        const id:[]u8 = try ranStr(16, globAlloc);
+        defer globAlloc.free(id);
+        const n:Note = .{
+            .content = try globAlloc.dupe(u8, note),
+            .Encrypt = false,
+        };
+        db.put(id, n) catch {
+            req.server.out.print("failed to save", .{}) catch return;
+            return;
+        };
+        try req.server.out.print("{s}\n", .{id});
+    } try req.server.out.flush();
 }
 
 fn viewNote(serverConn:ServerConn) !void {
@@ -153,20 +167,37 @@ fn viewNote(serverConn:ServerConn) !void {
     var pItr = mem.splitAny(u8, params, "&");
     var idR:[]const u8 = "";
     while (pItr.next()) |par| {
-        var p = mem.splitAny(u8, par, "=");
+        var p = mem.splitScalar(u8, par, '=');
         while (p.next()) |k| {
             if (mem.eql(u8, k, "id")) {
-                idR = try mem.Allocator.dupe(alloc, u8, pItr.next().?);
+                idR = try mem.Allocator.dupe(alloc, u8, p.next().?);
                 break;
             } _ = p.next();
         }
-    }
+    } defer alloc.free(idR);
     
-    const id:[]u8 = try mem.Allocator.dupe(alloc, u8, pItr.next().?);
-    const note:Note = db.get(id) orelse return;
-    const val:[]u8 = note.content;
-    try stdout.print("{s}", .{val});
-    try stdout.flush();
+    const id:[]u8 = try mem.Allocator.dupe(globAlloc, u8, idR); 
+    defer globAlloc.free(id);
+    if (db.get(id)) |n| {
+        req.server.out.print("{s}", .{n.content}) catch return;
+    } else {
+        const dateHeader = try fmt.allocPrint(alloc, "date: {s}", .{curTime});
+        const headers = [_][]const u8 {
+            "HTTP/1.1 400 Bad Request",
+            "Content-Type: text/html",
+            "x-content-type-options: nosniff", 
+            "server: homebrew zig http server",
+            dateHeader,
+            ""
+        };
+        for (headers) |h| {
+            req.server.out.print("{s}\r\n", .{h}) catch return;
+            req.server.out.flush() catch return;
+        } alloc.free(dateHeader);
+        req.server.out.print("id '{s}' not found\n", .{id}) catch return;
+        req.server.out.flush() catch return;
+        return;
+    } req.server.out.flush() catch return;
 
     const dateHeader = try fmt.allocPrint(alloc, "date: {s}", .{curTime});
     const headers = [_][]const u8 {
@@ -176,11 +207,24 @@ fn viewNote(serverConn:ServerConn) !void {
         "server: homebrew zig http server",
         dateHeader,
         ""
-    };for (headers) |h| {
-        try req.server.out.print("{s}\r\n", .{h});
-        try req.server.out.flush();
+    };
+    for (headers) |h| {
+        req.server.out.print("{s}\r\n", .{h}) catch return;
+        req.server.out.flush() catch return;
     } alloc.free(dateHeader);
 
-    try req.server.out.print("{s}", .{web.view});
-    try req.server.out.flush();
+    req.server.out.print("{s}", .{web.view}) catch return;
+    req.server.out.flush() catch return ;
+}
+
+fn ranStr(len:usize, alloc: mem.Allocator) ![]u8 {
+    const chars:[]const u8 = "qwertyuioplkjhgfdsazxcvbnmQWERTYUIOPKLJHGFDSAZXCVBNM1234567890";
+    var pran = std.crypto.random;
+    const buf = try alloc.alloc(u8, len);
+
+    for (buf) |*byte| {
+        const i = pran.intRangeAtMost(usize, 0, chars.len-1);
+        byte.* = chars[i];
+    }
+    return buf;
 }

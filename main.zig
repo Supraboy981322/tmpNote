@@ -172,7 +172,14 @@ fn viewNote(serverConn:ServerConn) !void {
     defer globAlloc.free(id);
 
     var note:[]const u8 = "key not found";
-    if (db.get(id)) |n| note = try globAlloc.dupe(u8, n.content);
+    if (db.get(id)) |n| {
+        note = try globAlloc.dupe(u8, n.content);
+        if (!db.remove(id)) {
+            try sendHeaders(500, curTime, req);
+            req.server.out.print("failed to remove from db", .{}) catch return;
+            return;
+        }
+    }
 
     const t:[]const u8 = "<!-- split here -->";
     const newSi = mem.replacementSize(u8, respPage, t, note);

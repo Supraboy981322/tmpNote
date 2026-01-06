@@ -104,11 +104,21 @@ pub fn hanConn(conn: net.Server.Connection) !void {
         .params = params,
     };
 
-    const vp = enum { new, view, dash, invalid };
+    const vp = enum { new, view, dash, api_view, api_new, invalid };
     const page = std.meta.stringToEnum(vp, reqPage) orelse vp.invalid;
     switch (page) {
-        .new => { try newNote(serverConn); },
-        .view => { try viewNote(serverConn); },
+        .new => { try newNotePage(serverConn, globAlloc); },
+        .view => { try viewNotePage(serverConn, globAlloc); },
+        .api_view => {
+            const note:[]const u8 = try viewNote(serverConn, globAlloc);
+            req.server.out.print("{s}", .{note}) catch return;
+            req.server.out.flush() catch return;
+        },
+        .api_new => { 
+            const id:[]const u8 = try newNote(serverConn, globAlloc);
+            req.server.out.print("{s}", .{id}) catch return;
+            req.server.out.flush() catch return;
+        },
         else => {
             req.server.out.print("HTTP/1.1 403 FORBIDDEN\r\n", .{}) catch return;
             req.server.out.print("\r\n", .{}) catch return;
@@ -118,45 +128,47 @@ pub fn hanConn(conn: net.Server.Connection) !void {
     }
 }
 
-fn newNote(serverConn:ServerConn) !void {
+fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
+    _ = alloc;
+    try hlp.sendHeaders(200, conn.reqTime, conn.req);
+    conn.req.server.out.print("{s}", .{web.new}) catch return;
+}
+
+fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     const curTime = serverConn.reqTime;
     const req = serverConn.req;
-
-    //var gpa = heap.GeneralPurposeAllocator(.{}){};
-    //defer _ = gpa.deinit();
-    //const alloc = gpa.allocator();
 
     var note:[]const u8 = "";
     var hItr = req.iterateHeaders();
     while (hItr.next()) |h| {
         if (mem.eql(u8, h.name, "note")) { note = h.value ; break; }
     }
+   
+    const cont:[]u8 = try alloc.dupe(u8, note);
+    defer alloc.free(cont);
 
-    if (note.len == 0) try req.server.out.print("{s}", .{web.new}) else {
-        const id:[]u8 = try hlp.ranStr(16, globAlloc);
-        defer globAlloc.free(id);
-        const n:Note = .{
-            .content = try globAlloc.dupe(u8, note),
-            .Encrypt = false,
-        };
-        db.put(id, n) catch {
-            try hlp.sendHeaders(500, curTime, req);
-            req.server.out.print("failed to save", .{}) catch return;
-            return;
-        };
-        try hlp.sendHeaders(200, curTime, req);
-        try req.server.out.print("{s}\n", .{id});
-    } try req.server.out.flush();
+    const id:[]u8 = try hlp.ranStr(16, globAlloc);
+    defer alloc.free(id);
+
+    const n:Note = .{
+        .content = cont,
+        .Encrypt = false,
+    };
+
+    db.put(id, n) catch {
+        hlp.sendHeaders(500, curTime, req) catch {};
+        return "failed to store note";
+    };
+    
+    hlp.sendHeaders(200, curTime, req) catch return id;
+
+    try stdout.print("{s}\n", .{n.content});
+    try stdout.flush();
+    return try alloc.dupe(u8, id);
 }
 
-fn viewNote(serverConn:ServerConn) !void {
-    var gpa = heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const alloc = gpa.allocator();
-
-    const curTime = serverConn.reqTime;
-    const req = serverConn.req;
-    const params = serverConn.params;
+fn viewNote(conn:ServerConn, alloc:mem.Allocator) ![]const u8 {
+    const params = conn.params;
     var pItr = mem.splitAny(u8, params, "&");
     var idR:[]const u8 = "";
     while (pItr.next()) |par| {
@@ -168,27 +180,34 @@ fn viewNote(serverConn:ServerConn) !void {
             } _ = p.next();
         }
     } defer globAlloc.free(idR);
-    
-    const respPage:[]const u8 = web.view;
-    const id:[]u8 = try globAlloc.dupe(u8, idR); 
-    defer globAlloc.free(id);
+
+    const id:[]u8 = try globAlloc.dupe(u8, idR);
 
     var note:[]const u8 = "key not found";
     if (db.get(id)) |n| {
         note = try globAlloc.dupe(u8, n.content);
         if (!db.remove(id)) {
-            try hlp.sendHeaders(500, curTime, req);
-            req.server.out.print("failed to remove from db", .{}) catch return;
-            return;
+            hlp.sendHeaders(500, conn.reqTime, conn.req) catch {};
+            return "failed to remove from db";
         }
     }
 
+    try hlp.sendHeaders(200, conn.reqTime, conn.req);
+    return try alloc.dupe(u8, note);
+}
+
+fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
+    const curTime = conn.reqTime;
+    const respPage:[]const u8 = web.view;
+
+    const note:[]const u8 = try viewNote(conn, alloc);
     const t:[]const u8 = "<!-- split here -->";
     const newSi = mem.replacementSize(u8, respPage, t, note);
     const newPage = try alloc.alloc(u8, newSi);
     _ = mem.replace(u8, respPage, t, note, newPage);
     defer alloc.free(newPage);
 
+    const req = conn.req;
     try hlp.sendHeaders(200, curTime, req);
     req.server.out.print("{s}", .{newPage}) catch return;
     req.server.out.flush() catch return;

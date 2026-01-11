@@ -135,6 +135,7 @@ fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
 }
 
 fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
+    _ = alloc;
     const curTime = serverConn.reqTime;
     const req = serverConn.req;
 
@@ -144,11 +145,11 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
         if (mem.eql(u8, h.name, "note")) { note = h.value ; break; }
     }
    
-    const cont:[]u8 = try alloc.dupe(u8, note);
-    defer alloc.free(cont);
+    const cont:[]u8 = try globAlloc.dupe(u8, note);
+//    defer globAlloc.free(cont);
 
     const id:[]u8 = try hlp.ranStr(16, globAlloc);
-    defer alloc.free(id);
+//    defer globAlloc.free(id);
 
     const n:Note = .{
         .content = cont,
@@ -164,10 +165,11 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
 
     try stdout.print("{s}\n", .{n.content});
     try stdout.flush();
-    return try alloc.dupe(u8, id);
+    return try globAlloc.dupe(u8, id);
 }
 
 fn viewNote(conn:ServerConn, alloc:mem.Allocator) ![]const u8 {
+    _ = alloc;
     const params = conn.params;
     var pItr = mem.splitAny(u8, params, "&");
     var idR:[]const u8 = "";
@@ -179,21 +181,23 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator) ![]const u8 {
                 break;
             } _ = p.next();
         }
-    } defer globAlloc.free(idR);
+    } //defer globAlloc.free(idR);
 
     const id:[]u8 = try globAlloc.dupe(u8, idR);
 
     var note:[]const u8 = "key not found";
     if (db.get(id)) |n| {
         note = try globAlloc.dupe(u8, n.content);
+        try stdout.print("{s}\n", .{note});
+        try stdout.flush();
         if (!db.remove(id)) {
             hlp.sendHeaders(500, conn.reqTime, conn.req) catch {};
             return "failed to remove from db";
         }
-    }
+    }// defer globAlloc.free(note);
 
     try hlp.sendHeaders(200, conn.reqTime, conn.req);
-    return try alloc.dupe(u8, note);
+    return try globAlloc.dupe(u8, note);
 }
 
 fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {

@@ -135,7 +135,6 @@ fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
 }
 
 fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
-    _ = alloc;
     const curTime = serverConn.reqTime;
     const req = serverConn.req;
 
@@ -145,11 +144,11 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
         if (mem.eql(u8, h.name, "note")) { note = h.value ; break; }
     }
    
-    const cont:[]u8 = try globAlloc.dupe(u8, note);
-//    defer globAlloc.free(cont);
+    const cont:[]u8 = try alloc.dupe(u8, note);
+//    defer globAlloc.free(cont); //if I free this, it seg-faults on 'db.get(id)'
 
-    const id:[]u8 = try hlp.ranStr(16, globAlloc);
-//    defer globAlloc.free(id);
+    const id:[]u8 = try hlp.ranStr(16, alloc);
+//    defer globAlloc.free(id); //if I free this, it seg-faults on 'db.get(id)'
 
     const n:Note = .{
         .content = cont,
@@ -165,39 +164,36 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
 
     try stdout.print("{s}\n", .{n.content});
     try stdout.flush();
-    return try globAlloc.dupe(u8, id);
+    return id;
 }
 
 fn viewNote(conn:ServerConn, alloc:mem.Allocator) ![]const u8 {
-    _ = alloc;
     const params = conn.params;
     var pItr = mem.splitAny(u8, params, "&");
-    var idR:[]const u8 = "";
+    var id:[]const u8 = "";
     while (pItr.next()) |par| {
         var p = mem.splitScalar(u8, par, '=');
         while (p.next()) |k| {
             if (mem.eql(u8, k, "id")) {
-                idR = try globAlloc.dupe(u8, p.next().?);
+                id = try alloc.dupe(u8, p.next().?);
                 break;
             } _ = p.next();
         }
-    } //defer globAlloc.free(idR);
-
-    const id:[]u8 = try globAlloc.dupe(u8, idR);
+    } defer alloc.free(id);
 
     var note:[]const u8 = "key not found";
     if (db.get(id)) |n| {
-        note = try globAlloc.dupe(u8, n.content);
+        note = n.content;
         try stdout.print("{s}\n", .{note});
         try stdout.flush();
         if (!db.remove(id)) {
             hlp.sendHeaders(500, conn.reqTime, conn.req) catch {};
             return "failed to remove from db";
         }
-    }// defer globAlloc.free(note);
+    }
 
     try hlp.sendHeaders(200, conn.reqTime, conn.req);
-    return try globAlloc.dupe(u8, note);
+    return note;
 }
 
 fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {

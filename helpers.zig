@@ -6,6 +6,10 @@ const heap = std.heap;
 const fmt = std.fmt;
 const mem = std.mem;
 
+var stdout_buf:[1024]u8 = undefined;
+var stdout_wr = std.fs.File.stdout().writer(&stdout_buf);
+const stdout = &stdout_wr.interface;
+
 pub fn sendHeaders(status:i16, curTime: []u8, req:http.Server.Request) !void {
     var gpa = heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -47,3 +51,28 @@ pub fn ranStr(len:usize, alloc: mem.Allocator) ![]u8 {
 
     return buf;
 }
+
+pub const log = struct {
+    pub fn req(curTime:[]const u8, remAddr:[]const u8, reqPage: []const u8) !void {
+        const l = [_][]const u8 {
+            "\x1b[1;37m[\x1b[1;33mreq\x1b[1;37m]:\x1b[0m ",
+            "\x1b[1;36mdate\x1b[1;37m{\x1b[0m",
+            curTime,
+            "\x1b[1;37m}\x1b[0m ",
+            "\x1b[1;35maddr\x1b[1;37m{\x1b[0m",
+            remAddr,
+            "\x1b[1;37m}\x1b[0m ",
+            "\x1b[1;34mpage\x1b[1;37m{\x1b[0m",
+            reqPage,
+            "\x1b[1;37m}\x1b[0m",
+            "\n"
+        };
+        for (l) |p| try stdout.print("{s}", .{p});
+        try stdout.flush();
+    }
+    pub fn info(comptime msg:[]const u8, args:anytype) !void {
+        try stdout.print("\x1b[1;37m[\x1b[1;35minfo\x1b[1;37m]:\x1b[0m ", .{});
+        try stdout.print(msg, args);
+        try stdout.flush();
+    }
+};

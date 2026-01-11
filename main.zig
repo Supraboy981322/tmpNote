@@ -10,6 +10,7 @@ const mem = std.mem;
 const net = std.net;
 const heap = std.heap;
 const http = std.http;
+const log = hlp.log;
 
 //embeded web-ui files
 const web = struct {
@@ -44,7 +45,7 @@ pub fn main() !void {
     var server = try addr.listen(.{ .reuse_address = true });
     defer server.deinit();
 
-    try stdout.print("listening on port {d}\n", .{port});
+    try log.info("listening on port {d}\n", .{port});
     try stdout.flush();
 
     while (true) {
@@ -81,21 +82,7 @@ pub fn hanConn(conn: net.Server.Connection) !void {
     var params:[]const u8 = "";
     if (itr.peek() != null) params = itr.next().?;
     if (std.mem.eql(u8, reqPage, "")) reqPage = "new";
-    const l = [_][]const u8 {
-        "\x1b[1;37m[\x1b[1;33mreq\x1b[1;37m]:\x1b[0m ",
-        "\x1b[1;36mdate\x1b[1;37m{\x1b[0m",
-        curTime,
-        "\x1b[1;37m}\x1b[0m ",
-        "\x1b[1;35maddr\x1b[1;37m{\x1b[0m",
-        remAddr,
-        "\x1b[1;37m}\x1b[0m ",
-        "\x1b[1;34mpage\x1b[1;37m{\x1b[0m",
-        reqPage,
-        "\x1b[1;37m}\x1b[0m",
-        "\n"
-    };
-    for (l) |p| try stdout.print("{s}", .{p});
-    try stdout.flush();
+    try log.req(curTime, remAddr, reqPage);
 
     const serverConn:ServerConn = ServerConn{
         .conn = conn,
@@ -162,8 +149,6 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     
     hlp.sendHeaders(200, curTime, req) catch return id;
 
-    try stdout.print("{s}\n", .{n.content});
-    try stdout.flush();
     return id;
 }
 
@@ -184,8 +169,6 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     var note:[]const u8 = "key not found";
     if (db.get(id)) |n| {
         note = n.content;
-        try stdout.print("{s}\n", .{note});
-        try stdout.flush();
         if (!db.remove(id)) {
             hlp.sendHeaders(500, conn.reqTime, conn.req) catch {};
             return "failed to remove from db";

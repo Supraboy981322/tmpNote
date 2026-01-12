@@ -135,6 +135,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
         },
         .api_new => { 
             const id:[]const u8 = try newNote(serverConn, globAlloc);
+            if (mem.eql(u8, id, "")) return;
             req.server.out.print("{s}", .{id}) catch return;
             req.server.out.flush() catch return;
         },
@@ -152,6 +153,7 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     //get needed vals from struct
     const curTime = serverConn.reqTime;
     const req = serverConn.req;
+    const conf = serverConn.conf;
 
     //placeholder for note
     var note:[]u8 = "";
@@ -161,6 +163,20 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
         if (mem.eql(u8, h.name, "note")) {
             note = try alloc.dupe(u8, h.value); 
             break;
+        }
+    } if (mem.eql(u8, note, "")) {
+        const len_s:?u64 = req.head.content_length;
+        if (len_s) |s| {
+            const conn_r = &serverConn.req.server.reader;
+            const bod_buf:[]u8 = "";
+            const bod_r = conn_r.bodyReader(bod_buf, http.TransferEncoding.none, s);
+            const bod:[]u8 = try bod_r.readAlloc(alloc, conf.max_note_size);
+            note = bod;
+            try stdout.print("{s}\n", .{note});
+            try stdout.flush();
+        } else {
+            hlp.sendHeaders(400, curTime, req) catch {};
+            return "no note";
         }
     }
 

@@ -6,41 +6,71 @@
       :root, body {
         margin: 0;
         padding: 0;
-        color: white;
+        color: #d8dee9;
         font-family: monospace;
-        background-color: black;
+        background-color: #2e3440;
         &> div {
-          width: fit-content;
-          height: fit-content;
           margin-left: auto;
           margin-right: auto;
-          * { text-align: center; }
+          width: fit-content;
+          height: fit-content;
+          p { text-align: center; }
         }
+      }
+      h1 {
+        &> .server_name {
+          color: #ff5454;
+          font-style: italic;
+        }
+        &> .page { color: #d8dee9; }
       }
       h1, .resText, .id { text-align: center }
       #note {
-        display: block;
         width: 80vw;
         height: 50vw;
-        background-color: black;
-        color: white;
-        border: solid white 0.25em;
-        border-radius: 1em;
         padding: 2em;
-        box-sizing: border-box;
-        margin-bottom: 1em;
-        font-size: 1.25em;
         outline: none;
+        color: #d8dee9;
+        display: block;
+        font-size: 1.25em;
+        border-radius: 1em;
+        margin-bottom: 1em;
+        font-family: monospace;
+        box-sizing: border-box;
+        background-color: #2e3440;
+        border: solid #d8dee9 0.25em;
+      }
+      .new_note {
+        outline: none;
+        border: none;
+        display: block;
+        color: #2e3440;
+        font-weight: bold;
+        box-sizing: border-box;
+        background-color: grey;
+        font-size: 2ch;
+        padding: 1em;
+        border-radius: 1em;
+        width: 80vw;
+        cursor: pointer;
       }
     </style>
   </head>
   <body>
     <div>
-      <h1><!-- server name --> - view</h1>
-      <pre class="note"><!-- split here --></pre>
+      <h1>
+        <span class="server_name"><!-- server name --></span>
+        <span class="page">- view</span>
+      </h1>
       <p><i>note deleted</i></p>
+      <pre id="note"><!-- split here --></pre>
+      <button class="new_note" onclick="newNote();">new note</button>
     </div>
   </body>
   <script>
+    function newNote() {
+      url = `${window.location.origin}/new`;
+      window.location.replace(url);
+    }
   </script>
 </html>

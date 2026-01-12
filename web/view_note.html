@@ -14,6 +14,7 @@
           height: fit-content;
           margin-left: auto;
           margin-right: auto;
+          * { text-align: center; }
         }
       }
       h1, .resText, .id { text-align: center }
@@ -35,17 +36,11 @@
   </head>
   <body>
     <div>
-      <h1>TODO: web ui</h1>
+      <h1><!-- server name --> - view</h1>
       <pre class="note"><!-- split here --></pre>
-      <i>note deleted</i>
+      <p><i>note deleted</i></p>
     </div>
   </body>
   <script>
-    document.onload => () {
-      let noteElm = document.querySelector(".note");
-      let noteCont = noteElm.innerText;
-      let newCont = noteCont;
-      noteElm.textContent = newCont; 
-    }
   </script>
 </html>

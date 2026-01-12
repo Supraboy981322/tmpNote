@@ -1,8 +1,8 @@
 const std = @import("std");
 const hlp = @import("helpers.zig");
-const cTime = @cImport(
-    @cInclude("time.h")
-);
+const c = @cImport({
+    @cInclude("time.h");
+});
 
 //structs from std
 const fs = std.fs;
@@ -11,6 +11,7 @@ const mem = std.mem;
 const net = std.net;
 const heap = std.heap;
 const http = std.http;
+const builtin = std.builtin;
 
 //structs from helpers
 const log = hlp.log;
@@ -33,10 +34,12 @@ const Note = struct {
     Encrypt: bool,
 };
 
+//print to stdout (defaulting to stderr is stupid)
 var stdout_buf:[1024]u8 = undefined;
 var stdout_wr = fs.File.stdout().writer(&stdout_buf);
 const stdout = &stdout_wr.interface;
 
+//may put in a config 
 var port:u16 = 7855;
 
 //global allocator (scoped allocation is dumb)
@@ -75,14 +78,14 @@ pub fn hanConn(conn: net.Server.Connection) !void {
     const alloc = gpa.allocator();
 
     //get time (uses C's time lib)
-    const timeStamp = cTime.time(null);
-    const locTime = cTime.localtime(&timeStamp);
+    const timeStamp = c.time(null);
+    const locTime = c.localtime(&timeStamp);
     //define proper HTTP spec format for time header 
     const format = "%a, %d %b %Y %H:%M:%S GMT";
     //create a buffer for time formatting 
     var time_buf:[40]u8 = undefined;
     //actually format it
-    const time_len = cTime.strftime(&time_buf, time_buf.len, format, locTime);
+    const time_len = c.strftime(&time_buf, time_buf.len, format, locTime);
     //set the current time 
     const curTime = time_buf[0..time_len];
    

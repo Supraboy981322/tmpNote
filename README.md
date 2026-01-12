@@ -40,8 +40,9 @@ If a feature is not checked off, it is not yet implemented, but is planned.
     - [ ] parsing headers for note ID 
     - [x] parsing headers for new note
     - [ ] parsing query params for new note
+    - [x] reading POST request body for note content
     - [x] replacing HTML placeholder comment with note
     - [x] replying with the note ID when creating a new note
     - [x] determine api vs webui requests
-    - [ ] dedicated api http handlers
+    - [x] dedicated api http handlers
   - [x] Catch-up to Go proto

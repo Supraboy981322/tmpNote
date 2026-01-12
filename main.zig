@@ -1,5 +1,6 @@
 const std = @import("std");
 const hlp = @import("helpers.zig");
+const config = @import("conf.zig").conf;
 const c = @cImport({
     @cInclude("time.h");
 });
@@ -11,7 +12,6 @@ const mem = std.mem;
 const net = std.net;
 const heap = std.heap;
 const http = std.http;
-const builtin = std.builtin;
 
 //structs from helpers
 const log = hlp.log;
@@ -28,19 +28,17 @@ const ServerConn = struct {
     req: http.Server.Request,
     reqTime: []u8,
     params: []const u8,
+    conf: config,
 };
 const Note = struct {
     content: []u8,
-    Encrypt: bool,
+    Encrypt: bool, //might do this at some point
 };
 
 //print to stdout (defaulting to stderr is stupid)
 var stdout_buf:[1024]u8 = undefined;
 var stdout_wr = fs.File.stdout().writer(&stdout_buf);
 const stdout = &stdout_wr.interface;
-
-//may put in a config 
-var port:u16 = 7855;
 
 //global allocator (scoped allocation is dumb)
 const globAlloc = heap.page_allocator;
@@ -49,27 +47,29 @@ const globAlloc = heap.page_allocator;
 var db = std.StringHashMap(Note).init(globAlloc);
 
 pub fn main() !void {
+    const conf = try config.read(globAlloc);
     defer db.deinit();
 
     //get server addr
-    const addr = try net.Address.resolveIp("::", port);
+    const addr = try net.Address.resolveIp("::", conf.port);
 
     //initialize server 
     var server = try addr.listen(.{ .reuse_address = true });
     defer server.deinit();
 
     //log port
-    try log.info("listening on port {d}\n", .{port});
+    try log.info("{s} is listening on port {d}\n", .{conf.name, conf.port});
     try stdout.flush();
 
     //wait for connections
     while (true) {
-        hanConn(server.accept() catch continue) catch continue;
+        const acc = server.accept() catch continue;
+        hanConn(acc, conf) catch continue;
     }
 }
 
 //handles incoming connections
-pub fn hanConn(conn: net.Server.Connection) !void {
+pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     defer conn.stream.close();
 
     //scoped allocator
@@ -119,6 +119,7 @@ pub fn hanConn(conn: net.Server.Connection) !void {
         .req = req,
         .reqTime = curTime,
         .params = params,
+        .conf = conf,
     };
 
     //why can't I just switch on strings? 
@@ -145,12 +146,6 @@ pub fn hanConn(conn: net.Server.Connection) !void {
             req.server.out.flush() catch return ;
         },
     }
-}
-
-fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
-    _ = alloc; //may use later
-    try hlp.sendHeaders(200, conn.reqTime, conn.req);
-    conn.req.server.out.print("{s}", .{web.new}) catch return;
 }
 
 fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
@@ -223,6 +218,18 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     hlp.sendHeaders(200, conn.reqTime, conn.req) catch {}; //ignore err
 
     return note;
+}
+
+fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
+    const reqPage:[]const u8 = web.new;
+    
+    const na_plac:[]const u8 = "<!-- server name -->";
+    const na_replac_si = mem.replacementSize(u8, reqPage, na_plac, conn.conf.name);
+    const new_page = try alloc.alloc(u8, na_replac_si);
+    _ = mem.replace(u8, reqPage, na_plac, conn.conf.name, new_page);
+
+    try hlp.sendHeaders(200, conn.reqTime, conn.req);
+    conn.req.server.out.print("{s}", .{new_page}) catch return;
 }
 
 fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {

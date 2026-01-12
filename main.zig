@@ -301,7 +301,9 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
         req.server.out.print("failed to sanitize html, aborting for security", .{}) catch {};
         return e;
     };
+    defer alloc.free(note);
     
+    //insert server name to HTML
     const na_plac:[]const u8 = "<!-- server name -->";
     const na_replac_si = mem.replacementSize(u8, reqPage, na_plac, conn.conf.name);
     const respPage = alloc.alloc(u8, na_replac_si) catch |e| {
@@ -310,6 +312,7 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
         return e;
     };
     _ = mem.replace(u8, reqPage, na_plac, conn.conf.name, respPage);
+    defer alloc.free(respPage);
 
     //replace placeholder HTML comment with content
     const t:[]const u8 = "<!-- split here -->";
@@ -319,7 +322,6 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
         hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
         return e;
     };
-
     _ = mem.replace(u8, respPage, t, note, newPage);
     defer alloc.free(newPage);
     

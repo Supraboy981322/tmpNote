@@ -138,10 +138,10 @@ pub fn hanConn(conn: net.Server.Connection) !void {
             req.server.out.flush() catch return;
         },
         else => {
-            //403 everything else
-            req.server.out.print("HTTP/1.1 403 FORBIDDEN\r\n", .{}) catch return;
+            //404 everything else
+            req.server.out.print("HTTP/1.1 404 Not Found\r\n", .{}) catch return;
             req.server.out.print("\r\n", .{}) catch return;
-            req.server.out.print("403 forbidden\n", .{}) catch return;
+            req.server.out.print("404 not found\n", .{}) catch return;
             req.server.out.flush() catch return ;
         },
     }

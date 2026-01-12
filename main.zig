@@ -147,6 +147,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
             req.server.out.flush() catch return ;
         },
     }
+    req.server.out.flush();
 }
 
 fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
@@ -161,19 +162,22 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     var hItr = req.iterateHeaders();
     while (hItr.next()) |h| {
         if (mem.eql(u8, h.name, "note")) {
-            note = try alloc.dupe(u8, h.value); 
+            note = alloc.dupe(u8, h.value) catch return; 
             break;
         }
-    } if (mem.eql(u8, note, "")) {
+    } if (mem.eql(note, "")) {
         const len_s:?u64 = req.head.content_length;
         if (len_s) |s| {
             const conn_r = &serverConn.req.server.reader;
             const bod_buf:[]u8 = "";
             const bod_r = conn_r.bodyReader(bod_buf, http.TransferEncoding.none, s);
-            const bod:[]u8 = try bod_r.readAlloc(alloc, conf.max_note_size);
+            const bod:[]u8 = bod_r.readAlloc(alloc, conf.max_note_size) catch |e| {
+                try log.err("failed to read req body: {any}", .{e});
+                hlp.sendHeaders(500, curTime, req) catch {};
+                req.server.out.print("failed to read request body", .{}) catch {};
+                return "server err"
+            }
             note = bod;
-            try stdout.print("{s}\n", .{note});
-            try stdout.flush();
         } else {
             hlp.sendHeaders(400, curTime, req) catch {};
             return "no note";
@@ -190,9 +194,10 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     };
 
     //add the note to db
-    db.put(id, n) catch { //on err
+    db.put(id, n) catch |e| { //on err
         //send headers (500 server err)
-        hlp.sendHeaders(500, curTime, req) catch {}; //ignore err 
+        hlp.sendHeaders(500, curTime, req) catch {}; //ignore err
+        try log.err("failed to read store note: {any}", .{e});
         return "failed to store note";
     };
    
@@ -212,7 +217,11 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
         while (p.next()) |k| {
             if (mem.eql(u8, k, "id")) {
                 //set id parameter
-                id = try alloc.dupe(u8, p.next().?);
+                id = alloc.dupe(u8, p.next().?) catch |e| {
+                    try log.err("failed to allocate id duplication: {any}", .{e});
+                    hlp.sendHeaders(500, conn.req.Time, conn.req) catch {};
+                    return "failed to allocate id duplication";
+                };
                 break;
             } _ = p.next(); //skip value
         }
@@ -223,9 +232,10 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
     if (db.get(id)) |n| {
         //set note and delete from db
         note = n.content;
-        if (!db.remove(id)) {
+        if (!db.remove(id)) |e| {
             //send headers (500 server err)
             hlp.sendHeaders(500, conn.reqTime, conn.req) catch {}; //ignore err
+            try log.err("failed to remove from db, {any}", .{e});
             return "failed to remove from db";
         }
     }
@@ -243,10 +253,14 @@ fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     
     const na_plac:[]const u8 = "<!-- server name -->";
     const na_replac_si = mem.replacementSize(u8, reqPage, na_plac, conn.conf.name);
-    const new_page = try alloc.alloc(u8, na_replac_si);
+    const new_page = alloc.alloc(u8, na_replac_si) catch |e| {
+        hlp.sendHeaders(500, conn.reqTime, con.req) catch {};
+        try log.err("couldn't allocate replacement page size, {any}", .{e});
+        return e;
+    };
     _ = mem.replace(u8, reqPage, na_plac, conn.conf.name, new_page);
 
-    try hlp.sendHeaders(200, conn.reqTime, conn.req);
+    hlp.sendHeaders(200, conn.reqTime, conn.req) catch {};
     conn.req.server.out.print("{s}", .{new_page}) catch return;
 }
 
@@ -257,17 +271,31 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
 
     //get the note content
     const noteR:[]const u8 = try viewNote(conn, alloc, false);
-    const note = try hlp.sanitizeHTML(noteR, alloc);
+    const note = hlp.sanitizeHTML(noteR, alloc) catch |e| {
+        hlp.sendHeaders(500, conn.reqTime, conn.req) catch {};
+        try log.err("failed to sanitize html: {any}", .{e});
+        req.server.out.print("failed to sanitize html, aborting for security", .{});
+        return e;
+    };
     
     const na_plac:[]const u8 = "<!-- server name -->";
     const na_replac_si = mem.replacementSize(u8, reqPage, na_plac, conn.conf.name);
-    const respPage = try alloc.alloc(u8, na_replac_si);
+    const respPage = alloc.alloc(u8, na_replac_si) catch |e| {
+        try log.err("failed to allocate replacement size: {any}", .{e});
+        hlp.sendHeaders(500, curTime, req) catch {};
+        return e;
+    };
     _ = mem.replace(u8, reqPage, na_plac, conn.conf.name, respPage);
 
     //replace placeholder HTML comment with content
     const t:[]const u8 = "<!-- split here -->";
     const newSi = mem.replacementSize(u8, respPage, t, note);
-    const newPage = try alloc.alloc(u8, newSi);
+    const newPage = alloc.alloc(u8, newSi) catch |e| {
+        try log.err("failed to allocate replacement size: {any}", .{e});
+        hlp.sendHeaders(500, curTime, req) catch {};
+        return e;
+    };
+
     _ = mem.replace(u8, respPage, t, note, newPage);
     defer alloc.free(newPage);
     

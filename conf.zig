@@ -60,7 +60,7 @@ pub const conf = struct {
         var li_N:usize = 0;
         while (try fi_I.takeDelimiter('\n')) |li| {
             li_N += 1;
-            var itr = mem.splitSequence(u8, li, ": ");
+            var itr = mem.splitSequence(u8, li, " : ");
             if (itr.next()) |keyR| {
                 if (itr.next()) |val| {
                     const key = meta.stringToEnum(conf_vals, keyR) orelse conf_vals.bad;

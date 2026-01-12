@@ -22,11 +22,18 @@ const valid_byte_sizes = enum {
     any,
     bad,
 };
-
+const bool_enum = enum {
+    TRUE,
+    FALSE,
+    T,
+    F,
+    BAD,
+};
 const conf_vals = enum {
     port,
     name,
     max_note_size,
+    escape_html_ampersand,
     bad,
 };
 
@@ -36,6 +43,7 @@ pub const conf = struct {
     port: u16,
     name: []const u8,
     max_note_size: u64,
+    escape_html_ampersand: bool,
 
     const Self = @This();
 
@@ -43,6 +51,7 @@ pub const conf = struct {
         var port:u16 = 7855;
         var name:[]const u8 = "tmpNote";
         var max_note_size:u64 = 1024 * 1024; //1MB
+        var escape_html_ampersand:bool = true;
 
         var fi = fs.cwd().openFile("config", .{}) catch |e| {
             switch (e) {
@@ -104,6 +113,18 @@ pub const conf = struct {
                             };
                             for (0..mult_num) |_| max_note_size *= 1024;
                         },
+                        .escape_html_ampersand => {
+                            var valU_buf:[1024]u8 = undefined;
+                            const valU = ascii.upperString(&valU_buf, val);
+                            const valEnum = meta.stringToEnum(bool_enum, valU) orelse bool_enum.BAD;
+                            switch (valEnum) {
+                                .TRUE =>  escape_html_ampersand = true,
+                                .T => escape_html_ampersand = true,
+                                .F => escape_html_ampersand = false,
+                                .FALSE => escape_html_ampersand = false,
+                                .BAD => try errf("invalid boolean value for '{s}': {s} (line {d})", .{keyR, val, li_N}),
+                            }
+                        },
                         .bad => try errf("invalid key in config: '{s}' (line {d})\n", .{keyR, li_N}),
                     }
                 } else try errf("invalid value for config: line {d}\n", .{li_N});
@@ -115,6 +136,7 @@ pub const conf = struct {
             .port = port,
             .name = name,
             .max_note_size = max_note_size,
+            .escape_html_ampersand = escape_html_ampersand,
         };
     }
 };

@@ -97,14 +97,14 @@ pub const log = struct {
     }
 };
 
-pub fn sanitizeHTML(og:[]const u8, alloc:mem.Allocator) ![]const u8 {
+pub fn sanitizeHTML(og:[]const u8, alloc:mem.Allocator, escapeAmper:bool) ![]const u8 {
     const bad = [_][]const u8{"<", ">", "&", "\"", "'"};
     var new_note:[]const u8 = og;
     for (0.., bad) |i, char| {
         const reChar:[]const u8 = switch (i) {
             0 => "&lt;",
             1 => "&gt;",
-            2 => "&amp;",
+            2 => if (escapeAmper) "&amp;" else "&",
             3 => "&quot;",
             4 => "&apos;",
             else => @panic("unknown escape"),

@@ -126,8 +126,12 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     const vp = enum { new, view, dash, api_view, api_new, invalid };
     const page = std.meta.stringToEnum(vp, reqPage) orelse vp.invalid;
     switch (page) {
+        //new note web page
         .new => { try newNotePage(serverConn, globAlloc); },
+
+        //view note web page 
         .view => { try viewNotePage(serverConn, globAlloc); },
+
         .api_view => {
             const note:[]const u8 = try viewNote(serverConn, globAlloc, true);
             defer req.server.out.flush() catch {};
@@ -156,6 +160,7 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     const req = serverConn.req;
     const conf = serverConn.conf;
 
+    //make sure the 'Content-Length' header isn't larger than the maximum note size
     if (req.head.content_length) |si| if (si > conf.max_note_size) {
         hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
         req.server.out.print("note exceeds configured limit", .{}) catch {};
@@ -164,6 +169,7 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
 
     //placeholder for note
     var note:[]u8 = "";
+
     //chk each header until 'note' header
     var hItr = req.iterateHeaders();
     while (hItr.next()) |h| {
@@ -178,9 +184,15 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     } if (mem.eql(u8, note, "")) {
         const len_s:?u64 = req.head.content_length;
         if (len_s) |s| {
-            const conn_r = &serverConn.req.server.reader;
-            const bod_buf:[]u8 = "";
+            //get req connection reader
+            const conn_r = &req.server.reader;
+
+            //get req body reader
+            const bod_buf:[]u8 = ""; //body buffer
             const bod_r = conn_r.bodyReader(bod_buf, http.TransferEncoding.none, s);
+            
+            //read the body
+            //  (assumes 'Content-Length' header is correct, responds 500 if not)
             const bod:[]u8 = bod_r.readAlloc(alloc, s) catch |e| {
                 try log.err("failed to read req body: {any}", .{e});
                 hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
@@ -189,8 +201,9 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
             };
             note = bod;
         } else {
+            //occurs if 'Content-Length' header is missing
             hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
-            return "no note";
+            return "need \"Content-Length\" header";
         }
     }
 
@@ -250,6 +263,7 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
         }
     }
 
+    //only send headers if not internal request
     if (isReq) {
         //send headers (200 OK)
         hlp.send.headers(200, conn.reqTime, conn.req) catch {}; //ignore err
@@ -281,7 +295,7 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
 
     //get the note content
     const noteR:[]const u8 = try viewNote(conn, alloc, false);
-    const note = hlp.sanitizeHTML(noteR, alloc) catch |e| {
+    const note = hlp.sanitizeHTML(noteR, alloc, conn.conf.escape_html_ampersand) catch |e| {
         hlp.send.headersWithType(500, conn.reqTime, conn.req, "text/plain") catch {};
         try log.err("failed to sanitize html: {any}", .{e});
         req.server.out.print("failed to sanitize html, aborting for security", .{}) catch {};

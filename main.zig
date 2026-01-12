@@ -129,7 +129,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
         .new => { try newNotePage(serverConn, globAlloc); },
         .view => { try viewNotePage(serverConn, globAlloc); },
         .api_view => {
-            const note:[]const u8 = try viewNote(serverConn, globAlloc);
+            const note:[]const u8 = try viewNote(serverConn, globAlloc, true);
             req.server.out.print("{s}", .{note}) catch return;
             req.server.out.flush() catch return;
         },
@@ -186,7 +186,7 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     return id;
 }
 
-fn viewNote(conn:ServerConn, alloc:mem.Allocator) ![]const u8 {
+fn viewNote(conn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
     //iterate over the headers 
     const params = conn.params;
     var pItr = mem.splitAny(u8, params, "&");
@@ -214,8 +214,10 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator) ![]const u8 {
         }
     }
 
-    //send headers (200 OK)
-    hlp.sendHeaders(200, conn.reqTime, conn.req) catch {}; //ignore err
+    if (isReq) {
+        //send headers (200 OK)
+        hlp.sendHeaders(200, conn.reqTime, conn.req) catch {}; //ignore err
+    }
 
     return note;
 }
@@ -235,10 +237,16 @@ fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
 fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const req = conn.req;
     const curTime = conn.reqTime;
-    const respPage:[]const u8 = web.view;
+    const reqPage:[]const u8 = web.view;
 
-    //get the note content 
-    const note:[]const u8 = try viewNote(conn, alloc);
+    //get the note content
+    const noteR:[]const u8 = try viewNote(conn, alloc, false);
+    const note = try hlp.sanitizeHTML(noteR, alloc);
+    
+    const na_plac:[]const u8 = "<!-- server name -->";
+    const na_replac_si = mem.replacementSize(u8, reqPage, na_plac, conn.conf.name);
+    const respPage = try alloc.alloc(u8, na_replac_si);
+    _ = mem.replace(u8, reqPage, na_plac, conn.conf.name, respPage);
 
     //replace placeholder HTML comment with content
     const t:[]const u8 = "<!-- split here -->";
@@ -246,7 +254,7 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const newPage = try alloc.alloc(u8, newSi);
     _ = mem.replace(u8, respPage, t, note, newPage);
     defer alloc.free(newPage);
-
+    
     //send headers (200 OK)
     hlp.sendHeaders(200, curTime, req) catch {}; //continue anyways if err
     

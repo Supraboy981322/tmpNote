@@ -76,3 +76,24 @@ pub const log = struct {
         try stdout.flush();
     }
 };
+
+pub fn sanitizeHTML(og:[]const u8, alloc:mem.Allocator) ![]const u8 {
+    const bad = [_][]const u8{"<", ">", "&", "\"", "'"};
+    var new_note:[]const u8 = og;
+    for (0.., bad) |i, char| {
+        const reChar:[]const u8 = switch (i) {
+            0 => "&lt;",
+            1 => "&gt;",
+            2 => "&amp;",
+            3 => "&quot;",
+            4 => "&apos;",
+            else => @panic("unknown escape"),
+        };
+        const new_si = mem.replacementSize(u8, new_note, char, reChar);
+        const tmp_note = try alloc.alloc(u8, new_si);
+        _ = mem.replace(u8, new_note, char, reChar, tmp_note);
+        new_note = tmp_note;
+    }
+
+    return new_note;
+}

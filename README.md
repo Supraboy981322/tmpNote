@@ -20,7 +20,7 @@ If a feature is not checked off, it is not yet implemented, but is planned.
   - [ ] tool wrapper with tui
 - [ ] api
   - [ ] Spec
-  - [ ] Go module
+  ~- [ ] Go module~
 - [ ] mascot(?)
 
 ## Progress
@@ -45,4 +45,5 @@ If a feature is not checked off, it is not yet implemented, but is planned.
     - [x] replying with the note ID when creating a new note
     - [x] determine api vs webui requests
     - [x] dedicated api http handlers
+    - [ ] Better web ui
   - [x] Catch-up to Go proto

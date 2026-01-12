@@ -72,7 +72,8 @@
         }
       });
       if (!resp.ok) {
-        throw new Error(`err, stat: ${resp.status}`);
+        const bod = await resp.text();
+        throw new Error(`err, stat: ${resp.status}\n\tserver:${bod}`);
       }
       let id = await resp.text();
       console.log(id)

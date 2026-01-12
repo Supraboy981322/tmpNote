@@ -36,10 +36,16 @@
   <body>
     <div>
       <h1>TODO: web ui</h1>
-      <div class="note"><!-- split here --></div>
+      <pre class="note"><!-- split here --></pre>
       <i>note deleted</i>
     </div>
   </body>
   <script>
+    document.onload => () {
+      let noteElm = document.querySelector(".note");
+      let noteCont = noteElm.innerText;
+      let newCont = noteCont;
+      noteElm.textContent = newCont; 
+    }
   </script>
 </html>

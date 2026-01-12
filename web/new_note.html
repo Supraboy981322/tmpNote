@@ -65,11 +65,8 @@
       url = `${window.location.origin}/api_new`;
       let n = document.getElementById("note").value;
       let resp = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'text/plain',
-          'note': n,
-        }
+        method: 'POST',
+        body: n
       });
       if (!resp.ok) {
         const bod = await resp.text();

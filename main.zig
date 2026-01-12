@@ -156,6 +156,12 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     const req = serverConn.req;
     const conf = serverConn.conf;
 
+    if (req.head.content_length) |si| if (si > conf.max_note_size) {
+        hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
+        req.server.out.print("note exceeds configured limit", .{}) catch {};
+        return "";
+    };
+
     //placeholder for note
     var note:[]u8 = "";
     //chk each header until 'note' header
@@ -175,7 +181,7 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
             const conn_r = &serverConn.req.server.reader;
             const bod_buf:[]u8 = "";
             const bod_r = conn_r.bodyReader(bod_buf, http.TransferEncoding.none, s);
-            const bod:[]u8 = bod_r.readAlloc(alloc, conf.max_note_size) catch |e| {
+            const bod:[]u8 = bod_r.readAlloc(alloc, s) catch |e| {
                 try log.err("failed to read req body: {any}", .{e});
                 hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
                 req.server.out.print("failed to read request body", .{}) catch {};
@@ -186,10 +192,6 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
             hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
             return "no note";
         }
-    } if (note.len > conf.max_note_size) {
-        hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
-        req.server.out.print("note exceeds configured limit", .{}) catch {};
-        return "";
     }
 
     //generate note id (freeing causes seg-fault)

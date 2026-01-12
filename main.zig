@@ -130,14 +130,14 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
         .view => { try viewNotePage(serverConn, globAlloc); },
         .api_view => {
             const note:[]const u8 = try viewNote(serverConn, globAlloc, true);
+            defer req.server.out.flush() catch {};
             req.server.out.print("{s}", .{note}) catch return;
-            req.server.out.flush() catch return;
         },
         .api_new => { 
             const id:[]const u8 = try newNote(serverConn, globAlloc);
+            defer req.server.out.flush() catch {};
             if (mem.eql(u8, id, "")) return;
             req.server.out.print("{s}", .{id}) catch return;
-            req.server.out.flush() catch return;
         },
         else => {
             //404 everything else
@@ -164,7 +164,8 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
         if (mem.eql(u8, h.name, "note")) {
             note = alloc.dupe(u8, h.value) catch {
                 hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
-                return "bad note";
+                req.server.out.print("bad note", .{}) catch {};
+                return "";
             };
             break;
         }

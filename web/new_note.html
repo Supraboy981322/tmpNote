@@ -62,11 +62,14 @@
   </body>
   <script>
     async function newNote() {
-      url = `${window.location.origin}/new`;
+      url = `${window.location.origin}/api_new`;
       let n = document.getElementById("note").value;
       let resp = await fetch(url, {
-        method: 'POST',
-        body: n
+        method: 'GET',
+        headers: {
+          'Content-Type': 'text/plain',
+          'note': n,
+        }
       });
       if (!resp.ok) {
         throw new Error(`err, stat: ${resp.status}`);

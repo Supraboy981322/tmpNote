@@ -163,7 +163,7 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     while (hItr.next()) |h| {
         if (mem.eql(u8, h.name, "note")) {
             note = alloc.dupe(u8, h.value) catch {
-                hlp.sendHeaders(400, curTime, req) catch {};
+                hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
                 return "bad note";
             };
             break;
@@ -176,17 +176,17 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
             const bod_r = conn_r.bodyReader(bod_buf, http.TransferEncoding.none, s);
             const bod:[]u8 = bod_r.readAlloc(alloc, conf.max_note_size) catch |e| {
                 try log.err("failed to read req body: {any}", .{e});
-                hlp.sendHeaders(500, curTime, req) catch {};
+                hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
                 req.server.out.print("failed to read request body", .{}) catch {};
                 return "server err";
             };
             note = bod;
         } else {
-            hlp.sendHeaders(400, curTime, req) catch {};
+            hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
             return "no note";
         }
     } if (note.len > conf.max_note_size) {
-        hlp.sendHeaders(400, curTime, req) catch {};
+        hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
         req.server.out.print("note exceeds configured limit", .{}) catch {};
         return "";
     }
@@ -203,13 +203,13 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     //add the note to db
     db.put(id, n) catch |e| { //on err
         //send headers (500 server err)
-        hlp.sendHeaders(500, curTime, req) catch {}; //ignore err
+        hlp.send.headersWithType(500, curTime, req, "text/plain") catch {}; //ignore err
         try log.err("failed to read store note: {any}", .{e});
         return "failed to store note";
     };
    
     //send headers (200 OK)
-    hlp.sendHeaders(200, curTime, req) catch {}; //ignore err
+    hlp.send.headers(200, curTime, req) catch {}; //ignore err
 
     return id;
 }
@@ -226,7 +226,7 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
                 //set id parameter
                 id = alloc.dupe(u8, p.next().?) catch |e| {
                     try log.err("failed to allocate id duplication: {any}", .{e});
-                    hlp.sendHeaders(500, conn.reqTime, conn.req) catch {};
+                    hlp.send.headersWithType(500, conn.reqTime, conn.req, "text/plain") catch {};
                     return "failed to allocate id duplication";
                 };
                 break;
@@ -241,7 +241,7 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
         note = n.content;
         if (!db.remove(id)) {
             //send headers (500 server err)
-            hlp.sendHeaders(500, conn.reqTime, conn.req) catch {}; //ignore err
+            hlp.send.headersWithType(500, conn.reqTime, conn.req, "text/plain") catch {}; //ignore err
             try log.err("failed to remove from db", .{});
             return "failed to remove from db";
         }
@@ -249,7 +249,7 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
 
     if (isReq) {
         //send headers (200 OK)
-        hlp.sendHeaders(200, conn.reqTime, conn.req) catch {}; //ignore err
+        hlp.send.headers(200, conn.reqTime, conn.req) catch {}; //ignore err
     }
 
     return note;
@@ -261,13 +261,13 @@ fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const na_plac:[]const u8 = "<!-- server name -->";
     const na_replac_si = mem.replacementSize(u8, reqPage, na_plac, conn.conf.name);
     const new_page = alloc.alloc(u8, na_replac_si) catch |e| {
-        hlp.sendHeaders(500, conn.reqTime, conn.req) catch {};
+        hlp.send.headersWithType(500, conn.reqTime, conn.req, "text/plain") catch {};
         try log.err("couldn't allocate replacement page size, {any}", .{e});
         return e;
     };
     _ = mem.replace(u8, reqPage, na_plac, conn.conf.name, new_page);
 
-    hlp.sendHeaders(200, conn.reqTime, conn.req) catch {};
+    hlp.send.headers(200, conn.reqTime, conn.req) catch {};
     conn.req.server.out.print("{s}", .{new_page}) catch return;
 }
 
@@ -279,7 +279,7 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     //get the note content
     const noteR:[]const u8 = try viewNote(conn, alloc, false);
     const note = hlp.sanitizeHTML(noteR, alloc) catch |e| {
-        hlp.sendHeaders(500, conn.reqTime, conn.req) catch {};
+        hlp.send.headersWithType(500, conn.reqTime, conn.req, "text/plain") catch {};
         try log.err("failed to sanitize html: {any}", .{e});
         req.server.out.print("failed to sanitize html, aborting for security", .{}) catch {};
         return e;
@@ -289,7 +289,7 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const na_replac_si = mem.replacementSize(u8, reqPage, na_plac, conn.conf.name);
     const respPage = alloc.alloc(u8, na_replac_si) catch |e| {
         try log.err("failed to allocate replacement size: {any}", .{e});
-        hlp.sendHeaders(500, curTime, req) catch {};
+        hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
         return e;
     };
     _ = mem.replace(u8, reqPage, na_plac, conn.conf.name, respPage);
@@ -299,7 +299,7 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const newSi = mem.replacementSize(u8, respPage, t, note);
     const newPage = alloc.alloc(u8, newSi) catch |e| {
         try log.err("failed to allocate replacement size: {any}", .{e});
-        hlp.sendHeaders(500, curTime, req) catch {};
+        hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
         return e;
     };
 
@@ -307,7 +307,7 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     defer alloc.free(newPage);
     
     //send headers (200 OK)
-    hlp.sendHeaders(200, curTime, req) catch {}; //continue anyways if err
+    hlp.send.headers(200, curTime, req) catch {}; //continue anyways if err
     
     //send HTML body and return if err
     req.server.out.print("{s}", .{newPage}) catch return;

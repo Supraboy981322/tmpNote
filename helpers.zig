@@ -10,34 +10,49 @@ var stdout_buf:[1024]u8 = undefined;
 var stdout_wr = std.fs.File.stdout().writer(&stdout_buf);
 const stdout = &stdout_wr.interface;
 
-pub fn sendHeaders(status:i16, curTime: []u8, req:http.Server.Request) !void {
-    var gpa = heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const alloc = gpa.allocator();
+pub const send = struct {
 
-    const dateHeader = try fmt.allocPrint(alloc, "date: {s}", .{curTime});
-    defer alloc.free(dateHeader);
+    const Self = @This();
 
-    const headers = [_][]const u8 {
-        switch (status) {
-            400 => "HTTP/1.1 400 Bad Request",
-            200 => "HTTP/1.1 200 OK",
-            403 => "HTTP/1.1 403 FORBIDDEN",
-            404 => "HTTP/1.1 404 not found",
-            else => "HTTP/1.1 500 Internal Server Error",
-        },
-        "Content-Type: text/html",
-        "x-content-type-options: nosniff", 
-        "server: homebrew zig http server",
-        dateHeader,
-        ""
-    };
-
-    for (headers) |h| {
-        req.server.out.print("{s}\r\n", .{h}) catch return;
-        req.server.out.flush() catch return;
+    pub fn headers(
+        status:i16,
+        curTime: []u8,
+        req:http.Server.Request
+    ) !void {
+        try Self.headersWithType(status, curTime, req, null);
     }
-}
+
+    pub fn headersWithType(
+        status:i16,
+        curTime: []u8,
+        req:http.Server.Request,
+        content_type:?[]const u8
+    ) !void {
+        var gpa = heap.GeneralPurposeAllocator(.{}){};
+        defer _ = gpa.deinit();
+        const alloc = gpa.allocator();
+
+        const heads = [_][]const u8 {
+            switch (status) {
+                400 => "HTTP/1.1 400 Bad Request",
+                200 => "HTTP/1.1 200 OK",
+                403 => "HTTP/1.1 403 FORBIDDEN",
+                404 => "HTTP/1.1 404 not found",
+                else => "HTTP/1.1 500 Internal Server Error",
+            },
+            try fmt.allocPrint(alloc, "Content-Type: {s}", .{content_type orelse "text/html"}),
+            "x-content-type-options: nosniff", 
+            "server: homebrew zig http server",
+            try fmt.allocPrint(alloc, "date: {s}", .{curTime}),
+            ""
+        }; defer for ([_]usize{ 1, 4, }) |i| alloc.free(heads[i]);
+
+        for (heads) |h| {
+            req.server.out.print("{s}\r\n", .{h}) catch return;
+            req.server.out.flush() catch return;
+        } 
+    }
+};
 
 pub fn ranStr(len:usize, alloc: mem.Allocator) ![]u8 {
     const chars:[]const u8 = "qwertyuioplkjhgfdsazxcvbnmQWERTYUIOPKLJHGFDSAZXCVBNM1234567890";

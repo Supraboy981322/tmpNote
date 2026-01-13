@@ -107,7 +107,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
 
     //get the requested page
     var req = http_server.receiveHead() catch |e| {
-        try log.errf("{any}", .{e});
+        try log.errf("{t}", .{e});
         return; //return on err (a netcat cmd could cause problems otherwise)
     };
     var itr = mem.splitAny(u8, req.head.target[1..], "?"); //remove query params
@@ -217,7 +217,7 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
             //read the body
             //  (assumes 'Content-Length' header is correct, responds 500 if not)
             const bod:[]u8 = bod_r.readAlloc(alloc, s) catch |e| {
-                try log.err("failed to read req body: {any}", .{e});
+                try log.err("failed to read req body: {t}", .{e});
                 hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
                 req.server.out.print("failed to read request body", .{}) catch {};
                 return "server err";
@@ -243,7 +243,7 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     db.put(id, n) catch |e| { //on err
         //send headers (500 server err)
         hlp.send.headersWithType(500, curTime, req, "text/plain") catch {}; //ignore err
-        try log.err("failed to read store note: {any}", .{e});
+        try log.err("failed to read store note: {t}", .{e});
         return "failed to store note";
     };
    
@@ -323,7 +323,7 @@ fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const na_replac_si = mem.replacementSize(u8, reqPage, na_plac, conn.conf.name);
     const new_page = alloc.alloc(u8, na_replac_si) catch |e| {
         hlp.send.headersWithType(500, conn.reqTime, conn.req, "text/plain") catch {};
-        try log.err("couldn't allocate replacement page size, {any}", .{e});
+        try log.err("couldn't allocate replacement page size, {t}", .{e});
         return e;
     };
     _ = mem.replace(u8, reqPage, na_plac, conn.conf.name, new_page);
@@ -341,7 +341,7 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const noteR:[]const u8 = try viewNote(conn, alloc, false);
     const note = hlp.sanitizeHTML(noteR, alloc, conn.conf.escape_html_ampersand) catch |e| {
         hlp.send.headersWithType(500, conn.reqTime, conn.req, "text/plain") catch {};
-        try log.err("failed to sanitize html: {any}", .{e});
+        try log.err("failed to sanitize html: {t}", .{e});
         req.server.out.print("failed to sanitize html, aborting for security", .{}) catch {};
         return e;
     };
@@ -351,7 +351,7 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const na_plac:[]const u8 = "<!-- server name -->";
     const na_replac_si = mem.replacementSize(u8, reqPage, na_plac, conn.conf.name);
     const respPage = alloc.alloc(u8, na_replac_si) catch |e| {
-        try log.err("failed to allocate replacement size: {any}", .{e});
+        try log.err("failed to allocate replacement size: {t}", .{e});
         hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
         return e;
     };
@@ -362,7 +362,7 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const t:[]const u8 = "<!-- split here -->";
     const newSi = mem.replacementSize(u8, respPage, t, note);
     const newPage = alloc.alloc(u8, newSi) catch |e| {
-        try log.err("failed to allocate replacement size: {any}", .{e});
+        try log.err("failed to allocate replacement size: {t}", .{e});
         hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
         return e;
     };

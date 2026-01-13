@@ -337,11 +337,12 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
 }
 
 fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
+    //define placeholder replacements
     const placs = [_][]const u8 {
         "<!-- server name -->",
     }; const replacs = [_][]const u8 {
         conn.conf.name,
-    };
+    };//generate the page
     const respPage = hlp.gen_page(web.new, &placs, &replacs, conn, alloc);
     if (respPage.len == 0) return;
 
@@ -361,14 +362,15 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
         web.send_err(500, "failed to sanitize html; aborting for security", conn);
         return e;
     }; defer alloc.free(note);
-    
+   
+    //define placeholder replacements
     const placs = [_][]const u8 {
         "<!-- server name -->",
         "<!-- split here -->",
     }; const replacs = [_][]const u8 {
         conn.conf.name,
         note,
-    };
+    };//generate the page
     const respPage = hlp.gen_page(web.view, &placs, &replacs, conn, alloc);
     if (respPage.len == 0) return;
     

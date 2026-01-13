@@ -82,6 +82,7 @@ pub const conf = struct {
             if (itr.next()) |keyR| {
                 if (itr.next()) |val| {
                     const key = meta.stringToEnum(conf_vals, keyR) orelse conf_vals.bad;
+                    if (keyR.len == 0) conf_err(err.Invalid_Key, li_N, "no key", null);
                     switch (key) {
                         .port => port = fmt.parseInt(u16, val, 10) catch |e| {
                             conf_err(e, li_N, "not a number", val);
@@ -103,7 +104,7 @@ pub const conf = struct {
 
                             const si_str:[]const u8 = si_str_arr.items;
 
-                            if (si_str.len == 0) conf_err(err.Invalid_Value, li_N, "no number found", val); 
+                            if (si_str.len == 0) conf_err(err.Invalid_Value, li_N, "no number found in", val); 
                             const si:u64 = fmt.parseInt(u64, si_str, 10) catch |e| {
                                 conf_err(e, li_N, "not a number", si_str);
                                 continue;
@@ -142,9 +143,9 @@ pub const conf = struct {
                                 .BAD => conf_err(err.Invalid_Value, li_N, "not a bool", val),
                             }
                         },
-                       .bad => conf_err(err.Invalid_Key, li_N, "key doesn't exist", keyR), 
+                       .bad => conf_err(err.Invalid_Key, li_N, "key doesn't exist", null), 
                     }
-                } else conf_err(err.Invalid_Key, li_N, "I don't know, it's just bad", null);
+                } else conf_err(err.Invalid_Line, li_N, "missing key and/or value", null);
             } else conf_err(err.Invalid_Line, li_N, "it's just bad", null);
         }
 
@@ -160,7 +161,17 @@ pub const conf = struct {
     }
 };
 
-fn conf_err(e:anyerror, li_N:usize, comptime msg:[]const u8, thing:?[]const u8) void {
-    log.errf("(conf err on line {d}) {t} : "++msg++" '{s}'",
-            .{li_N, e, thing.?}) catch return;
+fn conf_err(
+    e:anyerror,
+    li_N:usize,
+    comptime msg:[]const u8,
+    thing:?[]const u8
+) void {
+    if (thing != null) {
+        log.errf("(conf err on line {d}) {t} : "++msg++" '{s}'",
+                .{li_N, e, thing.?}) catch return;
+    } else {
+        log.errf("(conf err on line {d}) {t} : "++msg,
+                .{li_N, e}) catch return;
+    }
 }

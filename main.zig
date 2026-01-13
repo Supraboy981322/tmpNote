@@ -47,7 +47,10 @@ const globAlloc = heap.page_allocator;
 var db = std.StringHashMap(Note).init(globAlloc);
 
 pub fn main() !void {
-    const conf = config.read(globAlloc) catch |e| try log.errf("{t}", .{e});
+    const conf = config.read(globAlloc) catch |e| {
+        try log.errf("{t}", .{e});
+        @panic("failed to fail");
+    };
     defer db.deinit();
 
     //get server addr

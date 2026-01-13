@@ -20,7 +20,7 @@ If a feature is not checked off, it is not yet implemented, but is planned.
   - [ ] tool wrapper with tui
 - [ ] api
   - [ ] Spec
-  ~- [ ] Go module~
+  - [ ] Go module
 - [ ] mascot(?)
 
 ## Progress

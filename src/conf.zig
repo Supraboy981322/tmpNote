@@ -12,31 +12,35 @@ var stdout_buf:[1024]u8 = undefined;
 var stdout_wr = fs.File.stdout().writer(&stdout_buf);
 const stdout = &stdout_wr.interface;
 
+//accepted units of byte measurement
 const valid_byte_sizes = enum {
-    b,
-    kb,
-    mb,
-    gb,
-    tb,
-    pb,
-    eb,
-    yb,
-    any,
-    bad,
+    b,  //byte
+    kb, //kilobyte
+    mb, //megabyte
+    gb, //gigabyte
+    tb, //terabyte
+    pb, //petabyte
+    eb, //exabyte
+    yb, //yottabyte
+    any,//TODO: any size
+    bad,//invalid
 };
+//accepted boolean values
+//  (used when parsing string to bool)
 const bool_enum = enum {
     TRUE,
     FALSE,
     T,
     F,
-    BAD,
+    BAD, //invalid
 };
+//valid config keys
 const conf_vals = enum {
-    port,
-    name,
-    max_note_size,
-    escape_html_ampersand,
-    bad,
+    port, //server port
+    name, //server name
+    max_note_size, //maximum note size
+    escape_html_ampersand, //escaping '&' in note HTML
+    bad, //invalid
 };
 
 //custom errors
@@ -47,6 +51,7 @@ const err = error {
     The_Whole_Damn_Thing,
 };
 
+//default config (TODO: setting default config when none found)
 const def_conf = @embedFile("config");
 
 pub const conf = struct {
@@ -57,100 +62,130 @@ pub const conf = struct {
 
     const Self = @This();
 
+    //parsing the config
     pub fn read(alloc:mem.Allocator) !Self {
-        var port:u16 = 7855;
-        var name:[]const u8 = "tmpNote";
-        var max_note_size:u64 = 1024 * 1024; //1MB
-        var escape_html_ampersand:bool = true;
+        //default values
+        var port:u16 = 7855; //server port
+        var name:[]const u8 = "//tmpNote"; //server name
+        var max_note_size:u64 = 1024 * 1024; //1MB max note size
+        var escape_html_ampersand:bool = true; //do escape '&'
 
+        //open the condfig
         var fi = fs.cwd().openFile("config", .{}) catch |e| {
             try log.errf("failed to read config {t}", .{e});
             @panic("failed to fail");
         }; defer fi.close();
 
+        //create a reader interface for config
         var fi_buf:[1024]u8 = undefined;
         var fi_R = fi.reader(&fi_buf);
         const fi_I = &fi_R.interface;
 
-        var li_N:usize = 0;
-        while (fi_I.takeDelimiter('\n') catch |e| {
-            try log.errf("{t}", .{e});
-            @panic("huh... failed to fail");
-        }) |li| {
-            li_N += 1;
+        //read it line-by-line
+        //  (friends said they prefer the first line being 1)
+        var li_N:usize = 1;
+        while (fi_I.takeDelimiter('\n') catch |e| return e) |li| : (li_N += 1) {
+            //split line into key and value
             var itr = mem.splitSequence(u8, li, " : ");
-            if (itr.next()) |keyR| {
-                if (itr.next()) |val| {
+            if (itr.next()) |keyR| { //get key
+                //err if key is empty 
+                if (keyR.len == 0) conf_err(err.Invalid_Key, li_N, "no key", null);
+                if (itr.next()) |val| { //get value
+                    //convert key into enum 
                     const key = meta.stringToEnum(
                         conf_vals, keyR
                     ) orelse conf_vals.bad;
-                    if (keyR.len == 0) conf_err(
-                        err.Invalid_Key, li_N, "no key", null
-                    );
+                    //switch on the key
                     switch (key) {
+                        //set the port
                         .port => port = fmt.parseInt(u16, val, 10) catch |e| {
                             conf_err(e, li_N, "not a number", val);
                             continue;
                         },
+                        //set the server name
                         .name => name = try alloc.dupe(u8, val),
+                        //set the maximum note size
                         .max_note_size => {
+                            //shorter name for accepted measurments
                             const v_b_s = valid_byte_sizes;
 
+                            //create array to hold measurement array
                             var ext = std.array_list.Managed(u8).init(alloc);
                             defer ext.deinit();
 
+                            //create array to hold size number array 
                             var si_str_arr = std.array_list.Managed(u8).init(alloc);
                             defer si_str_arr.deinit();
 
+                            //for each char in val, either add to
+                            //  number or measurement array
                             for (val) |c| if (ascii.isDigit(c)) {
-                                si_str_arr.append(c) catch |e| {
-                                    try log.errf("{t}", .{e});
-                                };
-                            } else ext.append(c) catch |e| try log.errf("{t}", .{e});
+                                si_str_arr.append(c) catch |e| return e;
+                            } else ext.append(c) catch |e| return e;
 
+                            //convert size number array into string
                             const si_str:[]const u8 = si_str_arr.items;
 
+                            //err if no number
                             if (si_str.len == 0) conf_err(
                                 err.Invalid_Value, li_N,
                                 "no number found in", val
                             ); 
+
+                            //attempt to convert string to int
                             const si:u64 = fmt.parseInt(u64, si_str, 10) catch |e| {
                                 conf_err(e, li_N, "not a number", si_str);
                                 continue;
                             };
+                            //set the maximum note size
+                            max_note_size = si;
 
+                            //used to determine how many times to multiply
+                            //  the max-note-size int by when converting 
+                            //    from the specified measurement to bytes
+                            var mult_num:usize = 0;
+
+                            //convert measurment array into lowercase string
                             var extL_buf:[1024]u8 = undefined;
                             const extL = ascii.lowerString(&extL_buf, ext.items);
+
+                            //convert measurment string into enum
                             const v = meta.stringToEnum(
                                 v_b_s, extL
                             ) orelse v_b_s.bad;
 
-                            var mult_num:usize = 0;
-                            max_note_size = si;
-
+                            //switch on enum
                             switch (v) {
-                                .any => continue,
-                                .b => continue,
+                                .any => continue, //skip multiplication 
+                                .b => continue, //skip multiplication 
                                 .kb => mult_num = 1, 
-                                .mb => mult_num = 2,
-                                .gb => mult_num = 3,
+                                .mb => mult_num = 2, 
+                                .gb => mult_num = 3, 
                                 .tb => mult_num = 4,
                                 .pb => mult_num = 5,
                                 .eb => mult_num = 6,
                                 .yb => mult_num = 7,
-                                .bad => conf_err(
+                                .bad => conf_err( //err on invalid
                                     err.Invalid_Value, li_N,
                                     "bad extension", ext.items
                                 ),
                             }
+
+                            //multiply by the set number
                             for (0..mult_num) |_| max_note_size *= 1024;
                         },
+                        //set whether to escape ampersand in note
                         .escape_html_ampersand => {
+                            //convert value to uppercase 
                             var valU_buf:[1024]u8 = undefined;
                             const valU = ascii.upperString(&valU_buf, val);
+
+                            //convert uppercase value to enum 
                             const valEnum = meta.stringToEnum(
                                 bool_enum, valU
                             ) orelse bool_enum.BAD;
+
+                            //switch on enum
                             switch (valEnum) {
                                 .TRUE =>  escape_html_ampersand = true,
                                 .T => escape_html_ampersand = true,
@@ -161,21 +196,23 @@ pub const conf = struct {
                                 ),
                             }
                         },
+                        //invalid option
                        .bad => conf_err(
-                            err.Invalid_Key, li_N, "key doesn't exist", null
+                            err.Invalid_Key, li_N, "invalid option", null
                         ), 
                     }
-                } else conf_err(
+                } else conf_err( //likely missing something
                     err.Invalid_Line, li_N, "missing key and/or value", null
                 );
-            } else conf_err(
-                err.Invalid_Line, li_N, "it's just bad", null
+            } else conf_err( //delimiter didn't exist
+                err.The_Whole_Damn_Thing, li_N, "it's just bad", null
             );
         }
 
         //make sure everything was flushed;
         try stdout.flush();
 
+        //return config struct
         return Self{
             .port = port,
             .name = name,

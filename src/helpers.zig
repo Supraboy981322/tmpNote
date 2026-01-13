@@ -133,7 +133,7 @@ pub fn gen_page(
     replacements:[]const []const u8,
     conn:ServerConn,
     alloc:mem.Allocator
-) []const u8 {
+) ![]const u8 {
     const curTime = conn.reqTime;
     const req = conn.req;
 
@@ -147,8 +147,8 @@ pub fn gen_page(
 
         //allocate in-between page
         const between = alloc.alloc(u8, na_replac_si) catch |e| {
-            log.err("failed to allocate replacement size: {t}", .{e}) catch {};
-            send.headersWithType(500, curTime, req, "text/plain") catch {};
+            try log.err("failed to allocate replacement size: {t}", .{e});
+            try send.headersWithType(500, curTime, req, "text/plain");
             return "";
         };
 

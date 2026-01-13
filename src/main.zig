@@ -44,7 +44,7 @@ const web = struct {
         const curTime = conn.reqTime;
         const req = conn.req;
         
-        //iterate over each placeholder
+        //define placeholders and replacements
         const placs = [_][]const u8 {
             "<!-- server name -->",
             "<!-- error code -->",
@@ -61,8 +61,9 @@ const web = struct {
 
         //generate response page
         const err_page:[]const u8 = @embedFile("web/err.html");
-        const respPage = hlp.gen_page(err_page, &placs, &replacs, conn, globAlloc);
-        if (respPage.len == 0) return;
+        const respPage = hlp.gen_page(
+            err_page, &placs, &replacs, conn, globAlloc
+        ) catch return;
 
         //send response
         hlp.send.headers(code, curTime, req) catch {};
@@ -343,8 +344,13 @@ fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     }; const replacs = [_][]const u8 {
         conn.conf.name,
     };//generate the page
-    const respPage = hlp.gen_page(web.new, &placs, &replacs, conn, alloc);
-    if (respPage.len == 0) return;
+    const respPage = hlp.gen_page(
+        web.new, &placs, &replacs, conn, alloc
+    ) catch |e| {
+        web.send_err(500, "server err", conn);
+        log.err("{t}", .{e}) catch {};
+        return e;
+    };
 
     //respond
     hlp.send.headers(200, conn.reqTime, conn.req) catch {};
@@ -373,8 +379,13 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
         conn.conf.name,
         note,
     };//generate the page
-    const respPage = hlp.gen_page(web.view, &placs, &replacs, conn, alloc);
-    if (respPage.len == 0) return;
+    const respPage = hlp.gen_page(
+        web.view, &placs, &replacs, conn, alloc
+    ) catch |e| {
+        web.send_err(500, "server err", conn);
+        log.err("{t}", .{e}) catch {};
+        return e;
+    };
     
     //send headers (200 OK)
     hlp.send.headers(200, curTime, req) catch {}; //continue anyways if err

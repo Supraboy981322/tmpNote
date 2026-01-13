@@ -347,7 +347,8 @@ fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     if (respPage.len == 0) return;
 
     hlp.send.headers(200, conn.reqTime, conn.req) catch {};
-    conn.req.server.out.print("{s}", .{respPage}) catch return;
+    conn.req.server.out.print("{s}", .{respPage}) catch {};
+    conn.req.server.out.flush() catch {};
 }
 
 fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {

@@ -193,9 +193,13 @@ fn conf_err(
 ) void {
     if (thing != null) {
         log.errf(
-            "(conf err on line {d}) {t} : "++msg++" '{s}'", .{li_N, e, thing.?}
+            "(conf err on line {d}) {t} : "++msg++" '{s}'",
+            .{li_N, e, thing.?}
         ) catch return;
     } else {
-        log.errf("(conf err on line {d}) {t} : "++msg, .{li_N, e}) catch return;
+        log.errf(
+            "(conf err on line {d}) {t} : "++msg,
+            .{li_N, e}
+        ) catch return;
     }
 }

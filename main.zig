@@ -187,7 +187,24 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
             };
             break;
         }
-    } if (mem.eql(u8, note, "")) {
+    } if (note.len == 0) {
+        const params = serverConn.params;
+        var pItr = mem.splitAny(u8, params, "&");
+        while (pItr.next()) |par| {
+            var p = mem.splitScalar(u8, par, '=');
+            while (p.next()) |k| {
+                if (mem.eql(u8, k, "note")) {
+                    //set id parameter
+                    note = alloc.dupe(u8, p.next().?) catch |e| {
+                        try log.err("failed to allocate note duplication: {t}", .{e});
+                        hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
+                        return "failed to allocate note duplication";
+                    };
+                    break;
+                } _ = p.next(); //skip value
+            }
+        }
+    } if (note.len == 0) {
         const len_s:?u64 = req.head.content_length;
         if (len_s) |s| {
             //get req connection reader
@@ -237,24 +254,45 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
 }
 
 fn viewNote(conn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
-    //iterate over the headers 
+    const req = conn.req;
+    const curTime = conn.reqTime;
+    //iterate over the query params
     const params = conn.params;
     var pItr = mem.splitAny(u8, params, "&");
     var id:[]const u8 = "";
     while (pItr.next()) |par| {
         var p = mem.splitScalar(u8, par, '=');
         while (p.next()) |k| {
-            if (mem.eql(u8, k, "id")) {
+            if (mem.eql(u8, k, "id") or mem.eql(u8, k, "note-id")) {
                 //set id parameter
                 id = alloc.dupe(u8, p.next().?) catch |e| {
-                    try log.err("failed to allocate id duplication: {any}", .{e});
-                    hlp.send.headersWithType(500, conn.reqTime, conn.req, "text/plain") catch {};
+                    try log.err("failed to allocate id duplication: {t}", .{e});
+                    hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
                     return "failed to allocate id duplication";
                 };
                 break;
             } _ = p.next(); //skip value
         }
+    } if (id.len == 0) { //if no id found, chk headers
+        //chk each header until 'note' header
+        var hItr = req.iterateHeaders();
+        while (hItr.next()) |h| {
+            if (mem.eql(u8, h.name, "note-id") or mem.eql(u8, h.name, "id")) {
+                id = alloc.dupe(u8, h.value) catch {
+                    hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
+                    req.server.out.print("bad id", .{}) catch {};
+                    return "";
+                };
+                break;
+            }
+        }
     } defer alloc.free(id);
+
+    if (id.len == 0) {
+        hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
+        req.server.out.print("missing note key", .{}) catch {};
+        return "";
+    }
 
     //default to invalid
     var note:[]const u8 = "key not found";

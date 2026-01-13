@@ -222,6 +222,7 @@ pub const conf = struct {
     }
 };
 
+//local-helper for config err printing
 fn conf_err(
     e:anyerror,
     li_N:usize,

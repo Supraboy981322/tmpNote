@@ -58,7 +58,7 @@ pub fn main() !void {
     defer server.deinit();
 
     //log port
-    try log.info("{s} is listening on port {d}\n", .{conf.name, conf.port});
+    try log.info("{s} is listening on port {d}", .{conf.name, conf.port});
     try stdout.flush();
 
     //wait for connections
@@ -103,7 +103,10 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     var http_server = http.Server.init(reader.interface(), &writer.interface);
 
     //get the requested page
-    var req = http_server.receiveHead() catch return; //return on err (a netcat cmd could cause problems otherwise)
+    var req = http_server.receiveHead() catch |e| {
+        try log.errf("{any}", .{e});
+        return; //return on err (a netcat cmd could cause problems otherwise)
+    };
     var itr = mem.splitAny(u8, req.head.target[1..], "?"); //remove query params
     var reqPage:[]const u8 = itr.next().?; //get the page
     var params:[]const u8 = ""; //placeholder for params

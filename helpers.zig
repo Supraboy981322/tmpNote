@@ -87,12 +87,16 @@ pub const log = struct {
     }
     pub fn err(comptime msg:[]const u8, args:anytype) !void {
         try stdout.print("\x1b[1;37m[\x1b[1;31merr\x1b[1;37m]:\x1b[0m ", .{});
-        try stdout.print(msg, args);
+        try stdout.print(msg++"\n", args);
         try stdout.flush();
+    }
+    pub fn errf(comptime msg:[]const u8, args:anytype) !void {
+        try log.err(msg, args);
+        std.process.exit(1);
     }
     pub fn info(comptime msg:[]const u8, args:anytype) !void {
         try stdout.print("\x1b[1;37m[\x1b[1;35minfo\x1b[1;37m]:\x1b[0m ", .{});
-        try stdout.print(msg, args);
+        try stdout.print(msg++"\n", args);
         try stdout.flush();
     }
 };

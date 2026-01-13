@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const log = @import("helpers.zig").log;
+
 const fs = std.fs;
 const mem = std.mem;
 const fmt = std.fmt;
@@ -56,7 +58,7 @@ pub const conf = struct {
         var fi = fs.cwd().openFile("config", .{}) catch |e| {
             switch (e) {
                 error.FileNotFound => {
-                    try errf("failed to read config: file ('config') not found", .{});
+                    try log.errf("failed to read config: file ('config') not found", .{});
                     return e;
                 }, else => return e,
             }
@@ -74,7 +76,12 @@ pub const conf = struct {
                 if (itr.next()) |val| {
                     const key = meta.stringToEnum(conf_vals, keyR) orelse conf_vals.bad;
                     switch (key) {
-                        .port => port = try fmt.parseInt(u16, val, 10),
+                        .port => port = fmt.parseInt(u16, val, 10) catch |e| {
+                            if (e == error.InvalidCharacter) {
+                                try log.errf("invalid value in config: '{s}' is not a number (line {d})", .{val, li_N});
+                            }else try log.errf("{any}", .{e});
+                            continue;
+                        },
                         .name => name = try alloc.dupe(u8, val),
                         .max_note_size => {
                             const v_b_s = valid_byte_sizes;
@@ -90,7 +97,12 @@ pub const conf = struct {
                             } else try ext.append(c);
 
                             const si_str:[]const u8 = si_str_arr.items;
-                            const si:u64 = fmt.parseInt(u64, si_str, 10) catch 0;
+
+                            if (si_str.len == 0) try log.errf("value of '{s}' is empty (line {d})", .{keyR, li_N}); 
+                            const si:u64 = fmt.parseInt(u64, si_str, 10) catch |e| {
+                                try log.errf("(line {d} of config): {any} ", .{li_N, e});
+                                continue;
+                            };
 
                             var extL_buf:[1024]u8 = undefined;
                             const extL = ascii.lowerString(&extL_buf, ext.items);
@@ -109,7 +121,7 @@ pub const conf = struct {
                                 .pb => mult_num = 5,
                                 .eb => mult_num = 6,
                                 .yb => mult_num = 7,
-                                .bad => errf("bad value for 'max_note_size': '{s}' (line {d})", .{ext.items, li_N}),
+                                .bad => log.errf("bad value for 'max_note_size': '{s}' (line {d})", .{ext.items, li_N}),
                             };
                             for (0..mult_num) |_| max_note_size *= 1024;
                         },
@@ -122,16 +134,18 @@ pub const conf = struct {
                                 .T => escape_html_ampersand = true,
                                 .F => escape_html_ampersand = false,
                                 .FALSE => escape_html_ampersand = false,
-                                .BAD => try errf("invalid boolean value for '{s}': {s} (line {d})", .{keyR, val, li_N}),
+                                .BAD => try log.errf("invalid boolean value for '{s}': {s} (line {d})", .{keyR, val, li_N}),
                             }
                         },
-                        .bad => try errf("invalid key in config: '{s}' (line {d})\n", .{keyR, li_N}),
+                        .bad => try log.errf("invalid key in config: '{s}' (line {d})", .{keyR, li_N}),
                     }
-                } else try errf("invalid value for config: line {d}\n", .{li_N});
-            } else try errf("invalid config: line number {d}\n", .{li_N});
+                } else try log.errf("invalid value for config: line {d}", .{li_N});
+            } else try log.errf("invalid config: line number {d}", .{li_N});
         }
 
+        //make sure everything was flushed;
         try stdout.flush();
+
         return Self{
             .port = port,
             .name = name,
@@ -141,16 +155,3 @@ pub const conf = struct {
     }
 };
 
-fn err(comptime msg:[]const u8, args:anytype) !void {
-    var stderr_buf:[1024]u8 = undefined;
-    var stderr_wr = fs.File.stderr().writer(&stderr_buf);
-    const stderr = &stderr_wr.interface;
-
-    try stderr.print(msg, args);
-    try stderr.flush();
-}
-
-fn errf(comptime msg:[]const u8, args:anytype) !void {
-    try err(msg, args);
-    std.process.exit(1);
-}

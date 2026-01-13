@@ -81,8 +81,12 @@ pub const conf = struct {
             var itr = mem.splitSequence(u8, li, " : ");
             if (itr.next()) |keyR| {
                 if (itr.next()) |val| {
-                    const key = meta.stringToEnum(conf_vals, keyR) orelse conf_vals.bad;
-                    if (keyR.len == 0) conf_err(err.Invalid_Key, li_N, "no key", null);
+                    const key = meta.stringToEnum(
+                        conf_vals, keyR
+                    ) orelse conf_vals.bad;
+                    if (keyR.len == 0) conf_err(
+                        err.Invalid_Key, li_N, "no key", null
+                    );
                     switch (key) {
                         .port => port = fmt.parseInt(u16, val, 10) catch |e| {
                             conf_err(e, li_N, "not a number", val);
@@ -99,12 +103,17 @@ pub const conf = struct {
                             defer si_str_arr.deinit();
 
                             for (val) |c| if (ascii.isDigit(c)) {
-                                si_str_arr.append(c) catch |e| try log.errf("{t}", .{e});
+                                si_str_arr.append(c) catch |e| {
+                                    try log.errf("{t}", .{e});
+                                };
                             } else ext.append(c) catch |e| try log.errf("{t}", .{e});
 
                             const si_str:[]const u8 = si_str_arr.items;
 
-                            if (si_str.len == 0) conf_err(err.Invalid_Value, li_N, "no number found in", val); 
+                            if (si_str.len == 0) conf_err(
+                                err.Invalid_Value, li_N,
+                                "no number found in", val
+                            ); 
                             const si:u64 = fmt.parseInt(u64, si_str, 10) catch |e| {
                                 conf_err(e, li_N, "not a number", si_str);
                                 continue;
@@ -112,7 +121,9 @@ pub const conf = struct {
 
                             var extL_buf:[1024]u8 = undefined;
                             const extL = ascii.lowerString(&extL_buf, ext.items);
-                            const v = meta.stringToEnum(v_b_s, extL) orelse v_b_s.bad;
+                            const v = meta.stringToEnum(
+                                v_b_s, extL
+                            ) orelse v_b_s.bad;
 
                             var mult_num:usize = 0;
                             max_note_size = si;
@@ -127,26 +138,39 @@ pub const conf = struct {
                                 .pb => mult_num = 5,
                                 .eb => mult_num = 6,
                                 .yb => mult_num = 7,
-                                .bad => conf_err(err.Invalid_Value, li_N, "bad extension", ext.items),
+                                .bad => conf_err(
+                                    err.Invalid_Value, li_N,
+                                    "bad extension", ext.items
+                                ),
                             }
                             for (0..mult_num) |_| max_note_size *= 1024;
                         },
                         .escape_html_ampersand => {
                             var valU_buf:[1024]u8 = undefined;
                             const valU = ascii.upperString(&valU_buf, val);
-                            const valEnum = meta.stringToEnum(bool_enum, valU) orelse bool_enum.BAD;
+                            const valEnum = meta.stringToEnum(
+                                bool_enum, valU
+                            ) orelse bool_enum.BAD;
                             switch (valEnum) {
                                 .TRUE =>  escape_html_ampersand = true,
                                 .T => escape_html_ampersand = true,
                                 .F => escape_html_ampersand = false,
                                 .FALSE => escape_html_ampersand = false,
-                                .BAD => conf_err(err.Invalid_Value, li_N, "not a bool", val),
+                                .BAD => conf_err(
+                                    err.Invalid_Value, li_N, "not a bool", val
+                                ),
                             }
                         },
-                       .bad => conf_err(err.Invalid_Key, li_N, "key doesn't exist", null), 
+                       .bad => conf_err(
+                            err.Invalid_Key, li_N, "key doesn't exist", null
+                        ), 
                     }
-                } else conf_err(err.Invalid_Line, li_N, "missing key and/or value", null);
-            } else conf_err(err.Invalid_Line, li_N, "it's just bad", null);
+                } else conf_err(
+                    err.Invalid_Line, li_N, "missing key and/or value", null
+                );
+            } else conf_err(
+                err.Invalid_Line, li_N, "it's just bad", null
+            );
         }
 
         //make sure everything was flushed;
@@ -168,10 +192,10 @@ fn conf_err(
     thing:?[]const u8
 ) void {
     if (thing != null) {
-        log.errf("(conf err on line {d}) {t} : "++msg++" '{s}'",
-                .{li_N, e, thing.?}) catch return;
+        log.errf(
+            "(conf err on line {d}) {t} : "++msg++" '{s}'", .{li_N, e, thing.?}
+        ) catch return;
     } else {
-        log.errf("(conf err on line {d}) {t} : "++msg,
-                .{li_N, e}) catch return;
+        log.errf("(conf err on line {d}) {t} : "++msg, .{li_N, e}) catch return;
     }
 }

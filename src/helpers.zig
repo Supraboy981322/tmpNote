@@ -42,7 +42,10 @@ pub const send = struct {
                 404 => "HTTP/1.1 404 not found",
                 else => "HTTP/1.1 500 Internal Server Error",
             },
-            try fmt.allocPrint(alloc, "Content-Type: {s}", .{content_type orelse "text/html"}),
+            try fmt.allocPrint(
+                alloc, "Content-Type: {s}",
+                .{content_type orelse "text/html"}
+            ),
             "x-content-type-options: nosniff", 
             "server: homebrew zig http server",
             try fmt.allocPrint(alloc, "date: {s}", .{curTime}),
@@ -103,7 +106,11 @@ pub const log = struct {
     }
 };
 
-pub fn sanitizeHTML(og:[]const u8, alloc:mem.Allocator, escapeAmper:bool) ![]const u8 {
+pub fn sanitizeHTML(
+    og:[]const u8,
+    alloc:mem.Allocator,
+    escapeAmper:bool
+) ![]const u8 {
     const bad = [_][]const u8{"<", ">", "&", "\"", "'"};
     var new_note:[]const u8 = og;
     for (0.., bad) |i, char| {

@@ -6,6 +6,8 @@ const heap = std.heap;
 const fmt = std.fmt;
 const mem = std.mem;
 
+const ServerConn = @import("global_types.zig").ServerConn;
+
 var stdout_buf:[1024]u8 = undefined;
 var stdout_wr = std.fs.File.stdout().writer(&stdout_buf);
 const stdout = &stdout_wr.interface;
@@ -123,4 +125,38 @@ pub fn sanitizeHTML(og:[]const u8, alloc:mem.Allocator, escapeAmper:bool) ![]con
     }
 
     return new_note;
+}
+
+pub fn gen_page(
+    og:[]const u8,
+    placeholders:[]const []const u8,
+    replacements:[]const []const u8,
+    conn:ServerConn,
+    alloc:mem.Allocator
+) []const u8 {
+    const curTime = conn.reqTime;
+    const req = conn.req;
+
+    var respPage:[]const u8 = og;
+    for (0.., placeholders) |i, plac| {
+        //set the thing to replace with
+        const replac_with = replacements[i];
+
+        //calculate in-between page size
+        const na_replac_si = mem.replacementSize(u8, respPage, plac, replac_with);
+
+        //allocate in-between page
+        const between = alloc.alloc(u8, na_replac_si) catch |e| {
+            log.err("failed to allocate replacement size: {t}", .{e}) catch {};
+            send.headersWithType(500, curTime, req, "text/plain") catch {};
+            return "";
+        };
+
+        //replace placeholders 
+        _ = mem.replace(u8, respPage, plac, replac_with, between);
+        //replace response page with in-between
+        respPage = between;
+    }
+
+    return respPage;
 }

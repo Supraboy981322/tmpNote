@@ -17,14 +17,7 @@ const http = std.http;
 const log = hlp.log;
 
 //types
-const ServerConn = struct {
-    conn: net.Server.Connection,
-    req: http.Server.Request,
-    reqPage: []const u8,
-    reqTime: []u8,
-    params: []const u8,
-    conf: config,
-};
+const ServerConn = @import("global_types.zig").ServerConn;
 const Note = struct {
     content: []u8,
     Encrypt: bool, //might do this at some point
@@ -51,40 +44,25 @@ const web = struct {
         const curTime = conn.reqTime;
         const req = conn.req;
         
-        var respPage:[]const u8 = @embedFile("web/err.html");
-
         //iterate over each placeholder
-        const placeholders = [_][]const u8 {
+        const placs = [_][]const u8 {
             "<!-- server name -->",
             "<!-- error code -->",
             "<!-- error status -->",
-        }; for (0.., placeholders) |i, plac| {
-            //set the thing to replace with
-            const replac_with:[]const u8 = switch (i) {
-                0 => conn.conf.name, //server name
-                //err code int to string
-                1 => fmt.allocPrint(globAlloc, "{d}", .{code}) catch |e| {
+        }; const replacs = [_][]const u8 {
+            conn.conf.name, //server name
+            //status code as string
+            fmt.allocPrint(globAlloc, "{d}", .{code}) catch |e| {
                     log.errf("{t}", .{e}) catch {};
                     @panic("failed to fail");
-                },
-                2 => stat, //the err msg
-                else => @panic("forgot to add case in 'replac_with' switch"),
-            };
+            },
+            stat, //the err msg
+        };
 
-            //calculate in-between page size
-            const na_replac_si = mem.replacementSize(u8, respPage, plac, replac_with);
-
-            //allocate in-between page
-            const between = globAlloc.alloc(u8, na_replac_si) catch |e| {
-                log.err("failed to allocate replacement size: {t}", .{e}) catch {};
-                hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
-                return;
-            };
-            //replace placeholders 
-            _ = mem.replace(u8, respPage, plac, replac_with, between);
-            //replace response page with in-between
-            respPage = between;
-        }
+        //generate response page
+        const err_page:[]const u8 = @embedFile("web/err.html");
+        const respPage = hlp.gen_page(err_page, &placs, &replacs, conn, globAlloc);
+        if (respPage.len == 0) return;
 
         //send response
         hlp.send.headers(code, curTime, req) catch {};
@@ -364,7 +342,7 @@ fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const na_plac:[]const u8 = "<!-- server name -->";
     const na_replac_si = mem.replacementSize(u8, reqPage, na_plac, conn.conf.name);
     const new_page = alloc.alloc(u8, na_replac_si) catch |e| {
-        hlp.send.headersWithType(500, conn.reqTime, conn.req, "text/plain") catch {};
+        web.send_err(500, "server err", conn);
         try log.err("couldn't allocate replacement page size, {t}", .{e});
         return e;
     };
@@ -381,31 +359,29 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
 
     //get the note content
     const noteR:[]const u8 = try viewNote(conn, alloc, false);
-    const note = hlp.sanitizeHTML(noteR, alloc, conn.conf.escape_html_ampersand) catch |e| {
-        hlp.send.headersWithType(500, conn.reqTime, conn.req, "text/plain") catch {};
+    const esc_html_amper = conn.conf.escape_html_ampersand;
+    const note = hlp.sanitizeHTML(noteR, alloc, esc_html_amper) catch |e| {
         try log.err("failed to sanitize html: {t}", .{e});
-        req.server.out.print("failed to sanitize html, aborting for security", .{}) catch {};
+        web.send_err(500, "failed to sanitize html; aborting for security", conn);
         return e;
-    };
-    defer alloc.free(note);
+    }; defer alloc.free(note);
     
     //insert server name to HTML
     const na_plac:[]const u8 = "<!-- server name -->";
     const na_replac_si = mem.replacementSize(u8, reqPage, na_plac, conn.conf.name);
     const respPage = alloc.alloc(u8, na_replac_si) catch |e| {
         try log.err("failed to allocate replacement size: {t}", .{e});
-        hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
+        web.send_err(500, "server err", conn);
         return e;
-    };
+    }; defer alloc.free(respPage);
     _ = mem.replace(u8, reqPage, na_plac, conn.conf.name, respPage);
-    defer alloc.free(respPage);
 
     //replace placeholder HTML comment with content
     const t:[]const u8 = "<!-- split here -->";
     const newSi = mem.replacementSize(u8, respPage, t, note);
     const newPage = alloc.alloc(u8, newSi) catch |e| {
         try log.err("failed to allocate replacement size: {t}", .{e});
-        hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
+        web.send_err(500, "server err", conn);
         return e;
     };
     _ = mem.replace(u8, respPage, t, note, newPage);

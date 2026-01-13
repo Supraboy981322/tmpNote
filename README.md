@@ -37,9 +37,9 @@ If a feature is not checked off, it is not yet implemented, but is planned.
 - [x] Zig rewrite
   - [x] HTTP server
     - [x] parsing query params for note ID
-    - [ ] parsing headers for note ID 
+    - [x] parsing headers for note ID 
     - [x] parsing headers for new note
-    - [ ] parsing query params for new note
+    - [x] parsing query params for new note
     - [x] reading POST request body for note content
     - [x] replacing HTML placeholder comment with note
     - [x] replying with the note ID when creating a new note

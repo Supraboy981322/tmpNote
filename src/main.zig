@@ -355,7 +355,6 @@ fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
 fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const req = conn.req;
     const curTime = conn.reqTime;
-    const reqPage:[]const u8 = web.view;
 
     //get the note content
     const noteR:[]const u8 = try viewNote(conn, alloc, false);
@@ -366,31 +365,21 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
         return e;
     }; defer alloc.free(note);
     
-    //insert server name to HTML
-    const na_plac:[]const u8 = "<!-- server name -->";
-    const na_replac_si = mem.replacementSize(u8, reqPage, na_plac, conn.conf.name);
-    const respPage = alloc.alloc(u8, na_replac_si) catch |e| {
-        try log.err("failed to allocate replacement size: {t}", .{e});
-        web.send_err(500, "server err", conn);
-        return e;
-    }; defer alloc.free(respPage);
-    _ = mem.replace(u8, reqPage, na_plac, conn.conf.name, respPage);
-
-    //replace placeholder HTML comment with content
-    const t:[]const u8 = "<!-- split here -->";
-    const newSi = mem.replacementSize(u8, respPage, t, note);
-    const newPage = alloc.alloc(u8, newSi) catch |e| {
-        try log.err("failed to allocate replacement size: {t}", .{e});
-        web.send_err(500, "server err", conn);
-        return e;
+    const placs = [_][]const u8 {
+        "<!-- server name -->",
+        "<!-- split here -->",
+    }; const replacs = [_][]const u8 {
+        conn.conf.name,
+        note,
     };
-    _ = mem.replace(u8, respPage, t, note, newPage);
-    defer alloc.free(newPage);
+
+    const respPage = hlp.gen_page(web.view, &placs, &replacs, conn, alloc);
+    if (respPage.len == 0) return;
     
     //send headers (200 OK)
     hlp.send.headers(200, curTime, req) catch {}; //continue anyways if err
     
     //send HTML body and return if err
-    req.server.out.print("{s}", .{newPage}) catch return;
+    req.server.out.print("{s}", .{respPage}) catch return;
     req.server.out.flush() catch return;
 }

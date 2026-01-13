@@ -53,8 +53,8 @@ const web = struct {
             conn.conf.name, //server name
             //status code as string
             fmt.allocPrint(globAlloc, "{d}", .{code}) catch |e| {
-                    log.errf("{t}", .{e}) catch {};
-                    @panic("failed to fail");
+                log.err("{t}", .{e}) catch {};
+                return;
             },
             stat, //the err msg
         };
@@ -346,6 +346,7 @@ fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const respPage = hlp.gen_page(web.new, &placs, &replacs, conn, alloc);
     if (respPage.len == 0) return;
 
+    //respond
     hlp.send.headers(200, conn.reqTime, conn.req) catch {};
     conn.req.server.out.print("{s}", .{respPage}) catch {};
     conn.req.server.out.flush() catch {};

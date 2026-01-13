@@ -337,19 +337,15 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
 }
 
 fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
-    const reqPage:[]const u8 = web.new;
-    
-    const na_plac:[]const u8 = "<!-- server name -->";
-    const na_replac_si = mem.replacementSize(u8, reqPage, na_plac, conn.conf.name);
-    const new_page = alloc.alloc(u8, na_replac_si) catch |e| {
-        web.send_err(500, "server err", conn);
-        try log.err("couldn't allocate replacement page size, {t}", .{e});
-        return e;
+    const placs = [_][]const u8 {
+        "<!-- server name -->",
+    }; const replacs = [_][]const u8 {
+        conn.conf.name,
     };
-    _ = mem.replace(u8, reqPage, na_plac, conn.conf.name, new_page);
+    const respPage = hlp.gen_page(web.new, &placs, &replacs, conn, alloc);
 
     hlp.send.headers(200, conn.reqTime, conn.req) catch {};
-    conn.req.server.out.print("{s}", .{new_page}) catch return;
+    conn.req.server.out.print("{s}", .{respPage}) catch return;
 }
 
 fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {

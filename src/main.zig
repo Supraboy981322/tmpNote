@@ -20,10 +20,8 @@ const log = hlp.log;
 const web = struct {
     var new:[]const u8 = @embedFile("web/new_note.html");
     var view:[]const u8 = @embedFile("web/view_note.html");
-    var err_page:[]const u8 = @embedFile("web/err.html");
 
-    const Self = @This();
- 
+    //helper to send error page
     fn send_err(code:i16, stat:[]const u8, conn:ServerConn) void {
         const curTime = conn.reqTime;
         const req = conn.req;
@@ -32,7 +30,7 @@ const web = struct {
             "<!-- error code -->",
             "<!-- error status -->",
         };
-        var respPage:[]const u8 = Self.err_page;
+        var respPage:[]const u8 = @embedFile("web/err.html");
         for (0..3, placeholders) |i, plac| {
             const replac_with:[]const u8 = switch (i) {
                 0 => conn.conf.name,

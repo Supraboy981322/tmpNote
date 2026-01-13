@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><!-- server name --> - new</title>
+    <style>
+      :root, body {
+        margin: 0;
+        padding: 0;
+        color: #d8dee9;
+        font-family: monospace;
+        background-color: #2e3440;
+        &> div {
+          width: fit-content;
+          height: fit-content;
+          margin-left: auto;
+          margin-right: auto;
+        }
+      }
+      h1 {
+        &> .server_name {
+          color: #ff5454;
+          font-style: italic;
+        }
+        &> .page { color: #d8dee9; }
+      }
+      h1, .resText, .id { text-align: center }
+      #note {
+        display: block;
+        width: 80vw;
+        height: 50vw;
+        background-color: #2e3440;
+        color: #d8dee9;
+        border: solid #d8dee9 0.25em;
+        border-radius: 1em;
+        padding: 2em;
+        box-sizing: border-box;
+        margin-bottom: 1em;
+        font-size: 1.25em;
+        outline: none;
+      }
+      #id {
+        display: block;
+        color: #2e3440;
+        font-weight: bold;
+        box-sizing: border-box;
+        background-color: grey;
+        font-size: 2ch;
+        padding: 1em;
+        border-radius: 1em;
+        width: 80vw;
+        &.send {
+          cursor: pointer;
+          text-align: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1>
+        <span class="server_name"><!-- server name --></span>
+        <span class="page">- new</span>
+      </h1>
+      <div class="resText" hidden>
+        <h2>note created</h2>
+        <p>below is the id</p>
+        <button note_id="" onclick="view(this);">remove now</button>
+      </div>
+      <textarea id="note"></textarea>
+      <mono id="id" class="send" onclick="newNote();">send</mono>
+    </div>
+  </body>
+  <script>
+    async function newNote() {
+      url = `${window.location.origin}/api_new`;
+      let n = document.getElementById("note").value;
+      let resp = await fetch(url, {
+        method: 'POST',
+        body: n
+      });
+      if (!resp.ok) {
+        const bod = await resp.text();
+        throw new Error(`err, stat: ${resp.status}\n\tserver:${bod}`);
+      }
+      let id = await resp.text();
+      console.log(id)
+      let idElm = document.getElementById("id");
+      idElm.innerText = id;
+      idElm.setAttribute("class", "id");
+      idElm.removeAttribute("onclick");
+      document.getElementById("note").remove();
+      let resView = document.querySelector(".resText");
+      resView.querySelector("button").setAttribute("note_id", id);
+      resView.removeAttribute("hidden");
+      
+    }
+    function view(elm) {
+      let id = elm.getAttribute("note_id");
+      url = `${window.location.origin}/view?id=${id}`;
+      window.location.replace(url);
+    }
+  </script>
+</html>

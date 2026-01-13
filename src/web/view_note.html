@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><!-- server name --> - view</title>
+    <style>
+      :root, body {
+        margin: 0;
+        padding: 0;
+        color: #d8dee9;
+        font-family: monospace;
+        background-color: #2e3440;
+        &> div {
+          margin-left: auto;
+          margin-right: auto;
+          width: fit-content;
+          height: fit-content;
+          p { text-align: center; }
+        }
+      }
+      h1 {
+        &> .server_name {
+          color: #ff5454;
+          font-style: italic;
+        }
+        &> .page { color: #d8dee9; }
+      }
+      h1, .resText, .id { text-align: center }
+      #note {
+        width: 80vw;
+        height: 50vw;
+        padding: 2em;
+        outline: none;
+        color: #d8dee9;
+        display: block;
+        font-size: 1.25em;
+        border-radius: 1em;
+        margin-bottom: 1em;
+        font-family: monospace;
+        box-sizing: border-box;
+        background-color: #2e3440;
+        border: solid #d8dee9 0.25em;
+      }
+      .new_note {
+        outline: none;
+        border: none;
+        display: block;
+        color: #2e3440;
+        font-weight: bold;
+        box-sizing: border-box;
+        background-color: grey;
+        font-size: 2ch;
+        padding: 1em;
+        border-radius: 1em;
+        width: 80vw;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h1>
+        <span class="server_name"><!-- server name --></span>
+        <span class="page">- view</span>
+      </h1>
+      <p><i>note deleted</i></p>
+      <pre id="note"><!-- split here --></pre>
+      <button class="new_note" onclick="newNote();">new note</button>
+    </div>
+  </body>
+  <script>
+    function newNote() {
+      url = `${window.location.origin}/new`;
+      window.location.replace(url);
+    }
+  </script>
+</html>

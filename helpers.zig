@@ -111,7 +111,10 @@ pub fn sanitizeHTML(og:[]const u8, alloc:mem.Allocator, escapeAmper:bool) ![]con
             2 => if (escapeAmper) "&amp;" else "&",
             3 => "&quot;",
             4 => "&apos;",
-            else => log.errf("unknown escape: {s}", .{char}),
+            else => {
+                try log.errf("unknown escape: {s}", .{char});
+                return "";
+            },
         };
         const new_si = mem.replacementSize(u8, new_note, char, reChar);
         const tmp_note = try alloc.alloc(u8, new_si);

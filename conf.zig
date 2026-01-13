@@ -39,6 +39,14 @@ const conf_vals = enum {
     bad,
 };
 
+//custom errors
+const err = error {
+    Invalid_Value,
+    Invalid_Key,
+    Invalid_Line,
+    The_Whole_Damn_Thing,
+};
+
 const def_conf = @embedFile("config");
 
 pub const conf = struct {
@@ -56,12 +64,8 @@ pub const conf = struct {
         var escape_html_ampersand:bool = true;
 
         var fi = fs.cwd().openFile("config", .{}) catch |e| {
-            switch (e) {
-                error.FileNotFound => {
-                    try log.errf("failed to read config: file ('config') not found", .{});
-                    return e;
-                }, else => return e,
-            }
+            try log.errf("failed to read config {t}", .{e});
+            @panic("failed to fail");
         }; defer fi.close();
 
         var fi_buf:[1024]u8 = undefined;
@@ -69,7 +73,10 @@ pub const conf = struct {
         const fi_I = &fi_R.interface;
 
         var li_N:usize = 0;
-        while (try fi_I.takeDelimiter('\n')) |li| {
+        while (fi_I.takeDelimiter('\n') catch |e| {
+            try log.errf("{t}", .{e});
+            @panic("huh... failed to fail");
+        }) |li| {
             li_N += 1;
             var itr = mem.splitSequence(u8, li, " : ");
             if (itr.next()) |keyR| {
@@ -77,9 +84,7 @@ pub const conf = struct {
                     const key = meta.stringToEnum(conf_vals, keyR) orelse conf_vals.bad;
                     switch (key) {
                         .port => port = fmt.parseInt(u16, val, 10) catch |e| {
-                            if (e == error.InvalidCharacter) {
-                                try log.errf("invalid value in config: '{s}' is not a number (line {d})", .{val, li_N});
-                            }else try log.errf("{any}", .{e});
+                            conf_err(e, li_N, "not a number", val);
                             continue;
                         },
                         .name => name = try alloc.dupe(u8, val),
@@ -93,14 +98,14 @@ pub const conf = struct {
                             defer si_str_arr.deinit();
 
                             for (val) |c| if (ascii.isDigit(c)) {
-                                try si_str_arr.append(c);
-                            } else try ext.append(c);
+                                si_str_arr.append(c) catch |e| try log.errf("{t}", .{e});
+                            } else ext.append(c) catch |e| try log.errf("{t}", .{e});
 
                             const si_str:[]const u8 = si_str_arr.items;
 
-                            if (si_str.len == 0) try log.errf("value of '{s}' is empty (line {d})", .{keyR, li_N}); 
+                            if (si_str.len == 0) conf_err(err.Invalid_Value, li_N, "no number found", val); 
                             const si:u64 = fmt.parseInt(u64, si_str, 10) catch |e| {
-                                try log.errf("(line {d} of config): {any} ", .{li_N, e});
+                                conf_err(e, li_N, "not a number", si_str);
                                 continue;
                             };
 
@@ -111,7 +116,7 @@ pub const conf = struct {
                             var mult_num:usize = 0;
                             max_note_size = si;
 
-                            try switch (v) {
+                            switch (v) {
                                 .any => continue,
                                 .b => continue,
                                 .kb => mult_num = 1, 
@@ -121,8 +126,8 @@ pub const conf = struct {
                                 .pb => mult_num = 5,
                                 .eb => mult_num = 6,
                                 .yb => mult_num = 7,
-                                .bad => log.errf("bad value for 'max_note_size': '{s}' (line {d})", .{ext.items, li_N}),
-                            };
+                                .bad => conf_err(err.Invalid_Value, li_N, "bad extension", ext.items),
+                            }
                             for (0..mult_num) |_| max_note_size *= 1024;
                         },
                         .escape_html_ampersand => {
@@ -134,13 +139,13 @@ pub const conf = struct {
                                 .T => escape_html_ampersand = true,
                                 .F => escape_html_ampersand = false,
                                 .FALSE => escape_html_ampersand = false,
-                                .BAD => try log.errf("invalid boolean value for '{s}': {s} (line {d})", .{keyR, val, li_N}),
+                                .BAD => conf_err(err.Invalid_Value, li_N, "not a bool", val),
                             }
                         },
-                        .bad => try log.errf("invalid key in config: '{s}' (line {d})", .{keyR, li_N}),
+                       .bad => conf_err(err.Invalid_Key, li_N, "key doesn't exist", keyR), 
                     }
-                } else try log.errf("invalid value for config: line {d}", .{li_N});
-            } else try log.errf("invalid config: line number {d}", .{li_N});
+                } else conf_err(err.Invalid_Key, li_N, "I don't know, it's just bad", null);
+            } else conf_err(err.Invalid_Line, li_N, "it's just bad", null);
         }
 
         //make sure everything was flushed;
@@ -155,3 +160,7 @@ pub const conf = struct {
     }
 };
 
+fn conf_err(e:anyerror, li_N:usize, comptime msg:[]const u8, thing:?[]const u8) void {
+    log.errf("(conf err on line {d}) {t} : "++msg++" '{s}'",
+            .{li_N, e, thing.?}) catch return;
+}

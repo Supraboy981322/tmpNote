@@ -25,32 +25,43 @@ const web = struct {
     fn send_err(code:i16, stat:[]const u8, conn:ServerConn) void {
         const curTime = conn.reqTime;
         const req = conn.req;
+        
+        var respPage:[]const u8 = @embedFile("web/err.html");
+
+        //iterate over each placeholder
         const placeholders = [_][]const u8 {
             "<!-- server name -->",
             "<!-- error code -->",
             "<!-- error status -->",
-        };
-        var respPage:[]const u8 = @embedFile("web/err.html");
-        for (0..3, placeholders) |i, plac| {
+        }; for (0.., placeholders) |i, plac| {
+            //set the thing to replace with
             const replac_with:[]const u8 = switch (i) {
-                0 => conn.conf.name,
+                0 => conn.conf.name, //server name
+                //err code int to string
                 1 => fmt.allocPrint(globAlloc, "{d}", .{code}) catch |e| {
                     log.errf("{t}", .{e}) catch {};
                     @panic("failed to fail");
                 },
-                2 => stat,
-                else => @panic("placholders too long"),
+                2 => stat, //the err msg
+                else => @panic("forgot to add case in 'replac_with' switch"),
             };
+
+            //calculate in-between page size
             const na_replac_si = mem.replacementSize(u8, respPage, plac, replac_with);
+
+            //allocate in-between page
             const between = globAlloc.alloc(u8, na_replac_si) catch |e| {
                 log.err("failed to allocate replacement size: {t}", .{e}) catch {};
                 hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
                 return;
             };
+            //replace placeholders 
             _ = mem.replace(u8, respPage, plac, replac_with, between);
+            //replace response page with in-between
             respPage = between;
         }
 
+        //send response
         hlp.send.headers(code, curTime, req) catch {};
         req.server.out.print("{s}", .{respPage}) catch {};
         req.server.out.flush() catch {};

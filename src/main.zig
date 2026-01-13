@@ -16,6 +16,31 @@ const http = std.http;
 //structs from helpers
 const log = hlp.log;
 
+//types
+const ServerConn = struct {
+    conn: net.Server.Connection,
+    req: http.Server.Request,
+    reqPage: []const u8,
+    reqTime: []u8,
+    params: []const u8,
+    conf: config,
+};
+const Note = struct {
+    content: []u8,
+    Encrypt: bool, //might do this at some point
+};
+
+//print to stdout (defaulting to stderr is stupid)
+var stdout_buf:[1024]u8 = undefined;
+var stdout_wr = fs.File.stdout().writer(&stdout_buf);
+const stdout = &stdout_wr.interface;
+
+//global allocator (scoped allocation is dumb)
+const globAlloc = heap.page_allocator;
+
+//database
+var db = std.StringHashMap(Note).init(globAlloc);
+
 //embeded web-ui files
 const web = struct {
     var new:[]const u8 = @embedFile("web/new_note.html");
@@ -67,31 +92,6 @@ const web = struct {
         req.server.out.flush() catch {};
     }
 };
-
-//types
-const ServerConn = struct {
-    conn: net.Server.Connection,
-    req: http.Server.Request,
-    reqPage: []const u8,
-    reqTime: []u8,
-    params: []const u8,
-    conf: config,
-};
-const Note = struct {
-    content: []u8,
-    Encrypt: bool, //might do this at some point
-};
-
-//print to stdout (defaulting to stderr is stupid)
-var stdout_buf:[1024]u8 = undefined;
-var stdout_wr = fs.File.stdout().writer(&stdout_buf);
-const stdout = &stdout_wr.interface;
-
-//global allocator (scoped allocation is dumb)
-const globAlloc = heap.page_allocator;
-
-//database
-var db = std.StringHashMap(Note).init(globAlloc);
 
 pub fn main() !void {
     const conf = config.read(globAlloc) catch |e| {

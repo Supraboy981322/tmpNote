@@ -169,13 +169,15 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
 
         .api_view => {
             const note:[]const u8 = viewNote(serverConn, globAlloc, true) catch |e| blk: {
-                if (e == note_errs.note_not_found) hlp.send.headersWithType(
-                    400, curTime, req, "text/plain"
-                ) catch {};
-                break :blk switch (e) {
-                    note_errs.note_not_found => "note not found",
-                    else => "server error",
-                };
+                switch (e) {
+                    note_errs.note_not_found => {
+                        hlp.send.headersWithType(
+                            400, curTime, req, "text/plain"
+                        ) catch {};
+                        break :blk "note not found";
+                    },
+                    else => break :blk "server error",
+                }
             };
             defer req.server.out.flush() catch {};
             req.server.out.print("{s}", .{note}) catch return;

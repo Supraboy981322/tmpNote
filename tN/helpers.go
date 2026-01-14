@@ -102,7 +102,7 @@ func help() {
 		termWidth, _, e = term.GetSize(fd)
 		if e != nil { eror("failed to get term size", e) }
 	}
-	fmt.Println("")
+	lines = append(lines, "")
 	for i, l := range lines {
 		_ = i
 		li_len := len_no_esc(l)

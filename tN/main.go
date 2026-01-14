@@ -130,8 +130,10 @@ func mkReq() {
 	if e != nil { erorF("failed to read response body", e) }
 	switch act {
 	 case "set": print_id(bod)
-	 default:
+	 case "view":
 		os.Stdout.Write(bod)
 		fmt.Println("")
+	 default:
+		erorF("your forgot to create a case for new action (printing resp body)", nil) 
 	}
 }

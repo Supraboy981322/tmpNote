@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"fmt"
+	"strconv"
 	"golang.org/x/term"
 )
 
@@ -14,8 +15,6 @@ func eror(msg string, e error) {
 				"\033[48;2;255;255;255m"+
 				" \033[1;38;2;210;0;0m%v \033[0m\n",
 				msg, e)
-	} else {
-
 	}
 	fmt.Fprint(os.Stderr, msg)
 }
@@ -26,15 +25,23 @@ func erorF(msg string, e error) {
 }
 
 func len_no_esc(l string) int {
-	var res int ; var esc bool
-	for _, c := range l {
-		switch c {
-		 case '\033': esc = true
-		 case 'm', 'D': esc = false
-		 default: if !esc { res++ }
-		}
+	return len(strip_esc(l))
+}
+
+func strip_esc(s string) string {
+	var res string ; var esc bool
+	for _, c := range s {
+		if c != '\033' {
+			if esc {
+				_, e := strconv.Atoi(string(c))
+				if c != ';' && c != '[' && e != nil { esc = false }
+			} else { res += string(c) }
+		} else { esc = true }
 	}
 	return res
+}
+
+func smart_print(msg string, a ...any) {
 }
 
 //looks like spagetti, I know
@@ -67,11 +74,11 @@ func help() {
 		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--key"+cols["purple"]+" \"your key\"                               ",
 		"  "+cols["blue"]+"--value"+cols["white"]+", "+cols["blue"]+"--val"+cols["white"]+", "+cols["blue"]+"-v"+cols["white"]+"                                           ",
     "    set the value for the note                                 ",
-		"\033[1D      usage: "+cols["purple"]+"tN "+cols["yel"]+"--value "+cols["purple"]+"\"some message\"                         ",
+		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--value "+cols["purple"]+"\"some message\"                         ",
 		"  "+cols["blue"]+"--view"+cols["white"]+", "+cols["blue"]+"--get"+cols["white"]+", "+cols["blue"]+"-g"+cols["white"]+", "+cols["blue"]+"-V"+cols["white"]+"                                        ",
 		"    view an existing note                                      ",
 		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--view "+cols["purple"]+"--key \"your key\"                        ",
-		"\033[1D  "+cols["blue"]+"--set"+cols["white"]+", "+cols["blue"]+"--new"+cols["white"]+", "+cols["blue"]+"--mk"+cols["white"]+", "+cols["blue"]+"--make"+cols["white"]+", "+cols["blue"]+"-s"+cols["white"]+", "+cols["blue"]+"-n"+cols["white"]+"                           ",
+		"  "+cols["blue"]+"--set"+cols["white"]+", "+cols["blue"]+"--new"+cols["white"]+", "+cols["blue"]+"--mk"+cols["white"]+", "+cols["blue"]+"--make"+cols["white"]+", "+cols["blue"]+"-s"+cols["white"]+", "+cols["blue"]+"-n"+cols["white"]+"                           ",
 		"    create a new note                                          ",
 		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--new"+cols["purple"]+" \"your message\"                           ",
 		"                                                               ",

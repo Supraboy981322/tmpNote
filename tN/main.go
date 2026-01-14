@@ -84,7 +84,8 @@ func init() {
 		 case "set": if note.Val == nil {
 				e := fmt.Errorf("need note value")
 			  erorF("missing arg", e)
-		  }		 case "":
+		  }
+		 case "":
 			e := errors.New("need action")
 			erorF("missing arg", e)
 		 default:

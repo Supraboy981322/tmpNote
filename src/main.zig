@@ -204,14 +204,27 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
     const curTime = serverConn.reqTime;
     const req = serverConn.req;
     const conf = serverConn.conf;
+    var respond_html:bool = false;
 
+    {
+        var hItr = req.iterateHeaders();
+        while (hItr.next()) |h| {
+            if (mem.eql(u8, h.name, "err-html"))  {
+                respond_html = true;
+                break;
+            }
+        }
+    }
     //make sure the 'Content-Length' header isn't larger than the maximum note size
     if (req.head.content_length) |si| if (si > conf.max_note_size) {
+        const too_large_msg:[]const u8 = "note exceeds configured limit";
         if (isReq) {
-            hlp.send.headersWithType(
-                413, curTime, req, "text/plain"
-            ) catch {};
-            req.server.out.print("note exceeds configured limit", .{}) catch {};
+            if (respond_html) web.send_err(413, too_large_msg, serverConn) else {
+                hlp.send.headersWithType(
+                    413, curTime, req, "text/plain"
+                ) catch {};
+                req.server.out.print(too_large_msg, .{}) catch {};
+            }
             return "";
         }
         return note_errs.note_too_large;

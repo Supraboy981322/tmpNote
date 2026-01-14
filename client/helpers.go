@@ -174,12 +174,12 @@ func help() {
 		"    set the key for the note                                   ",
 		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--key"+cols["purple"]+" \"your key\"                               ",
 		"  "+cols["blue"]+"--value"+cols["white"]+", "+cols["blue"]+"--val"+cols["white"]+", "+cols["blue"]+"-v"+cols["white"]+"                                           ",
-/**/"    set the value for the note                                 ",
-		"\033[1A      usage: "+cols["purple"]+"tN "+cols["yel"]+"--value "+cols["purple"]+"\"some message\"           ",
+    "    set the value for the note                                 ",
+		"\033[1D      usage: "+cols["purple"]+"tN "+cols["yel"]+"--value "+cols["purple"]+"\"some message\"                         ",
 		"  "+cols["blue"]+"--view"+cols["white"]+", "+cols["blue"]+"--get"+cols["white"]+", "+cols["blue"]+"-g"+cols["white"]+", "+cols["blue"]+"-V"+cols["white"]+"                                        ",
 		"    view an existing note                                      ",
 		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--view "+cols["purple"]+"--key \"your key\"                        ",
-		"\033[1A  "+cols["blue"]+"--set"+cols["white"]+", "+cols["blue"]+"--new"+cols["white"]+", "+cols["blue"]+"--mk"+cols["white"]+", "+cols["blue"]+"--make"+cols["white"]+", "+cols["blue"]+"-s"+cols["white"]+", "+cols["blue"]+"-n"+cols["white"]+"                        ",
+		"\033[1D  "+cols["blue"]+"--set"+cols["white"]+", "+cols["blue"]+"--new"+cols["white"]+", "+cols["blue"]+"--mk"+cols["white"]+", "+cols["blue"]+"--make"+cols["white"]+", "+cols["blue"]+"-s"+cols["white"]+", "+cols["blue"]+"-n"+cols["white"]+"                           ",
 		"    create a new note                                          ",
 		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--new"+cols["purple"]+" --key \"your key\" --value \"your message\"  ",
 		"                                                               ",
@@ -200,7 +200,7 @@ func help() {
 		for _, c := range l {
 			switch c {
 			 case '\033': esc = true
-			 case 'm': esc = false
+			 case 'm', 'D': esc = false
 			 default: if !esc { res++ }
 			}
 		}

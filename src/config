@@ -1,6 +1,14 @@
+# the port that the HTTP server listens on
 port : 8795
+
+# name your server, users will see it on the web ui
 name : //tmpNote
-max_note_size : 1MB
-escape_html_ampersand : false
-#foo bar baz
+
+# the default web page when no page is specified
 default_page : new
+
+# maximum note size (stored in RAM, so make sure you have enough)
+max_note_size : 1MB
+
+# enable or disable escaping '&' in view page when escaping HTML for XSS
+escape_html_ampersand : false

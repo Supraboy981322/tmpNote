@@ -25,11 +25,11 @@ func print_id(bod []byte) {
 	for i, l := range []string{ l1, l2 } {
 		if len_no_esc(l) < longest {
 			diff := longest-len_no_esc(l)
-			for _ = range diff { l += "\033[48;2;16;23;41m \033[0m" }
+			for _ = range diff+1 { l += "\033[48;2;16;23;41m \033[0m" }
 		}
 		switch i { case 0: l1 = l ; case 1: l2 = l }
 	}
-	smart_print("%s\n%s\n", l1, l2)
+	smart_print("\r%s\n%s\n", l1, l2)
 }
 
 func spinner(quit chan(bool), msg string) {

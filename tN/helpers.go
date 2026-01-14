@@ -61,7 +61,7 @@ func help() {
 		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--view "+cols["purple"]+"--key \"your key\"                        ",
 		"\033[1D  "+cols["blue"]+"--set"+cols["white"]+", "+cols["blue"]+"--new"+cols["white"]+", "+cols["blue"]+"--mk"+cols["white"]+", "+cols["blue"]+"--make"+cols["white"]+", "+cols["blue"]+"-s"+cols["white"]+", "+cols["blue"]+"-n"+cols["white"]+"                           ",
 		"    create a new note                                          ",
-		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--new"+cols["purple"]+" \"your message\"  ",
+		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--new"+cols["purple"]+" \"your message\"                           ",
 		"                                                               ",
 	}
 

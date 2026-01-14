@@ -7,6 +7,7 @@ import (
 	"time"
 	"bytes"
 	"errors"
+	"strings"
 	"net/url"
 	"net/http"
 )
@@ -110,12 +111,12 @@ func mkReq() {
 	 case "set":
 		val_buf := bytes.NewBuffer(note.Val)
 		var e error
-		req, e = http.NewRequest("POST", server, val_buf)
+		req, e = http.NewRequest("POST", server+"/api_new", val_buf)
 		if e != nil { erorF("failed to create new request", e) }	
 	 case "view":
 		var e error
 		empty_body := bytes.NewBuffer(nil)
-		req, e = http.NewRequest("GET", server, empty_body)
+		req, e = http.NewRequest("GET", server+"/api_view", empty_body)
 		if e != nil { erorF("failed to create new request", e) }	
 		req.Header.Set("id", note.Key)
 	 default:
@@ -126,10 +127,26 @@ func mkReq() {
 		Timeout: time.Second * 5,
 	}
 	resp, e := client.Do(req)
-	if e != nil { erorF("failed to make request", e) } 
+	if e != nil { erorF("failed to make request", e) }
 	defer resp.Body.Close()
 
 	bod, e := io.ReadAll(resp.Body)
 	if e != nil { erorF("failed to read response body", e) }
-	os.Stdout.Write(bod)
+	switch act {
+	 case "set":
+		server_no_proto := strings.Split(server, "://")[1]
+		id := string(bod)
+		fmt.Printf("%s %s[%sid%s]:%s %s %s\n",
+			"\033[48;2;16;23;41m", "\033[1;38;2;125;134;177m",
+			"\033[1;38;2;192;153;255m", "\033[1;38;2;125;134;177m",
+			"\033[22;38;2;255;255;255m", id, "\033[0m")
+		fmt.Printf("%s %s[%surl%s]:%s %s/view?id=%s%s %s\n",
+			"\033[48;2;16;23;41m", "\033[1;38;2;125;134;177m",
+			"\033[1;38;2;255;199;119m", "\033[1;38;2;125;134;177m",
+			"\033[22;38;2;255;255;255m", server_no_proto, "\033[1m",
+			id, "\033[0m")
+	 default:
+		os.Stdout.Write(bod)
+		fmt.Println("")
+	}
 }

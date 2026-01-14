@@ -35,14 +35,14 @@ func (args *Args) parse() {
 	}
 	if arg[0] == '-' {
 		switch arg[1:] {
-		 case "key":
+		 case "key": if act != "" && note.Key != "" { return }
 			if note.Key != "" { args.dupe(arg, cut, "--key", aN) }
 			note.Key = args.next()
 			if note.Key == "" {
 				e := fmt.Errorf("called --key arg, but no value given")
 				erorF("invalid arg", e)
 			}
-		 case "value", "val":
+		 case "value", "val": if act != "" && note.Val != nil { return }
 			if note.Val != nil { args.dupe(arg, cut, "--val", aN) }
 			note.Val = []byte(args.next())
 			if note.Val == nil {
@@ -56,8 +56,14 @@ func (args *Args) parse() {
 				e := fmt.Errorf("called --server arg, but no value given")
 				erorF("invalid arg", e)
 			}
-		 case "view", "get": act = "view"
-		 case "set", "new", "mk", "make": act = "set"
+		 case "view", "get": 
+			act = "set" ; if note.Key == "" {
+				note.Key = args.next()
+			}
+		 case "set", "new", "mk", "make": 
+			act = "set" ; if note.Key == "" {
+				note.Key = args.next()
+			}
 		 case "help": help() ; os.Exit(0)
 		 default:
 			e := fmt.Errorf("--> %s", cut+arg)
@@ -66,14 +72,14 @@ func (args *Args) parse() {
 	} else {
 		for _, a := range arg {
 			switch a {
-			 case 'k':
+			 case 'k': if act != "" && note.Key != "" { continue }
 				if note.Key != "" { args.dupe(arg, cut, "--key", aN) }
 				note.Key = args.next()
 				if note.Key == "" {
 					e := fmt.Errorf("called -k arg, but no value given")
 					erorF("invalid arg", e)
 				}
-			 case 'v':
+			 case 'v': if act != "" && note.Val != nil { continue }
 				if note.Val != nil { args.dupe(arg, cut, "--val", aN) }
 				note.Val = []byte(args.next())
 				if note.Val == nil {
@@ -87,8 +93,14 @@ func (args *Args) parse() {
 					e := fmt.Errorf("called -S arg, but no value given")
 					erorF("invalid arg", e)
 				}
-			 case 'g', 'V': act = "view"
-			 case 's', 'n': act = "set"
+			 case 'g', 'V':
+				act = "view" ; if note.Key == "" {
+					note.Key = args.next()
+				}
+			 case 's', 'n': 
+				act = "set" ; if note.Key == "" {
+					note.Key = args.next()
+				}
 			 case 'h': help() ; os.Exit(0)
 			 default:
 				e := fmt.Errorf("--> %s", cut+arg)

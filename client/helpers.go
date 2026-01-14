@@ -159,9 +159,9 @@ func help() {
 		"white": "\033[38;2;255;255;255m",
 	} ; colOff := "\033[0m"
 	bg := map[string]string{
-		"def": "\033[48;2;16;23;41m",
+//		"def": "\033[48;2;16;23;41m",
 		"white": "\033[48;2;255;255;255m",
-//		"def": "\033[48;2;255;255;255m",
+		"def": "\033[48;2;255;255;255m",
 	}
 
 	//said spagett
@@ -174,12 +174,12 @@ func help() {
 		"    set the key for the note                                   ",
 		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--key"+cols["purple"]+" \"your key\"                               ",
 		"  "+cols["blue"]+"--value"+cols["white"]+", "+cols["blue"]+"--val"+cols["white"]+", "+cols["blue"]+"-v"+cols["white"]+"                                           ",
-		"    set the value for the note                                 ",
-		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--value "+cols["purple"]+"\"some message\"                         ",
+/**/"    set the value for the note                                 ",
+		"\033[1A      usage: "+cols["purple"]+"tN "+cols["yel"]+"--value "+cols["purple"]+"\"some message\"           ",
 		"  "+cols["blue"]+"--view"+cols["white"]+", "+cols["blue"]+"--get"+cols["white"]+", "+cols["blue"]+"-g"+cols["white"]+", "+cols["blue"]+"-V"+cols["white"]+"                                        ",
 		"    view an existing note                                      ",
 		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--view "+cols["purple"]+"--key \"your key\"                        ",
-		"  "+cols["blue"]+"--set"+cols["white"]+", "+cols["blue"]+"--new"+cols["white"]+", "+cols["blue"]+"--mk"+cols["white"]+", "+cols["blue"]+"--make"+cols["white"]+", "+cols["blue"]+"-s"+cols["white"]+", "+cols["blue"]+"-n"+cols["white"]+"                           ",
+		"\033[1A  "+cols["blue"]+"--set"+cols["white"]+", "+cols["blue"]+"--new"+cols["white"]+", "+cols["blue"]+"--mk"+cols["white"]+", "+cols["blue"]+"--make"+cols["white"]+", "+cols["blue"]+"-s"+cols["white"]+", "+cols["blue"]+"-n"+cols["white"]+"                        ",
 		"    create a new note                                          ",
 		"      usage: "+cols["purple"]+"tN "+cols["yel"]+"--new"+cols["purple"]+" --key \"your key\" --value \"your message\"  ",
 		"                                                               ",
@@ -212,7 +212,6 @@ func help() {
 		li_len := len_no_esc(l)
 		diff := (termWidth-li_len)/2
 		for _ = range diff { l = colOff+" "+bg["def"]+l } 
-		if i == 9 || i == 13 { l = l[5:] }
 		l = bg["def"]+l+colOff
 		fmt.Println(l)
 	}

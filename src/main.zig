@@ -143,7 +143,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     };
     var itr = mem.splitAny(u8, req.head.target[1..], "?"); //remove query params
     //check the request page, defaults to "/new" if none
-    const reqPage:[]const u8 = if (itr.first().len < 1) "new" else blk: {
+    const reqPage:[]const u8 = if (itr.first().len < 1) conf.default_page else blk: {
         itr.reset() ; break :blk itr.first();
     };
     const params = if (itr.next()) |p| p else ""; //set the params 

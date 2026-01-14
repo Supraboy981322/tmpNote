@@ -40,6 +40,7 @@ const conf_vals = enum {
     name, //server name
     max_note_size, //maximum note size
     escape_html_ampersand, //escaping '&' in note HTML
+    default_page,
     bad, //invalid
 };
 
@@ -59,6 +60,7 @@ pub const conf = struct {
     name: []const u8,
     max_note_size: u64,
     escape_html_ampersand: bool,
+    default_page: []const u8,
 
     const Self = @This();
 
@@ -69,6 +71,7 @@ pub const conf = struct {
         var name:[]const u8 = "//tmpNote"; //server name
         var max_note_size:u64 = 1024 * 1024; //1MB max note size
         var escape_html_ampersand:bool = true; //do escape '&'
+        var default_page:[]const u8 = "new";
 
         //open the condfig
         var fi = fs.cwd().openFile("config", .{}) catch |e| {
@@ -196,9 +199,12 @@ pub const conf = struct {
                                 ),
                             }
                         },
+                        .default_page => {
+                            default_page = try alloc.dupe(u8, val);
+                        },
                         //invalid option
                        .bad => conf_err(
-                            err.Invalid_Key, li_N, "invalid option", null
+                            err.Invalid_Key, li_N, keyR, null
                         ), 
                     }
                 } else conf_err( //likely missing something
@@ -218,6 +224,7 @@ pub const conf = struct {
             .name = name,
             .max_note_size = max_note_size,
             .escape_html_ampersand = escape_html_ampersand,
+            .default_page = default_page,
         };
     }
 };
@@ -226,18 +233,18 @@ pub const conf = struct {
 fn conf_err(
     e:anyerror,
     li_N:usize,
-    comptime msg:[]const u8,
+    msgR:[]const u8,
     thing:?[]const u8
 ) void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const alloc = gpa.allocator();
+    const msg:[]const u8 = fmt.allocPrint(
+        alloc, "(conf err on line {d}) {t} : {s}", .{li_N, e, msgR}
+    ) catch |er| { log.errf("{t}", .{er}) catch {}; return; };
     if (thing != null) {
-        log.errf(
-            "(conf err on line {d}) {t} : "++msg++" '{s}'",
-            .{li_N, e, thing.?}
-        ) catch return;
+        log.errf("{s} '{s}'", .{msg, thing.?}) catch {};
     } else {
-        log.errf(
-            "(conf err on line {d}) {t} : "++msg,
-            .{li_N, e}
-        ) catch return;
+        log.errf("{s}", .{msg}) catch return;
     }
 }

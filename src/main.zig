@@ -181,7 +181,15 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
             req.server.out.print("{s}", .{note}) catch return;
         },
         .api_new => { 
-            const id:[]const u8 = try newNote(serverConn, globAlloc);
+            const id:[]const u8 = newNote(serverConn, globAlloc, true) catch |e| blk: {
+                if (e == note_errs.note_too_large) hlp.send.headersWithType(
+                    413, curTime, req, "text/plain" 
+                ) catch {};
+                break :blk switch (e) {
+                    note_errs.note_too_large => "note too large",
+                    else => "server error",
+                };
+            };
             defer req.server.out.flush() catch {};
             if (id.len == 0) return;
             req.server.out.print("{s}", .{id}) catch return;
@@ -191,7 +199,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     req.server.out.flush() catch {};
 }
 
-fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
+fn newNote(serverConn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
     //get needed vals from struct
     const curTime = serverConn.reqTime;
     const req = serverConn.req;
@@ -199,11 +207,14 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
 
     //make sure the 'Content-Length' header isn't larger than the maximum note size
     if (req.head.content_length) |si| if (si > conf.max_note_size) {
-        hlp.send.headersWithType(
-            413, curTime, req, "text/plain"
-        ) catch {};
-        req.server.out.print("note exceeds configured limit", .{}) catch {};
-        return "";
+        if (isReq) {
+            hlp.send.headersWithType(
+                413, curTime, req, "text/plain"
+            ) catch {};
+            req.server.out.print("note exceeds configured limit", .{}) catch {};
+            return "";
+        }
+        return note_errs.note_too_large;
     };
 
     //placeholder for note
@@ -391,14 +402,20 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const curTime = conn.reqTime;
 
     //get the note content
-    const noteR:[]const u8 = try viewNote(conn, alloc, false);
+    const noteR:[]const u8 = viewNote(conn, alloc, false) catch |e| switch (e) {
+        note_errs.note_not_found => {
+            web.send_err(404, "note not found", conn); return;
+        },
+        else => { web.send_err(500, "server error", conn); return; },
+    };
     const esc_html_amper = conn.conf.escape_html_ampersand;
     const note = hlp.sanitizeHTML(noteR, alloc, esc_html_amper) catch |e| {
         try log.err("failed to sanitize html: {t}", .{e});
         web.send_err(500, "failed to sanitize html; aborting for security", conn);
         return e;
     }; defer alloc.free(note);
-   
+
+
     //define placeholder replacements
     const placs = [_][]const u8 {
         "<!-- server name -->",

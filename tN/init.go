@@ -61,8 +61,8 @@ func (args *Args) parse() {
 				note.Key = args.next()
 			}
 		 case "set", "new", "mk", "make": 
-			act = "set" ; if note.Val == "" {
-				note.Val = args.next()
+			act = "set" ; if note.Val == nil {
+				note.Val = []byte(args.next())
 			}
 		 case "help": help() ; os.Exit(0)
 		 default:
@@ -98,8 +98,8 @@ func (args *Args) parse() {
 					note.Key = args.next()
 				}
 			 case 's', 'n': 
-				act = "set" ; if note.Val == "" {
-					note.Val = args.next()
+				act = "set" ; if note.Val == nil {
+					note.Val = []byte(args.next())
 				}
 			 case 'h': help() ; os.Exit(0)
 			 default:

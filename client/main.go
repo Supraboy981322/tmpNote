@@ -55,11 +55,12 @@ var (
 func init() {
 	if args.Args.N < 1 {
 		e := errors.New("not enough args "+
-				"(see \033[48;2;100;25;175m"+
-				"\033[38;2;255;255;255m -h "+
+				"(printing \033[48;2;100;25;175m"+
+				"\033[38;2;255;255;255m --help "+
 				"\033[48;2;255;255;255m"+
 				"\033[1;38;2;210;0;0m)")
-		erorF("invalid arg", e)
+		eror("invalid arg", e)
+		help() ; os.Exit(1)
 	}
 	{
 		args.parse()

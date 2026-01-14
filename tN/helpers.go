@@ -25,6 +25,18 @@ func erorF(msg string, e error) {
 	os.Exit(1)
 }
 
+func len_no_esc(l string) int {
+	var res int ; var esc bool
+	for _, c := range l {
+		switch c {
+		 case '\033': esc = true
+		 case 'm', 'D': esc = false
+		 default: if !esc { res++ }
+		}
+	}
+	return res
+}
+
 //looks like spagetti, I know
 //  I wrote a script to generate valid Go string slice code,
 //    since it's the same output every time I could save on compute
@@ -75,17 +87,6 @@ func help() {
 		termWidth, _, e = term.GetSize(fd)
 		if e != nil { eror("failed to get term size", e) }
 	}
-	len_no_esc := func(l string) int {
-		var res int ; var esc bool
-		for _, c := range l {
-			switch c {
-			 case '\033': esc = true
-			 case 'm', 'D': esc = false
-			 default: if !esc { res++ }
-			}
-		}
-		return res
-	}; _ = len_no_esc
 	fmt.Println("")
 	for i, l := range lines {
 		_ = i

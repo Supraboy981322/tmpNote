@@ -55,7 +55,7 @@ const web = struct {
             conn.conf.name, //server name
             //status code as string
             fmt.allocPrint(globAlloc, "{d}", .{code}) catch |e| {
-                log.err("{t}", .{e}) catch {};
+                log.err("failed to allocPrint() {t}", .{e}) catch {};
                 return;
             },
             stat, //the err msg
@@ -135,7 +135,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
 
     //get the requested page
     var req = http_server.receiveHead() catch |e| {
-        try log.errf("{t}", .{e});
+        try log.errf("failed to recieve html head {t}", .{e});
         return; //return on err (a netcat cmd could cause problems otherwise)
     };
     var itr = mem.splitAny(u8, req.head.target[1..], "?"); //remove query params
@@ -418,7 +418,7 @@ fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
         web.new, &placs, &replacs, conn, alloc
     ) catch |e| {
         web.send_err(500, "server err", conn);
-        log.err("{t}", .{e}) catch {};
+        log.err("failed to generate page {t}", .{e}) catch {};
         return e;
     };
 
@@ -459,7 +459,7 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
         web.view, &placs, &replacs, conn, alloc
     ) catch |e| {
         web.send_err(500, "server err", conn);
-        log.err("{t}", .{e}) catch {};
+        log.err("failed to generate page: {t}", .{e}) catch {};
         return e;
     };
     

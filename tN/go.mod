@@ -1,4 +1,4 @@
-module tN
+module github.com/Supraboy981322/tmpNote/tN
 
 go 1.25.4
 

@@ -88,13 +88,19 @@ pub const conf = struct {
         //  (friends said they prefer the first line being 1)
         var li_N:usize = 1;
         while (fi_I.takeDelimiter('\n') catch |e| return e) |li| : (li_N += 1) {
+            //skip if key is empty 
+            if (li.len == 0) continue;
             if (li[0] == '#') continue;
             //split line into key and value
             var itr = mem.splitSequence(u8, li, " : ");
             if (itr.next()) |keyR| { //get key
-                //skip if key is empty 
-                if (keyR.len == 0) continue;
+                if (keyR.len == 0) conf_err(
+                    err.Invalid_Key, li_N, "key is empty", keyR
+                );
                 if (itr.next()) |val| { //get value
+                    if (val.len == 0) conf_err(
+                        err.Invalid_Value, li_N, "key is empty", keyR
+                    );
                     //convert key into enum 
                     const key = meta.stringToEnum(
                         conf_vals, keyR

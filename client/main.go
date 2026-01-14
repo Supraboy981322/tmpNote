@@ -77,8 +77,11 @@ func init() {
 		}
 		if has_err { os.Exit(1) }
 	}
+	if e := parseConf(); e != nil {
+		erorF("failed to parse config", e)
+	}
 }
 
 func main() {
-	fmt.Printf("server{%s}\nkey{%s}\nval{%s}\n", server, note.Key, note.Val)
+	fmt.Printf("server{%q}\nkey{%q}\nval{%q}\n", server, note.Key, note.Val)
 }

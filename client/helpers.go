@@ -4,6 +4,8 @@ import (
 	"os"
 	"fmt"
 	"slices"
+	"strings"
+	"path/filepath"
 	"golang.org/x/term"
 )
 
@@ -143,6 +145,52 @@ func (args *Args) advance() {
 		args.Used.Tak = append(args.Used.Tak, aN)
 	}
 	args.Cur.Pos++
+}
+
+func parseConf() error {
+	home, e := os.UserHomeDir()
+	if e != nil { erorF("failed to get home dir for config", e) }
+
+	conf_path := home
+	for _, p := range []string {
+		".config", "Supraboy981322", "tmpNote", "config",
+	} { conf_path = filepath.Join(conf_path, p) }
+
+	conf_B, e := os.ReadFile(conf_path)
+	if e != nil {
+		if strings.Contains(e.Error(), home) {
+			e = fmt.Errorf(strings.ReplaceAll(e.Error(), home, "~"))
+		}; return e
+	}; conf_str := string(conf_B)
+
+	c_eror := func (msg string, l string, lN int) {
+		eror("failed to parse config", fmt.Errorf(msg))
+		fmt.Printf("  %d |   %s\n", lN, l)
+	}
+
+	for li_N, l := range strings.Split(conf_str, "\n") {
+		l = strings.TrimSpace(l)
+		if l == "" { continue }
+		if len(l) > 2 { if l[:2] == "//" { continue } }
+		pair := strings.Split(l, ":")
+		for i, _ := range pair { pair[i] = strings.TrimSpace(pair[i]) }
+		if len(pair) > 2 {
+			if len(pair) <= 1 {
+				c_eror("invalid key-value pair", l, li_N)
+			} else { c_eror("missing value", l, li_N) }
+		}
+
+		k, v := pair[0], pair[1]
+		if k == "" { c_eror("key is empty", l, li_N) }
+		if v == "" { c_eror("value is empty", l, li_N) }
+
+		switch k {
+		 case "server": server = v
+		 default: c_eror("invalid option key", l, li_N) 
+		}
+	}
+ 
+	return nil
 }
 
 //looks like spagetti, I know

@@ -306,7 +306,13 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
     }
 
     //generate note id (freeing causes seg-fault)
-    const id:[]u8 = try hlp.ranStr(16, alloc);
+    const id:[]u8 = hlp.ranStr(16, alloc) catch |e| {
+        log.err("failed to generate random string (hlp.ranStr()) {t}", .{e}) catch {};
+        if (respond_html) web.send_err(500, "server err", conn) else {
+            hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
+            return "server error";
+        } return "";
+    };
 
     //note struct
     const n:Note = .{

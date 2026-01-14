@@ -34,7 +34,7 @@ type (
 )
 
 var (
-	act = "view"
+	act string
 	note Note
 	server string
 	args = Args{

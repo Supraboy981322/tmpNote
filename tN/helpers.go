@@ -42,14 +42,14 @@ func strip_esc(s string) string {
 }
 
 func Fsmart_print(f *os.File, msg string, a ...any) {
-	l := fmt.Sprintf(msg)
+	l := fmt.Sprintf(msg, a...)
 	fd := int(f.Fd())
 	if !term.IsTerminal(fd) { l = strip_esc(l) }
 	fmt.Fprint(f, l)
 }
 
 func smart_print(msg string, a ...any) {
-	Fsmart_print(os.Stdout, msg, a)
+	Fsmart_print(os.Stdout, msg, a...)
 }
 
 //looks like spagetti, I know

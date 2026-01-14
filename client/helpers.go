@@ -27,6 +27,8 @@ func erorF(msg string, e error) {
 }
 
 func (args *Args) dupe(a, cut, old string, aN int) {
+	decl := args.Used.Map[old]
+	if decl == 0 { return }
 	e := fmt.Errorf("called %s (arg #%d), "+
 			"but %s (arg %d) was already set",
 			cut+a, aN, old, args.Used.Map[old])
@@ -52,34 +54,25 @@ func (args *Args) parse() {
 	if arg[0] == '-' {
 		switch arg[1:] {
 		 case "key":
-			if note.Key != "" {
-				args.dupe(arg, cut, "--key", aN)
-			} else {
-				note.Key = args.next()
-				if note.Key == "" {
-					e := fmt.Errorf("called --key arg, but no value given")
-					erorF("invalid arg", e)
-				}
+			if note.Key != "" { args.dupe(arg, cut, "--key", aN) }
+			note.Key = args.next()
+			if note.Key == "" {
+				e := fmt.Errorf("called --key arg, but no value given")
+				erorF("invalid arg", e)
 			}
 		 case "value", "val":
-			if note.Val != nil {
-				args.dupe(arg, cut, "--val", aN)
-			} else {
-				note.Val = []byte(args.next())
-				if note.Val == nil {
-					e := fmt.Errorf("called --value arg, but no value given")
-					erorF("invalid arg", e)
-				}
+			if note.Val != nil { args.dupe(arg, cut, "--val", aN) }
+			note.Val = []byte(args.next())
+			if note.Val == nil {
+				e := fmt.Errorf("called --value arg, but no value given")
+				erorF("invalid arg", e)
 			}
 		 case "server":
-			if server != "" {
-				args.dupe(arg, cut, "--server", aN)
-			} else {
-				server = args.next()
-				if server == "" {
-					e := fmt.Errorf("called --server arg, but no value given")
-					erorF("invalid arg", e)
-				}
+			if server != "" { args.dupe(arg, cut, "--server", aN) }
+			server = args.next()
+			if server == "" {
+				e := fmt.Errorf("called --server arg, but no value given")
+				erorF("invalid arg", e)
 			}
 		 case "help": help() ; os.Exit(0)
 		 default:
@@ -90,34 +83,25 @@ func (args *Args) parse() {
 		for _, a := range arg {
 			switch a {
 			 case 'k':
-				if note.Key != "" {
-					args.dupe(arg, cut, "--key", aN)
-				} else {
-					note.Key = args.next()
-					if note.Key == "" {
-						e := fmt.Errorf("called -k arg, but no value given")
-						erorF("invalid arg", e)
-					}
+				if note.Key != "" { args.dupe(arg, cut, "--key", aN) }
+				note.Key = args.next()
+				if note.Key == "" {
+					e := fmt.Errorf("called -k arg, but no value given")
+					erorF("invalid arg", e)
 				}
 			 case 'v':
-				if note.Val != nil {
-					args.dupe(arg, cut, "--val", aN)
-				} else {
-					note.Val = []byte(args.next())
-					if note.Val == nil {
-						e := fmt.Errorf("called -v arg, but no value given")
-						erorF("invalid arg", e)
-					}
+				if note.Val != nil { args.dupe(arg, cut, "--val", aN) }
+				note.Val = []byte(args.next())
+				if note.Val == nil {
+					e := fmt.Errorf("called -v arg, but no value given")
+					erorF("invalid arg", e)
 				}
 			 case 'S':
-				if server != "" {
-					args.dupe(arg, cut, "--server", aN)
-				} else { 
-					server = args.next()
-					if server == "" {
-						e := fmt.Errorf("called -S arg, but no value given")
-						erorF("invalid arg", e)
-					}
+				if server != "" { args.dupe(arg, cut, "--server", aN) }
+				server = args.next()
+				if server == "" {
+					e := fmt.Errorf("called -S arg, but no value given")
+					erorF("invalid arg", e)
 				}
 			 case 'h': help() ; os.Exit(0)
 			 default:
@@ -126,7 +110,7 @@ func (args *Args) parse() {
 			}
 		}
 	}
-	args.Used.Map[cut+arg] = aN
+	args.Used.Map[cut+arg] = aN+1
 	if args.Args.N > args.Cur.Pos {
 		args.parse()
 	}

@@ -62,6 +62,11 @@ func init() {
 		eror("invalid arg", e)
 		help() ; os.Exit(1)
 	}
+
+	if e := parseConf(); e != nil {
+		erorF("failed to parse config", e)
+	}
+
 	{
 		args.parse()
 		var has_err bool
@@ -76,9 +81,6 @@ func init() {
 			}
 		}
 		if has_err { os.Exit(1) }
-	}
-	if e := parseConf(); e != nil {
-		erorF("failed to parse config", e)
 	}
 }
 

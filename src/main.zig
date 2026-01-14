@@ -139,10 +139,11 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
         return; //return on err (a netcat cmd could cause problems otherwise)
     };
     var itr = mem.splitAny(u8, req.head.target[1..], "?"); //remove query params
-    var reqPage:[]const u8 = itr.next().?; //get the page
+    const reqPage:[]const u8 = if (itr.first().len < 1) "new" else blk: {
+        itr.reset() ; break :blk itr.first();
+    };
     var params:[]const u8 = ""; //placeholder for params
     if (itr.peek() != null) params = itr.next().?; //set the params 
-    if (std.mem.eql(u8, reqPage, "")) reqPage = "new"; //default to new note page
 
     //log the request
     try log.req(curTime, remAddr, reqPage); 

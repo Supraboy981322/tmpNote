@@ -1,0 +1,164 @@
+package main
+
+import (
+	"os"
+	"fmt"
+	"slices"
+	"strings"
+	"path/filepath"
+)
+
+func (args *Args) dupe(a, cut, old string, aN int) {
+	decl := args.Used.Map[old]
+	if decl == 0 { return }
+	e := fmt.Errorf("called %s (arg #%d), "+
+			"but %s (arg %d) was already set",
+			cut+a, aN, old, args.Used.Map[old])
+	erorF("invalid arg", e)
+}
+
+func (args *Args) parse() {
+	args.advance()
+	aN := args.Cur.Pos
+	if aN >= args.Args.N { return }
+	if slices.Contains(args.Used.Tak, aN) {
+		args.parse() ; return
+	}
+
+	args.Cur.Arg = args.Args.V[aN]
+	cut := string(args.Cur.Arg[0])
+	args.Cur.Arg = args.Cur.Arg[1:]
+	arg := args.Cur.Arg
+	if len(args.Cur.Arg) < 1 {
+		e := fmt.Errorf("--> %s", cut+arg)
+		erorF("invalid arg", e)
+	}
+	if arg[0] == '-' {
+		switch arg[1:] {
+		 case "key":
+			if note.Key != "" { args.dupe(arg, cut, "--key", aN) }
+			note.Key = args.next()
+			if note.Key == "" {
+				e := fmt.Errorf("called --key arg, but no value given")
+				erorF("invalid arg", e)
+			}
+		 case "value", "val":
+			if note.Val != nil { args.dupe(arg, cut, "--val", aN) }
+			note.Val = []byte(args.next())
+			if note.Val == nil {
+				e := fmt.Errorf("called --value arg, but no value given")
+				erorF("invalid arg", e)
+			}
+		 case "server":
+			if server != "" { args.dupe(arg, cut, "--server", aN) }
+			server = args.next()
+			if server == "" {
+				e := fmt.Errorf("called --server arg, but no value given")
+				erorF("invalid arg", e)
+			}
+		 case "view", "get": act = "view"
+		 case "set", "new", "mk", "make": act = "set"
+		 case "help": help() ; os.Exit(0)
+		 default:
+			e := fmt.Errorf("--> %s", cut+arg)
+			erorF("invalid arg", e)
+		}
+	} else {
+		for _, a := range arg {
+			switch a {
+			 case 'k':
+				if note.Key != "" { args.dupe(arg, cut, "--key", aN) }
+				note.Key = args.next()
+				if note.Key == "" {
+					e := fmt.Errorf("called -k arg, but no value given")
+					erorF("invalid arg", e)
+				}
+			 case 'v':
+				if note.Val != nil { args.dupe(arg, cut, "--val", aN) }
+				note.Val = []byte(args.next())
+				if note.Val == nil {
+					e := fmt.Errorf("called -v arg, but no value given")
+					erorF("invalid arg", e)
+				}
+			 case 'S':
+				if server != "" { args.dupe(arg, cut, "--server", aN) }
+				server = args.next()
+				if server == "" {
+					e := fmt.Errorf("called -S arg, but no value given")
+					erorF("invalid arg", e)
+				}
+			 case 'g', 'V': act = "view"
+			 case 's', 'n': act = "set"
+			 case 'h': help() ; os.Exit(0)
+			 default:
+				e := fmt.Errorf("--> %s", cut+arg)
+				erorF("invalid arg", e)
+			}
+		}
+	}
+	args.Used.Map[cut+arg] = aN+1
+	if args.Args.N > args.Cur.Pos {
+		args.parse()
+	}
+}
+
+func (args *Args) next() string {
+	aN := args.Cur.Pos
+	args.Used.Tak = append(args.Used.Tak, aN+1)
+	if args.Args.N <= aN+1 { return "" }
+	return args.Args.V[aN+1]
+}
+
+func (args *Args) advance() {
+	if args.Cur.Pos != -1 {
+		aN := args.Cur.Pos
+		args.Used.Tak = append(args.Used.Tak, aN)
+	}
+	args.Cur.Pos++
+}
+
+func parseConf() error {
+	home, e := os.UserHomeDir()
+	if e != nil { erorF("failed to get home dir for config", e) }
+
+	conf_path := home
+	for _, p := range []string {
+		".config", "Supraboy981322", "tmpNote", "config",
+	} { conf_path = filepath.Join(conf_path, p) }
+
+	conf_B, e := os.ReadFile(conf_path)
+	if e != nil {
+		if strings.Contains(e.Error(), home) {
+			e = fmt.Errorf(strings.ReplaceAll(e.Error(), home, "~"))
+		}; return e
+	}; conf_str := string(conf_B)
+
+	c_eror := func (msg string, l string, lN int) {
+		eror("failed to parse config", fmt.Errorf(msg))
+		fmt.Printf("  %d |   %s\n", lN, l)
+	}
+
+	for li_N, l := range strings.Split(conf_str, "\n") {
+		l = strings.TrimSpace(l)
+		if l == "" { continue }
+		if len(l) > 2 { if l[:2] == "//" { continue } }
+		pair := strings.Split(l, ":")
+		for i, _ := range pair { pair[i] = strings.TrimSpace(pair[i]) }
+		if len(pair) > 2 {
+			if len(pair) <= 1 {
+				c_eror("invalid key-value pair", l, li_N)
+			} else { c_eror("missing value", l, li_N) }
+		}
+
+		k, v := pair[0], pair[1]
+		if k == "" { c_eror("key is empty", l, li_N) }
+		if v == "" { c_eror("value is empty", l, li_N) }
+
+		switch k {
+		 case "server": server = v
+		 default: c_eror("invalid option key", l, li_N) 
+		}
+	}
+ 
+	return nil
+}

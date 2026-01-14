@@ -82,39 +82,34 @@ pub const log = struct {
         remAddr:[]const u8,
         reqPage: []const u8
     ) !void {
-        const l = [_][]const u8 {
-            "\x1b[1;37m[\x1b[1;33mreq\x1b[1;37m]:\x1b[0m ",
-            "\x1b[1;36mdate\x1b[1;37m{\x1b[0m",
-            curTime,
-            "\x1b[1;37m}\x1b[0m ",
-            "\x1b[1;35maddr\x1b[1;37m{\x1b[0m",
-            remAddr,
-            "\x1b[1;37m}\x1b[0m ",
-            "\x1b[1;34mpage\x1b[1;37m{\x1b[0m",
-            reqPage,
-            "\x1b[1;37m}\x1b[0m",
-            "\n"
-        };
-        for (l) |p| try stdout.print("{s}", .{p});
-        try stdout.flush();
+        try Self.generic(
+            "\x1b[1;37m[\x1b[1;33mreq\x1b[1;37m]:\x1b[0m",
+            blk: {
+                break :blk 
+                    "\x1b[1;35maddr\x1b[1;37m{{\x1b[0m{s}\x1b[1;37m}}\x1b[0m " ++
+                    "\x1b[1;34mpage\x1b[1;37m{{\x1b[0m{s}\x1b[1;37m}}\x1b[0m " ++
+                    "\x1b[1;36mdate\x1b[1;37m{{\x1b[0m{s}\x1b[1;37m}}\x1b[0m";
+            },
+            .{remAddr, reqPage, curTime}
+        );
     }
     pub fn generic(
         comptime tag:[]const u8,
         comptime msg:[]const u8,
         args:anytype
     ) !void {
-        try stdout.print(tag++msg++"\n", args);
+        try stdout.print(tag++" "++msg++"\n", args);
         try stdout.flush();
     }
     pub fn err(comptime msg:[]const u8, args:anytype) !void {
-        try Self.generic("\x1b[1;37m[\x1b[1;31merr\x1b[1;37m]:\x1b[0m ", msg, args);
+        try Self.generic("\x1b[1;37m[\x1b[1;31merr\x1b[1;37m]:\x1b[0m", msg, args);
     }
     pub fn errf(comptime msg:[]const u8, args:anytype) !void {
         try log.err(msg, args);
         std.process.exit(1);
     }
     pub fn info(comptime msg:[]const u8, args:anytype) !void {
-        try Self.generic("\x1b[1;37m[\x1b[1;35minfo\x1b[1;37m]:\x1b[0m ", msg, args);
+        try Self.generic("\x1b[1;37m[\x1b[1;35minfo\x1b[1;37m]:\x1b[0m", msg, args);
     }
 };
 

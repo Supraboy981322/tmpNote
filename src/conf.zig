@@ -88,6 +88,7 @@ pub const conf = struct {
         //  (friends said they prefer the first line being 1)
         var li_N:usize = 1;
         while (fi_I.takeDelimiter('\n') catch |e| return e) |li| : (li_N += 1) {
+            if (li[0] == '#') continue;
             //split line into key and value
             var itr = mem.splitSequence(u8, li, " : ");
             if (itr.next()) |keyR| { //get key
@@ -207,7 +208,7 @@ pub const conf = struct {
                         ), 
                     }
                 } else conf_err( //likely missing something
-                    err.Invalid_Line, li_N, "missing key and/or value", null
+                    err.Invalid_Line, li_N, "not a key-value pair", null
                 );
             } else conf_err( //delimiter didn't exist
                 err.The_Whole_Damn_Thing, li_N, "it's just bad", null

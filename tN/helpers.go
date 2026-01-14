@@ -16,7 +16,7 @@ func eror(msg string, e error) {
 				" \033[1;38;2;210;0;0m%v \033[0m\n",
 				msg, e)
 	}
-	fmt.Fprint(os.Stderr, msg)
+	Fsmart_print(os.Stderr, msg)
 }
 
 func erorF(msg string, e error) {
@@ -41,7 +41,15 @@ func strip_esc(s string) string {
 	return res
 }
 
+func Fsmart_print(f *os.File, msg string, a ...any) {
+	l := fmt.Sprintf(msg)
+	fd := int(f.Fd())
+	if !term.IsTerminal(fd) { l = strip_esc(l) }
+	fmt.Fprint(f, l)
+}
+
 func smart_print(msg string, a ...any) {
+	Fsmart_print(os.Stdout, msg, a)
 }
 
 //looks like spagetti, I know
@@ -101,6 +109,6 @@ func help() {
 		diff := (termWidth-li_len)/2
 		for _ = range diff { l = colOff+" "+bg["def"]+l } 
 		l = bg["def"]+l+colOff
-		fmt.Println(l)
+		smart_print(l+"\n")
 	}
 }

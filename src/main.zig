@@ -380,9 +380,11 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
     } defer alloc.free(id);
 
     if (id.len == 0) {
-        hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
-        req.server.out.print("missing note key", .{}) catch {};
-        return "";
+        if (isReq) {
+            hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
+            req.server.out.print("missing note key", .{}) catch {};
+            return "";
+        } return note_errs.no_key_found;
     }
 
     //default to invalid
@@ -436,6 +438,9 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
 
     //get the note content
     const noteR:[]const u8 = viewNote(conn, alloc, false) catch |e| switch (e) {
+        note_errs.no_key_found => {
+            web.send_err(400, "key not provided", conn); return;
+        },
         note_errs.note_not_found => {
             web.send_err(404, "note not found", conn); return;
         },

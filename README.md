@@ -6,23 +6,34 @@ A basic self-hosted privnote alternative
 
 ## Installation
 
-### Compile from sources
+### Client
+- Go install
 
-Requires precisely version 0.15.2 of Zig ((official "getting started" page)[https://ziglang.org/learn/getting-started/])
+  Requires `Go` to be installed and your GOBIN to be in your `$PATH`
+  ```sh
+  go install github.com/Supraboy981322/tmpNote/tN
+  ```
+  (The command is `tN`)
 
-- Clone the repo
-  ```sh
-  git clone https://github.com/Supraboy981322/tmpNote.git
-  ```
-- Move to the repository directory
-  ```sh
-  cd tmpNote
-  ```
-- Compile
-  ```sh
-  zig build
-  ```
-  The final binary will be located in `./zig-out/bin/`
+
+### Server
+- Compile from sources
+
+  Requires precisely version 0.15.2 of Zig ((official "getting started" page)[https://ziglang.org/learn/getting-started/])
+
+  - Clone the repo
+    ```sh
+    git clone https://github.com/Supraboy981322/tmpNote.git
+    ```
+  - Move to the repository directory
+    ```sh
+    cd tmpNote
+    ```
+  - Compile
+    ```sh
+    zig build
+    ```
+    The final binary will be located in `./zig-out/bin/`
 
 ## Features
 
@@ -35,10 +46,10 @@ If a feature is not checked off, it is not yet implemented, but is planned.
 - [x] db is non-persistent (wiped when restarted)
 - [x] webui
   - [ ] dashboard
-- [ ] cli
-  - [ ] tool
+- [x] cli
+  - [x] tool
   - [ ] tool wrapper with tui
-- [ ] api
+- [x] api
   - [ ] Spec
   - [ ] Go module
 - [ ] mascot(?)

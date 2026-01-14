@@ -2,6 +2,7 @@ const std = @import("std");
 const config = @import("conf.zig").conf;
 
 pub const note_errs = error {
+    no_key_found,
     note_not_found,
     note_too_large,
 };

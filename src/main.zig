@@ -352,13 +352,20 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
         while (p.next()) |k| {
             if (mem.eql(u8, k, "id") or mem.eql(u8, k, "note-id")) {
                 //set id parameter
-                id = alloc.dupe(u8, p.next().?) catch |e| {
-                    try log.err("failed to allocate id duplication: {t}", .{e});
+                if (p.next()) |n| {
+                    id = alloc.dupe(u8, n) catch |e| {
+                        try log.err("failed to allocate id duplication: {t}", .{e});
+                        hlp.send.headersWithType(
+                            500, curTime, req, "text/plain"
+                        ) catch {};
+                        return "failed to allocate id duplication";
+                    };
+                } else if (isReq) {
                     hlp.send.headersWithType(
-                        500, curTime, req, "text/plain"
+                        400, curTime, req, "text/plain"
                     ) catch {};
-                    return "failed to allocate id duplication";
-                };
+                    return "missing id";
+                } else return note_errs.no_key_found;
                 break;
             } _ = p.next(); //skip value
         }

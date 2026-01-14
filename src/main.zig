@@ -204,6 +204,7 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
     const curTime = serverConn.reqTime;
     const req = serverConn.req;
     const conf = serverConn.conf;
+    const conn = serverConn;
     var respond_html:bool = false;
 
     {
@@ -238,10 +239,12 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
     while (hItr.next()) |h| {
         if (mem.eql(u8, h.name, "note")) {
             note = alloc.dupe(u8, h.value) catch {
-                hlp.send.headersWithType(
-                    400, curTime, req, "text/plain"
-                ) catch {};
-                req.server.out.print("bad note", .{}) catch {};
+                if (respond_html) web.send_err(400, "bad note", conn) else {
+                    hlp.send.headersWithType(
+                        400, curTime, req, "text/plain"
+                    ) catch {};
+                    req.server.out.print("bad note", .{}) catch {};
+                }
                 return "";
             };
             break;
@@ -255,13 +258,14 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
                 if (mem.eql(u8, k, "note")) {
                     //set id parameter
                     note = alloc.dupe(u8, p.next().?) catch |e| {
-                        try log.err("failed to allocate note duplication: {t}", .{e});
-                        hlp.send.headersWithType(
-                            500, curTime, req, "text/plain"
-                        ) catch {};
-                        return "failed to allocate note duplication";
-                    };
-                    break;
+                        if (respond_html) web.send_err(500, "server err", conn) else {
+                            try log.err("failed to allocate note duplication: {t}", .{e});
+                            hlp.send.headersWithType(
+                                500, curTime, req, "text/plain"
+                            ) catch {};
+                            return "failed to allocate note duplication";
+                        } return "";
+                    }; break;
                 } _ = p.next(); //skip value
             }
         }
@@ -278,20 +282,26 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
             //read the body
             //  (assumes 'Content-Length' header is correct, responds 500 if not)
             const bod:[]u8 = bod_r.readAlloc(alloc, s) catch |e| {
-                try log.err("failed to read req body: {t}", .{e});
-                hlp.send.headersWithType(
-                    500, curTime, req, "text/plain"
-                ) catch {};
-                req.server.out.print("failed to read request body", .{}) catch {};
-                return "server err";
+                if (respond_html) web.send_err(500, "failed to read request", conn) else {
+                    try log.err("failed to read req body: {t}", .{e});
+                    hlp.send.headersWithType(
+                        500, curTime, req, "text/plain"
+                    ) catch {};
+                    req.server.out.print("failed to read request body", .{}) catch {};
+                    return "server err";
+                } return "";
             };
             note = bod;
         } else {
             //occurs if 'Content-Length' header is missing
-            hlp.send.headersWithType(
-                411, curTime, req, "text/plain"
-            ) catch {};
-            return "need \"Content-Length\" header";
+            if (respond_html) web.send_err(
+                411, "need \"Content-Length\" header", conn
+            ) else {
+                hlp.send.headersWithType(
+                    411, curTime, req, "text/plain"
+                ) catch {};
+                return "need \"Content-Length\" header";
+            } return "";
         }
     }
 
@@ -306,12 +316,14 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
 
     //add the note to db
     db.put(id, n) catch |e| { //on err
-        //send headers (500 server err)
-        hlp.send.headersWithType(
-            500, curTime, req, "text/plain"
-        ) catch {}; //ignore err
-        try log.err("failed to read store note: {t}", .{e});
-        return "failed to store note";
+        if (respond_html) web.send_err(500, "failed to store note", conn) else {
+            //send headers (500 server err)
+            hlp.send.headersWithType(
+                500, curTime, req, "text/plain"
+            ) catch {}; //ignore err
+            try log.err("failed to read store note: {t}", .{e});
+            return "failed to store note";
+        } return "";
     };
    
     //send headers (200 OK)

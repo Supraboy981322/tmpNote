@@ -143,8 +143,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     const reqPage:[]const u8 = if (itr.first().len < 1) "new" else blk: {
         itr.reset() ; break :blk itr.first();
     };
-    var params:[]const u8 = ""; //placeholder for params
-    if (itr.peek() != null) params = itr.next().?; //set the params 
+    const params = if (itr.next()) |p| p else ""; //set the params 
 
     //log the request
     try log.req(curTime, remAddr, reqPage); 

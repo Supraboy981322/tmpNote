@@ -11,7 +11,7 @@ A basic self-hosted privnote alternative
 
   Requires `Go` to be installed and your GOBIN to be in your `$PATH`
   ```sh
-  go install github.com/Supraboy981322/tmpNote/tN
+  go install github.com/Supraboy981322/tmpNote/tN@latest
   ```
   (The command is `tN`)
 

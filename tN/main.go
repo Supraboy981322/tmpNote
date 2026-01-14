@@ -3,7 +3,6 @@ package main
 import (
 	"io"
 	"os"
-	"fmt"
 	"time"
 	"bytes"
 	"errors"
@@ -58,23 +57,27 @@ var (
 )
 
 func init() {
+	quit := make(chan bool)
+	go spinner(quit, "reading args and config")
 	if args.Args.N < 1 {
 		e := errors.New("not enough args "+
 				"(printing \033[48;2;100;25;175m"+
 				"\033[38;2;255;255;255m --help "+
 				"\033[48;2;255;255;255m"+
 				"\033[1;38;2;210;0;0m)")
+		quit<-true
 		eror("invalid arg", e)
 		help() ; os.Exit(1)
 	}
 
 	if e := parseConf(); e != nil {
+		quit<-true
 		erorF("failed to parse config", e)
 	}
 	
 	for _, f := range []func(){
 		args.parse, ensure_args,
-	} { f() }
+	} { f() } ; quit<-true
 }
 
 func main() {
@@ -82,6 +85,8 @@ func main() {
 }
 
 func mkReq() {
+	quit := make(chan bool)
+	go spinner(quit, "preparing request")
 	var req *http.Request
 	switch act {
 	 case "set":
@@ -102,17 +107,25 @@ func mkReq() {
 	client := &http.Client{
 		Timeout: time.Second * 5,
 	}
+
+	quit<-true
+
+	go spinner(quit, "making request")
 	resp, e := client.Do(req)
 	if e != nil { erorF("failed to make request", e) }
 	defer resp.Body.Close()
+	quit<-true
 
+	go spinner(quit, "reading response")
 	bod, e := io.ReadAll(resp.Body)
 	if e != nil { erorF("failed to read response body", e) }
+	quit<-true
+
+	go spinner(quit, "outputting response")
 	switch act {
-	 case "set": print_id(bod)
+	 case "set": quit<-true ; print_id(bod)
 	 case "view":
-		os.Stdout.Write(bod)
-		fmt.Println("")
+		quit<-true ; os.Stdout.Write(bod)
 	 default:
 		erorF("your forgot to create a case for new action (printing resp body)", nil) 
 	}

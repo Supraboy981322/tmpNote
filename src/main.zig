@@ -139,6 +139,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
         return; //return on err (a netcat cmd could cause problems otherwise)
     };
     var itr = mem.splitAny(u8, req.head.target[1..], "?"); //remove query params
+    //check the request page, defaults to "/new" if none
     const reqPage:[]const u8 = if (itr.first().len < 1) "new" else blk: {
         itr.reset() ; break :blk itr.first();
     };

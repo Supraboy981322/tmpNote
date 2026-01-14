@@ -259,8 +259,8 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
             var p = mem.splitScalar(u8, par, '=');
             while (p.next()) |k| {
                 if (mem.eql(u8, k, "note")) {
-                    //set id parameter
-                    note = alloc.dupe(u8, p.next().?) catch |e| {
+                    //set note parameter's value
+                    if (p.next()) |n| note = alloc.dupe(u8, n) catch |e| {
                         if (respond_html) web.send_err(500, "server err", conn) else {
                             try log.err("failed to allocate note duplication: {t}", .{e});
                             hlp.send.headersWithType(

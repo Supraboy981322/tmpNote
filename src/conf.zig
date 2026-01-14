@@ -91,8 +91,8 @@ pub const conf = struct {
             //split line into key and value
             var itr = mem.splitSequence(u8, li, " : ");
             if (itr.next()) |keyR| { //get key
-                //err if key is empty 
-                if (keyR.len == 0) conf_err(err.Invalid_Key, li_N, "no key", null);
+                //skip if key is empty 
+                if (keyR.len == 0) continue;
                 if (itr.next()) |val| { //get value
                     //convert key into enum 
                     const key = meta.stringToEnum(

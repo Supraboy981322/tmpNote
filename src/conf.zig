@@ -199,11 +199,10 @@ pub const conf = struct {
                                 ),
                             }
                         },
-                        .default_page => {
-                            default_page = try alloc.dupe(u8, val);
-                        },
+                        //set the default web page
+                        .default_page => default_page = try alloc.dupe(u8, val),
                         //invalid option
-                       .bad => conf_err(
+                        .bad => conf_err(
                             err.Invalid_Key, li_N, keyR, null
                         ), 
                     }

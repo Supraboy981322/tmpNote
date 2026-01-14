@@ -7,7 +7,6 @@ import (
 	"time"
 	"bytes"
 	"errors"
-	"net/url"
 	"net/http"
 )
 
@@ -72,29 +71,10 @@ func init() {
 	if e := parseConf(); e != nil {
 		erorF("failed to parse config", e)
 	}
-
-	{
-		args.parse()
-		switch act {
-		 case "view": if note.Key == "" {
-				e := fmt.Errorf("need note key")
-			  erorF("missing arg", e)
-			}
-		 case "set": if note.Val == nil {
-				e := fmt.Errorf("need note value")
-			  erorF("missing arg", e)
-		  }
-		 case "":
-			e := errors.New("need action")
-			erorF("missing arg", e)
-		 default:
-			e := errors.New("(action: '"+act+"') --> init()")
-			erorF("you forgot to add another case for new action", e)
-		}
-		u, e := url.Parse(server)
-		if e != nil { erorF("failed to server parse url", e) }
-		if !u.IsAbs() { server = "https://"+server }
-	}
+	
+	for _, f := range []func(){
+		args.parse, ensure_args,
+	} { f() }
 }
 
 func main() {

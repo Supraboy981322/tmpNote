@@ -20,8 +20,7 @@ func eror(msg string, e error) {
 }
 
 func erorF(msg string, e error) {
-	eror(msg, e)
-	os.Exit(1)
+	eror(msg, e) ; os.Exit(1)
 }
 
 func len_no_esc(l string) int {

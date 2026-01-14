@@ -3,8 +3,10 @@ package main
 import (
 	"os"
 	"fmt"
+	"errors"
 	"slices"
 	"strings"
+	"net/url"
 	"path/filepath"
 )
 
@@ -173,4 +175,26 @@ func parseConf() error {
 	}
  
 	return nil
+}
+
+func ensure_args() {
+	switch act {
+	 case "view": if note.Key == "" {
+			e := fmt.Errorf("need note key")
+		  erorF("missing arg", e)
+		}
+	 case "set": if note.Val == nil {
+			e := fmt.Errorf("need note value")
+		  erorF("missing arg", e)
+	  }
+	 case "":
+		e := errors.New("need action")
+		erorF("missing arg", e)
+	 default:
+		e := errors.New("(action: '"+act+"') --> init()")
+		erorF("you forgot to add another case for new action", e)
+	}
+	u, e := url.Parse(server)
+	if e != nil { erorF("failed to server parse url", e) }
+	if !u.IsAbs() { server = "https://"+server }
 }

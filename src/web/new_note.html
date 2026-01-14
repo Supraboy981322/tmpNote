@@ -76,11 +76,17 @@
       let n = document.getElementById("note").value;
       let resp = await fetch(url, {
         method: 'POST',
+        headers: {
+          'err-html': 'true',
+        },
         body: n
       });
       if (!resp.ok) {
         const bod = await resp.text();
-        throw new Error(`err, stat: ${resp.status}\n\tserver:${bod}`);
+        document.open("text/html", "replace");
+        document.write(bod);
+        document.close();
+        throw new Error(`err, stat: ${resp.status}\n`);
       }
       let id = await resp.text();
       console.log(id)

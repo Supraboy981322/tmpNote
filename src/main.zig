@@ -442,7 +442,7 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
     const esc_html_amper = conn.conf.escape_html_ampersand;
     const note = hlp.sanitizeHTML(noteR, alloc, esc_html_amper) catch |e| {
         try log.err("failed to sanitize html: {t}", .{e});
-        web.send_err(500, "failed to sanitize html; aborting for security", conn);
+        web.send_err(500, "failed to sanitize html", conn);
         return e;
     }; defer alloc.free(note);
 

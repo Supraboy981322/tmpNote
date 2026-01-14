@@ -6,7 +6,9 @@ const heap = std.heap;
 const fmt = std.fmt;
 const mem = std.mem;
 
-const ServerConn = @import("global_types.zig").ServerConn;
+const glob_types = @import("global_types.zig");
+const ServerConn = glob_types.ServerConn;
+const note_errs = glob_types.note_errs;
 
 var stdout_buf:[1024]u8 = undefined;
 var stdout_wr = std.fs.File.stdout().writer(&stdout_buf);
@@ -44,13 +46,19 @@ pub const send = struct {
                 413 => "HTTP/1.1 413 Content Too Large",
                 else => "HTTP/1.1 500 Internal Server Error",
             },
-            try fmt.allocPrint(
+            fmt.allocPrint(
                 alloc, "Content-Type: {s}",
                 .{content_type orelse "text/html"}
-            ),
+            ) catch |e| blk: {
+                try log.err("failed to allocate 'Content-Type' header: {t}", .{e});
+                break :blk "Content-Type: text/html";
+            },
             "x-content-type-options: nosniff", 
             "server: homebrew zig http server",
-            try fmt.allocPrint(alloc, "date: {s}", .{curTime}),
+            fmt.allocPrint(alloc, "date: {s}", .{curTime}) catch |e| blk: {
+                try log.err("failed to allocate 'date' header: {t}", .{e});
+                break :blk "foo-bar-baz: foo bar baz";
+            },
             ""
         }; defer for ([_]usize{ 1, 4, }) |i| alloc.free(heads[i]);
 
@@ -65,7 +73,10 @@ pub fn ranStr(len:usize, alloc: mem.Allocator) ![]u8 {
     const chars:[]const u8 = "qwertyuioplkjhgfdsazxcvbnmQWERTYUIOPKLJHGFDSAZXCVBNM1234567890";
 
     var pran = crypto.random;
-    const buf = try alloc.alloc(u8, len);
+    const buf = alloc.alloc(u8, len) catch |e| {
+        try log.err("failed to allocate ranStr(len = {d}) buffer: {t}", .{len, e});
+        return e;
+    };
     for (buf) |*byte| {
         const i = pran.intRangeAtMost(usize, 0, chars.len-1);
         byte.* = chars[i];
@@ -128,12 +139,15 @@ pub fn sanitizeHTML(
             3 => "&quot;",
             4 => "&apos;",
             else => {
-                try log.errf("unknown escape: {s}", .{char});
-                return "";
+                try log.err("unknown escape: {s}", .{char});
+                return note_errs.invalid_escape;
             },
         };
         const new_si = mem.replacementSize(u8, new_note, char, reChar);
-        const tmp_note = try alloc.alloc(u8, new_si);
+        const tmp_note = alloc.alloc(u8, new_si) catch |e| {
+            try log.err("failed to allocate buffer for escaped note: {t}", .{e});
+            return e;
+        };
         _ = mem.replace(u8, new_note, char, reChar, tmp_note);
         new_note = tmp_note;
     }
@@ -145,12 +159,8 @@ pub fn gen_page(
     og:[]const u8,
     placeholders:[]const []const u8,
     replacements:[]const []const u8,
-    conn:ServerConn,
     alloc:mem.Allocator
 ) ![]const u8 {
-    const curTime = conn.reqTime;
-    const req = conn.req;
-
     var respPage:[]const u8 = og;
     for (0.., placeholders) |i, plac| {
         //set the thing to replace with
@@ -162,8 +172,8 @@ pub fn gen_page(
         //allocate in-between page
         const between = alloc.alloc(u8, na_replac_si) catch |e| {
             try log.err("failed to allocate replacement size: {t}", .{e});
-            try send.headersWithType(500, curTime, req, "text/plain");
-            return "";
+//            send.headersWithType(500, curTime, req, "text/plain") catch {};
+            return e;
         };
 
         //replace placeholders 

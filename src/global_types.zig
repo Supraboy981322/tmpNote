@@ -5,6 +5,7 @@ pub const note_errs = error {
     no_key_found,
     note_not_found,
     note_too_large,
+    invalid_escape,
 };
 
 pub const ServerConn = struct {

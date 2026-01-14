@@ -64,7 +64,7 @@ const web = struct {
         //generate response page
         const err_page:[]const u8 = @embedFile("web/err.html");
         const respPage = hlp.gen_page(
-            err_page, &placs, &replacs, conn, globAlloc
+            err_page, &placs, &replacs, globAlloc
         ) catch return;
 
         //send response
@@ -82,15 +82,18 @@ pub fn main() !void {
     defer db.deinit();
 
     //get server addr
-    const addr = try net.Address.resolveIp("::", conf.port);
+    const addr = net.Address.resolveIp("::", conf.port) catch |e| {
+        try log.errf("failed to resolve ip: {t}", .{e}); return;
+    };
 
     //initialize server 
-    var server = try addr.listen(.{ .reuse_address = true });
-    defer server.deinit();
+    var server = addr.listen(.{ .reuse_address = true }) catch |e| {
+        try log.errf("failed to listen on port '{d}': {t}", .{conf.port, e});
+        return;
+    }; defer server.deinit();
 
     //log port
     try log.info("{s} is listening on port {d}", .{conf.name, conf.port});
-    try stdout.flush();
 
     //wait for connections
     while (true) {
@@ -163,10 +166,18 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     const page = std.meta.stringToEnum(vp, reqPage) orelse vp.invalid;
     switch (page) {
         //new note web page
-        .new => { try newNotePage(serverConn, globAlloc); },
+        .new => {
+            newNotePage(serverConn, globAlloc) catch |e| {
+                try log.err("failed to serve new note page: {t}", .{e});
+            };
+        },
 
         //view note web page 
-        .view => { try viewNotePage(serverConn, globAlloc); },
+        .view => { 
+            viewNotePage(serverConn, globAlloc) catch |e| {
+                try log.err("failed to serve view note page {t}", .{e});
+            };
+        },
 
         .api_view => {
             const note:[]const u8 = viewNote(serverConn, globAlloc, true) catch |e| blk: {
@@ -310,7 +321,7 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
 
     //generate note id (freeing causes seg-fault)
     const id:[]u8 = hlp.ranStr(16, alloc) catch |e| {
-        log.err("failed to generate random string (hlp.ranStr()) {t}", .{e}) catch {};
+        try log.err("failed to generate random string (hlp.ranStr()) {t}", .{e});
         if (respond_html) web.send_err(500, "server err", conn) else {
             hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
             return "server error";
@@ -427,10 +438,10 @@ fn newNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
         conn.conf.name,
     };//generate the page
     const respPage = hlp.gen_page(
-        web.new, &placs, &replacs, conn, alloc
+        web.new, &placs, &replacs, alloc
     ) catch |e| {
         web.send_err(500, "server err", conn);
-        log.err("failed to generate page {t}", .{e}) catch {};
+        try log.err("failed to generate page {t}", .{e});
         return e;
     };
 
@@ -471,10 +482,10 @@ fn viewNotePage(conn:ServerConn, alloc:mem.Allocator) !void {
         note,
     };//generate the page
     const respPage = hlp.gen_page(
-        web.view, &placs, &replacs, conn, alloc
+        web.view, &placs, &replacs, alloc
     ) catch |e| {
         web.send_err(500, "server err", conn);
-        log.err("failed to generate page: {t}", .{e}) catch {};
+        try log.err("failed to generate page: {t}", .{e});
         return e;
     };
     

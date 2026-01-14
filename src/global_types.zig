@@ -1,6 +1,10 @@
 const std = @import("std");
 const config = @import("conf.zig").conf;
 
+pub const note_errs = error {
+    note_not_found,
+};
+
 pub const ServerConn = struct {
     conn: std.net.Server.Connection,
     req: std.http.Server.Request,

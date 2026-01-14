@@ -36,10 +36,12 @@ pub const send = struct {
 
         const heads = [_][]const u8 {
             switch (status) {
-                400 => "HTTP/1.1 400 Bad Request",
                 200 => "HTTP/1.1 200 OK",
+                400 => "HTTP/1.1 400 Bad Request",
                 403 => "HTTP/1.1 403 FORBIDDEN",
                 404 => "HTTP/1.1 404 not found",
+                411 => "HTTP/1.1 411 Length Required",
+                413 => "HTTP/1.1 413 Content Too Large",
                 else => "HTTP/1.1 500 Internal Server Error",
             },
             try fmt.allocPrint(

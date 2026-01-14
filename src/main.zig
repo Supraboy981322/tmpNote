@@ -1,6 +1,7 @@
 const std = @import("std");
 const hlp = @import("helpers.zig");
 const config = @import("conf.zig").conf;
+const glob_types = @import("global_types.zig");
 const c = @cImport({
     @cInclude("time.h");
 });
@@ -17,7 +18,8 @@ const http = std.http;
 const log = hlp.log;
 
 //types
-const ServerConn = @import("global_types.zig").ServerConn;
+const note_errs = glob_types.note_errs;
+const ServerConn = glob_types.ServerConn;
 const Note = struct {
     content: []u8,
     Encrypt: bool, //might do this at some point
@@ -166,7 +168,15 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
         .view => { try viewNotePage(serverConn, globAlloc); },
 
         .api_view => {
-            const note:[]const u8 = try viewNote(serverConn, globAlloc, true);
+            const note:[]const u8 = viewNote(serverConn, globAlloc, true) catch |e| blk: {
+                if (e == note_errs.note_not_found) hlp.send.headersWithType(
+                    400, curTime, req, "text/plain"
+                ) catch {};
+                break :blk switch (e) {
+                    note_errs.note_not_found => "note not found",
+                    else => "server error",
+                };
+            };
             defer req.server.out.flush() catch {};
             req.server.out.print("{s}", .{note}) catch return;
         },
@@ -190,7 +200,7 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
     //make sure the 'Content-Length' header isn't larger than the maximum note size
     if (req.head.content_length) |si| if (si > conf.max_note_size) {
         hlp.send.headersWithType(
-            400, curTime, req, "text/plain"
+            413, curTime, req, "text/plain"
         ) catch {};
         req.server.out.print("note exceeds configured limit", .{}) catch {};
         return "";
@@ -255,7 +265,7 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator) ![]const u8 {
         } else {
             //occurs if 'Content-Length' header is missing
             hlp.send.headersWithType(
-                400, curTime, req, "text/plain"
+                411, curTime, req, "text/plain"
             ) catch {};
             return "need \"Content-Length\" header";
         }
@@ -344,7 +354,7 @@ fn viewNote(conn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
             try log.err("failed to remove from db", .{});
             return "failed to remove from db";
         }
-    }
+    } else return note_errs.note_not_found;
 
     //only send headers if not internal request
     if (isReq) {

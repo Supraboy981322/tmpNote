@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const log = @import("helpers.zig").log;
+const log_lvl = @import("global_types.zig").log_lvl;
 
 const fs = std.fs;
 const mem = std.mem;
@@ -40,7 +41,8 @@ const conf_vals = enum {
     name, //server name
     max_note_size, //maximum note size
     escape_html_ampersand, //escaping '&' in note HTML
-    default_page,
+    default_page, //default web page
+    log_level, //log verbosity
     bad, //invalid
 };
 
@@ -61,6 +63,7 @@ pub const conf = struct {
     max_note_size: u64,
     escape_html_ampersand: bool,
     default_page: []const u8,
+    log_level:i8,
 
     const Self = @This();
 
@@ -72,6 +75,7 @@ pub const conf = struct {
         var max_note_size:u64 = 1024 * 1024; //1MB max note size
         var escape_html_ampersand:bool = true; //do escape '&'
         var default_page:[]const u8 = "new";
+        var log_level:i8 = 0;
 
         //open the condfig
         var fi = fs.cwd().openFile("config", .{}) catch |e| {
@@ -206,6 +210,24 @@ pub const conf = struct {
                                 ),
                             }
                         },
+                        .log_level => {
+                            const v = meta.stringToEnum(
+                                log_lvl, val
+                            ) orelse log_lvl.bad;
+                            log_level = switch (v) {
+                                .debug => 0,
+                                .info => 1,
+                                .req => 2,
+                                .warn => 3,
+                                .err => 4,
+                                .bad => {
+                                    const msg:[]const u8 = "not a log level";
+                                    conf_err(
+                                        err.Invalid_Value, li_N, msg, null
+                                    ); @panic("failed to fail");
+                                },
+                            };
+                        },
                         //set the default web page
                         .default_page => default_page = try alloc.dupe(u8, val),
                         //invalid option
@@ -224,7 +246,7 @@ pub const conf = struct {
         //make sure everything was flushed;
         try stdout.flush();
 
-        try log.info(
+        try log.deb(
             "port{{{d}}} name{{{s}}} max{{{d}}} escape{{{any}}} def{{{s}}}",
             .{port, name, max_note_size, escape_html_ampersand, default_page}
         );
@@ -236,6 +258,7 @@ pub const conf = struct {
             .max_note_size = max_note_size,
             .escape_html_ampersand = escape_html_ampersand,
             .default_page = default_page,
+            .log_level = log_level,
         };
     }
 };

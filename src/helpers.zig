@@ -112,6 +112,11 @@ pub const log = struct {
         try stdout.print(tag++" "++msg++"\n", args);
         try stdout.flush();
     }
+    pub fn deb(comptime msg:[]const u8, args:anytype) !void {
+        if (glob_types.conf.log_level == 0) try Self.generic(
+            "\x1b[1;37m[\x1b[1;34mdebug\x1b[1;37m]:\x1b[0m", msg, args
+        );
+    }
     pub fn err(comptime msg:[]const u8, args:anytype) !void {
         try Self.generic("\x1b[1;37m[\x1b[1;31merr\x1b[1;37m]:\x1b[0m", msg, args);
     }

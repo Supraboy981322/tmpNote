@@ -1,6 +1,8 @@
 const std = @import("std");
 const config = @import("conf.zig").conf;
 
+pub var conf:config = undefined;
+
 pub const note_errs = error {
     no_key_found,
     note_not_found,
@@ -15,4 +17,13 @@ pub const ServerConn = struct {
     reqTime: []u8,
     params: []const u8,
     conf: config,
+};
+
+pub const log_lvl = enum {
+    debug,
+    info,
+    req,
+    warn,
+    err,
+    bad, //invalid
 };

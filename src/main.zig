@@ -74,11 +74,10 @@ const web = struct {
     }
 };
 
+
 pub fn main() !void {
-    const conf = config.read(globAlloc) catch |e| {
-        try log.errf("{t}", .{e});
-        @panic("failed to fail");
-    };
+    glob_types.conf = config.read(globAlloc) catch unreachable;
+    const conf = glob_types.conf;
     defer db.deinit();
 
     //get server addr

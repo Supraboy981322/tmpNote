@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"fmt"
+	"strings"
 	"strconv"
 	"golang.org/x/term"
 )
@@ -94,8 +95,12 @@ func help() {
 	var termWidth int ; {
 		fd := int(os.Stdout.Fd())
 		if !term.IsTerminal(fd) {
-			fmt.Fprintln(os.Stderr, "non-terminals are unsupported at the moment")
-			os.Exit(1)
+			Fsmart_print(os.Stdout, "not a terminal, stripping styling\n")
+			for _, l := range lines[2:] {
+				l := strings.TrimSpace(l)
+				smart_print(l+"\n")
+			}
+			os.Exit(0)
 		}
 		var e error
 		termWidth, _, e = term.GetSize(fd)

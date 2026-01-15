@@ -8,7 +8,15 @@ import (
 	"strings"
 	"net/url"
 	"path/filepath"
+	"golang.org/x/term"
 )
+
+func chkTerm() {
+	errFd := int(os.Stderr.Fd())
+	outFd := int(os.Stdout.Fd())
+	if term.IsTerminal(outFd) { term_chk.stdout = true }
+	if term.IsTerminal(errFd) { term_chk.stderr = true }
+}
 
 func (args *Args) dupe(a, cut, old string, aN int) {
 	decl := args.Used.Map[old]

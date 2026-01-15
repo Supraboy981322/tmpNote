@@ -9,11 +9,12 @@ import (
 
 func print_id(bod []byte) {
 	server_no_proto := strings.Split(server, "://")[1]
-	id := string(bod)
+	id := string(bod) 
 	l1 := fmt.Sprintf("\r%s  %s[%sid%s]:%s %s %s",
 			"\033[48;2;16;23;41m", "\033[1;38;2;125;134;177m",
 			"\033[1;38;2;192;153;255m", "\033[1;38;2;125;134;177m",
 			"\033[22;38;2;255;255;255m", id, "\033[0m")
+	if !term_chk.stdout { smart_print(l1) ; return }
 	l2 := fmt.Sprintf("%s %s[%surl%s]:%s %s/view?id=%s%s %s",
 			"\033[48;2;16;23;41m", "\033[1;38;2;125;134;177m",
 			"\033[1;38;2;255;199;119m", "\033[1;38;2;125;134;177m",
@@ -33,7 +34,8 @@ func print_id(bod []byte) {
 }
 
 func spinner(quit chan(bool), msg string) {
-	fmt.Printf("\n")
+	if !term_chk.stderr { <-quit ; return }
+	Fsmart_print(os.Stderr, "\n")
 	progIcn := []rune{'⠻','⠽','⠾','⠷','⠯','⠟',}
 	for i := 0 ;; i++ {
 		select {

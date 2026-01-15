@@ -54,9 +54,14 @@ var (
 			Tak: []int{},
 		},
 	}
+	term_chk = struct {
+		stderr bool
+		stdout bool
+	}{}
 )
 
 func init() {
+	chkTerm()
 	quit := make(chan bool)
 	go spinner(quit, "reading args and config")
 	if args.Args.N < 1 {
@@ -66,7 +71,9 @@ func init() {
 				"\033[48;2;255;255;255m"+
 				"\033[1;38;2;210;0;0m)")
 		quit<-true
-		eror("invalid arg", e)
+		if !term_chk.stderr {
+			Fsmart_print(os.Stderr, "%v\n", e)
+		} else { eror("invalid arg", e) }
 		help() ; os.Exit(1)
 	}
 

@@ -224,6 +224,11 @@ pub const conf = struct {
         //make sure everything was flushed;
         try stdout.flush();
 
+        try log.info(
+            "port{{{d}}} name{{{s}}} max{{{d}}} escape{{{any}}} def{{{s}}}",
+            .{port, name, max_note_size, escape_html_ampersand, default_page}
+        );
+
         //return config struct
         return Self{
             .port = port,

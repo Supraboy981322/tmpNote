@@ -220,30 +220,39 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
     const conf = serverConn.conf;
     const conn = serverConn;
     var respond_html:bool = false;
-
     {
         var hItr = req.iterateHeaders();
         while (hItr.next()) |h| {
-            if (mem.eql(u8, h.name, "err-html"))  {
-                respond_html = true;
-                break;
+            if (mem.eql(u8, h.name, "err-html")) {
+                respond_html = true; break;
             }
         }
     }
+    var len_req:u64 = 0;
     //make sure the 'Content-Length' header isn't larger than the maximum note size
-    if (req.head.content_length) |si| if (si > conf.max_note_size) {
-        const too_large_msg:[]const u8 = "note exceeds configured limit";
-        if (isReq) {
-            if (respond_html) web.send_err(413, too_large_msg, serverConn) else {
-                hlp.send.headersWithType(
-                    413, curTime, req, "text/plain"
-                ) catch {};
-                req.server.out.print(too_large_msg, .{}) catch {};
-            }
-            return "";
+    if (req.head.content_length) |si| {
+        len_req = si; if (si > conf.max_note_size) {
+            const too_large_msg:[]const u8 = "note exceeds configured limit";
+            if (isReq) {
+                if (respond_html) web.send_err(413, too_large_msg, serverConn) else {
+                    hlp.send.headersWithType(
+                        413, curTime, req, "text/plain"
+                    ) catch {};
+                    req.server.out.print(too_large_msg, .{}) catch {};
+                } return "";
+            } else return note_errs.note_too_large;
         }
-        return note_errs.note_too_large;
-    };
+    } else {
+        //occurs if 'Content-Length' header is missing
+        if (respond_html) web.send_err(
+            411, "need \"Content-Length\" header", conn
+        ) else {
+            hlp.send.headersWithType(
+                411, curTime, req, "text/plain"
+            ) catch {};
+            return "need \"Content-Length\" header";
+        } return "";
+    }
 
     //placeholder for note
     var note:[]u8 = "";
@@ -284,39 +293,25 @@ fn newNote(serverConn:ServerConn, alloc:mem.Allocator, isReq:bool) ![]const u8 {
             }
         }
     } if (note.len == 0) {
-        const len_s:?u64 = req.head.content_length;
-        if (len_s) |s| {
-            //get req connection reader
-            const conn_r = &req.server.reader;
+        //get req connection reader
+        const conn_r = &req.server.reader;
 
-            //get req body reader
-            const bod_buf:[]u8 = ""; //body buffer
-            const bod_r = conn_r.bodyReader(bod_buf, http.TransferEncoding.none, s);
-            
-            //read the body
-            //  (assumes 'Content-Length' header is correct, responds 500 if not)
-            const bod:[]u8 = bod_r.readAlloc(alloc, s) catch |e| {
-                if (respond_html) web.send_err(500, "failed to read request", conn) else {
-                    try log.err("failed to read req body: {t}", .{e});
-                    hlp.send.headersWithType(
-                        500, curTime, req, "text/plain"
-                    ) catch {};
-                    req.server.out.print("failed to read request body", .{}) catch {};
-                    return "server err";
-                } return "";
-            };
-            note = bod;
-        } else {
-            //occurs if 'Content-Length' header is missing
-            if (respond_html) web.send_err(
-                411, "need \"Content-Length\" header", conn
-            ) else {
+        //get req body reader
+        const bod_buf:[]u8 = ""; //body buffer
+        const bod_r = conn_r.bodyReader(bod_buf, http.TransferEncoding.none, len_req);
+        
+        //read the body
+        //  (assumes 'Content-Length' header is correct, responds 500 if not)
+        const bod:[]u8 = bod_r.readAlloc(alloc, len_req) catch |e| {
+            if (respond_html) web.send_err(500, "failed to read request", conn) else {
+                try log.err("failed to read req body: {t}", .{e});
                 hlp.send.headersWithType(
-                    411, curTime, req, "text/plain"
+                    500, curTime, req, "text/plain"
                 ) catch {};
-                return "need \"Content-Length\" header";
+                req.server.out.print("failed to read request body", .{}) catch {};
+                return "server err";
             } return "";
-        }
+        }; note = bod;
     }
 
     //generate note id (freeing causes seg-fault)

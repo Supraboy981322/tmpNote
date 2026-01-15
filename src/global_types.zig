@@ -3,6 +3,9 @@ const config = @import("conf.zig").conf;
 
 pub var conf:config = undefined;
 
+//global allocator (scoped allocation is dumb)
+pub const alloc = std.heap.page_allocator;
+
 pub const note_errs = error {
     no_key_found,
     note_not_found,
@@ -26,4 +29,9 @@ pub const log_lvl = enum {
     warn,
     err,
     bad, //invalid
+};
+
+pub const Note = struct {
+    content: []u8,
+    Encrypt: bool, //might do this at some point
 };

@@ -12,6 +12,7 @@ const fs = std.fs;
 const fmt = std.fmt;
 const mem = std.mem;
 const net = std.net;
+const meta = std.meta;
 const heap = std.heap;
 const http = std.http;
 
@@ -26,7 +27,7 @@ pub fn handle_api(
     const req = conn.req;
 
     const vp = enum { new, view, bad };
-    const p = std.meta.stringToEnum(vp, t2) orelse vp.bad;
+    const p = meta.stringToEnum(vp, t2) orelse vp.bad;
     switch (p) {
         .new => {
             const id = newNote(conn, globAlloc, true, db) catch |e| blk: {
@@ -95,12 +96,26 @@ fn newNote(
     const req = serverConn.req;
     const conf = serverConn.conf;
     const conn = serverConn;
-    var respond_html:bool = false;
+
+    var is_file, var respond_html, var note:[]u8 = .{ false, false, "" };
     {
         var hItr = req.iterateHeaders();
-        while (hItr.next()) |h| {
-            if (mem.eql(u8, h.name, "err-html")) {
-                respond_html = true; break;
+        while (hItr.next()) |h_C| {
+            const h = meta.stringToEnum(enum {
+                @"is-file", @"err-html", note, skip
+            }, h_C.name) orelse .skip;
+            switch (h) {
+                .@"err-html" => respond_html = true,
+                .@"is-file" => is_file = true,
+                .note => note = alloc.dupe(u8, h_C.value) catch {
+                    if (respond_html) web.send_err(400, "bad note", conn) else {
+                        hlp.send.headersWithType(
+                            400, curTime, req, "text/plain"
+                        ) catch {};
+                        req.server.out.print("bad note", .{}) catch {};
+                    } return "";
+                },
+                .skip => continue,
             }
         }
     }
@@ -118,57 +133,25 @@ fn newNote(
                 } return "";
             } else return note_errs.note_too_large;
         }
-    } else {
-        //occurs if 'Content-Length' header is missing
-        if (respond_html) web.send_err(
+    } else if (respond_html) {
+        web.send_err(
             411, "need \"Content-Length\" header", conn
-        ) else {
-            hlp.send.headersWithType(
-                411, curTime, req, "text/plain"
-            ) catch {};
-            return "need \"Content-Length\" header";
-        } return "";
+        ); return "";
+    } else {
+        hlp.send.headersWithType(
+            411, curTime, req, "text/plain"
+        ) catch {}; return "need \"Content-Length\" header";
     }
-
-    //placeholder for note
-    var note:[]u8 = "";
-
-    //chk each header until 'note' header
-    var hItr = req.iterateHeaders();
-    while (hItr.next()) |h| {
-        if (mem.eql(u8, h.name, "note")) {
-            note = alloc.dupe(u8, h.value) catch {
-                if (respond_html) web.send_err(400, "bad note", conn) else {
-                    hlp.send.headersWithType(
-                        400, curTime, req, "text/plain"
-                    ) catch {};
-                    req.server.out.print("bad note", .{}) catch {};
-                }
-                return "";
-            };
-            break;
-        }
-    } if (note.len == 0) {
-        const params = serverConn.params;
-        var pItr = mem.splitAny(u8, params, "&");
-        while (pItr.next()) |par| {
-            var p = mem.splitScalar(u8, par, '=');
-            while (p.next()) |k| {
-                if (mem.eql(u8, k, "note")) {
-                    //set note parameter's value
-                    if (p.next()) |n| note = alloc.dupe(u8, n) catch |e| {
-                        if (respond_html) web.send_err(500, "server err", conn) else {
-                            try log.err("failed to allocate note duplication: {t}", .{e});
-                            hlp.send.headersWithType(
-                                500, curTime, req, "text/plain"
-                            ) catch {};
-                            return "failed to allocate note duplication";
-                        } return "";
-                    }; break;
-                } _ = p.next(); //skip value
-            }
-        }
-    } if (note.len == 0) {
+    if (note.len == 0) note = get_params(alloc, serverConn) catch |e| {
+        if (respond_html) web.send_err(500, "server err", conn) else {
+            try log.err("failed to allocate note duplication: {t}", .{e});
+            hlp.send.headersWithType(
+                500, curTime, req, "text/plain"
+            ) catch {};
+            return "failed to allocate note duplication";
+        } return "";
+    };
+    if (note.len == 0) {
         //get req connection reader
         const conn_r = &req.server.reader;
 
@@ -202,7 +185,8 @@ fn newNote(
     //note struct
     const n:Note = .{
         .content = note,
-        .Encrypt = false, //may add encryption later
+        .is_file = is_file,
+        .encrypt = false, //may add encryption later
     };
 
     //add the note to db
@@ -417,3 +401,21 @@ pub const web = struct {
         req.server.out.flush() catch {};
     }
 };
+
+fn get_params(
+    alloc: mem.Allocator,
+    serverConn:ServerConn
+) ![]u8 {
+    const params = serverConn.params;
+    var pItr = mem.splitAny(u8, params, "&");
+    while (pItr.next()) |par| {
+        var p = mem.splitScalar(u8, par, '=');
+        while (p.next()) |k| {
+            if (mem.eql(u8, k, "note")) {
+                //set note parameter's value
+                if (p.next()) |n| return try alloc.dupe(u8, n);
+            } _ = p.next(); //skip value
+        }
+    }
+    return "";
+}

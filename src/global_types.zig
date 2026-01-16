@@ -33,5 +33,6 @@ pub const log_lvl = enum {
 
 pub const Note = struct {
     content: []u8,
-    Encrypt: bool, //might do this at some point
+    is_file: bool,
+    encrypt: bool, //might do this at some point
 };

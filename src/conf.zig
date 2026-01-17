@@ -1,14 +1,20 @@
+//imports
 const std = @import("std");
+const hlp = @import("helpers.zig");
+const globs = @import("global_types.zig");
 
-const log = @import("helpers.zig").log;
-const log_lvl = @import("global_types.zig").log_lvl;
-
+//structs from std
 const fs = std.fs;
 const mem = std.mem;
 const fmt = std.fmt;
 const meta = std.meta;
 const ascii = std.ascii;
 
+//structs from misc imports
+const log = hlp.log;
+const log_lvl = globs.log_lvl;
+
+//defaulting to stderr is beyond stupid
 var stdout_buf:[1024]u8 = undefined;
 var stdout_wr = fs.File.stdout().writer(&stdout_buf);
 const stdout = &stdout_wr.interface;
@@ -211,6 +217,7 @@ pub const conf = struct {
                             }
                         },
                         .log_level => {
+                            //convert to enum
                             const v = meta.stringToEnum(
                                 log_lvl, val
                             ) orelse log_lvl.bad;
@@ -224,7 +231,7 @@ pub const conf = struct {
                                     const msg:[]const u8 = "not a log level";
                                     conf_err(
                                         err.Invalid_Value, li_N, msg, null
-                                    ); @panic("failed to fail");
+                                    ); unreachable; //conf_err(...) exits
                                 },
                             };
                         },
@@ -246,11 +253,6 @@ pub const conf = struct {
         //make sure everything was flushed;
         try stdout.flush();
 
-        try log.deb(
-            "port{{{d}}} name{{{s}}} max{{{d}}} escape{{{any}}} def{{{s}}}",
-            .{port, name, max_note_size, escape_html_ampersand, default_page}
-        );
-
         //return config struct
         return Self{
             .port = port,
@@ -270,15 +272,23 @@ fn conf_err(
     msgR:[]const u8,
     thing:?[]const u8
 ) void {
+    //scoped allocator
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const alloc = gpa.allocator();
+
+    //format message 
     const msg:[]const u8 = fmt.allocPrint(
         alloc, "(conf err on line {d}) {t} : {s}", .{li_N, e, msgR}
     ) catch |er| { log.errf("{t}", .{er}) catch {}; return; };
+
+    //print msg and exit
     if (thing != null) {
-        log.errf("{s} '{s}'", .{msg, thing.?}) catch {};
+        log.errf("{s} '{s}'", .{msg, thing.?}) catch @panic(msg);
     } else {
-        log.errf("{s}", .{msg}) catch return;
+        log.errf("{s}", .{msg}) catch @panic(msg);
     }
+
+    //ensure it exited
+    std.process.exit(1);
 }

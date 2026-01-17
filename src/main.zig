@@ -1,3 +1,4 @@
+//imports
 const std = @import("std");
 const hlp = @import("helpers.zig");
 const config = @import("conf.zig").conf;
@@ -17,8 +18,7 @@ const http = std.http;
 
 //structs from helpers
 const log = hlp.log;
-
-const web = @import("web_helpers.zig").web;
+const web = web_hlp.web;
 
 //types
 const note_errs = glob_types.note_errs;
@@ -30,22 +30,26 @@ var stdout_buf:[1024]u8 = undefined;
 var stdout_wr = fs.File.stdout().writer(&stdout_buf);
 const stdout = &stdout_wr.interface;
 
+//scoped allocation is an... interesting... idea
 const globAlloc = glob_types.alloc;
 
 //database
 var db = std.StringHashMap(Note).init(globAlloc);
 
 pub fn main() !void {
-    glob_types.conf = config.read(globAlloc) catch unreachable;
-    const conf = glob_types.conf;
+    //wipe db on close TODO: graceful shutdown
     defer db.deinit();
+
+    //set the global config
+    glob_types.conf = config.read(globAlloc) catch unreachable;
+    const conf = glob_types.conf; //just an alias
 
     //get server addr
     const addr = net.Address.resolveIp("::", conf.port) catch |e| {
         try log.errf("failed to resolve ip: {t}", .{e}); return;
     };
 
-    //initialize server 
+    //initialize the server
     var server = addr.listen(.{ .reuse_address = true }) catch |e| {
         try log.errf("failed to listen on port '{d}': {t}", .{conf.port, e});
         return;
@@ -63,7 +67,7 @@ pub fn main() !void {
 
 //handles incoming connections
 pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
-    defer conn.stream.close();
+    defer conn.stream.close(); //ensure stream is closed
 
     //scoped allocator
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -81,15 +85,15 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     const time_len = c.strftime(&time_buf, time_buf.len, format, locTime);
     //set the current time 
     const curTime = time_buf[0..time_len];
-   
+
     //get remote conn addr
-    var remAddr:[]const u8 = undefined;
+    var remAddr:[]const u8 = undefined; //buffer
     const addrRaw = conn.address.in.sa.addr;
     remAddr = std.fmt.allocPrint(alloc, "{d}", .{addrRaw}) catch return;
     defer alloc.free(remAddr);
 
     //buffer to hold stream data
-    var buf:[1024]u8 = undefined;
+    var buf:[1024]u8 = undefined; //buffer
     //get stream reader and writer interfaces
     var reader = conn.stream.reader(&buf);
     var writer = conn.stream.writer(&buf);
@@ -101,11 +105,11 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
         return; //return on err (a netcat cmd could cause problems otherwise)
     };
     var itr = mem.splitAny(u8, req.head.target[1..], "?"); //remove query params
-    //check the request page, defaults to "/new" if none
+    //check the request page, uses default from conf if none
     const reqPage:[]const u8 = if (itr.first().len < 1) conf.default_page else blk: {
-        itr.reset() ; break :blk itr.first();
+        itr.reset() ; break :blk itr.first(); //move index to 0 and get first item
     };
-    const params = if (itr.next()) |p| p else ""; //set the params 
+    const params = if (itr.next()) |p| p else ""; //read the params
 
     //log the request
     try log.req(curTime, remAddr, reqPage); 
@@ -118,15 +122,18 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
         .reqTime = curTime,
         .params = params,
         .conf = conf,
-        .len_req = 0,
-        .respond_html = false,
+        .len_req = 0, //set later by individual endpoint
+        .respond_html = false, //set later by individual endpoint
     };
 
+    //determine if api call or web req 
     var target = mem.tokenizeSequence(u8, reqPage, "/");
-    if (target.next()) |t| if (mem.eql(u8, t, "api")) {
+    if (target.next()) |t| if (mem.eql(u8, t, "api")) { 
         if (target.next()) |t2| web_hlp.handle_api(serverConn, t2, &db) else {
             web.send_err(404, "Not Found", serverConn);
         }
     } else web_hlp.handle_web(serverConn, &db);
+
+    //make sure the buffer was flushed
     req.server.out.flush() catch {};
 }

@@ -23,13 +23,17 @@ pub fn handle_api(
     t2:[]const u8,
     db:*std.StringHashMap(Note)
 ) void {
+    //aliases
     const curTime = conn.reqTime;
     const req = conn.req;
 
-    const vp = enum { new, view, bad };
-    const p = meta.stringToEnum(vp, t2) orelse vp.bad;
+    //enum for page
+    const p = meta.stringToEnum(
+        enum { new, view, bad }, t2
+    ) orelse .bad;
     switch (p) {
         .new => {
+            //mk note, and get id 
             const id = newNote(conn, globAlloc, true, db) catch |e| blk: {
                switch (e) {
                     note_errs.note_too_large => {
@@ -41,10 +45,13 @@ pub fn handle_api(
                     else => break :blk "server error",
                 }
             }; defer req.server.out.flush() catch {};
+            //if no id, likely an already handled err
             if (id.len == 0) return;
+            //respond with id
             req.server.out.print("{s}", .{id}) catch return;
         },
         .view => {
+            //get the note
             const note = viewNote(conn, globAlloc, true, db) catch |e| blk: {
                 switch (e) {
                     note_errs.note_not_found => {
@@ -56,6 +63,7 @@ pub fn handle_api(
                     else => break :blk "server error",
                 }
             }; defer req.server.out.flush() catch {};
+            //respond with note
             req.server.out.print("{s}", .{note}) catch return;
         },
         .bad => web.send_err(404, "Not Found", conn),
@@ -66,17 +74,14 @@ pub fn handle_web(
     serverConn:ServerConn,
     db:*std.StringHashMap(Note)
 ) void {
+    //alias for requested page
     const reqPage = serverConn.reqPage;
 
-    const vp = enum {
-        new,
-        view,
-        dash,
-        invalid,
-        @"script.js",
-        @"style.css",
-    };
-    const page = std.meta.stringToEnum(vp, reqPage) orelse vp.invalid;
+    const page = std.meta.stringToEnum(
+        enum { 
+            new, view, dash, invalid, @"script.js", @"style.css",
+        }, reqPage
+    ) orelse .invalid;
     switch (page) {
         //new note web page
         .new => newNotePage(serverConn, globAlloc) catch |e| {
@@ -88,12 +93,14 @@ pub fn handle_web(
             log.err("failed to serve view note page {t}", .{e}) catch {};
         },
 
+        //shared js for web
         .@"script.js" => generic_serve( 
             serverConn, "text/javascript", web.script
         ) catch |e| {
             log.err("failed to serve generic page {t}", .{e}) catch {};
         },
 
+        //shared stylesheet for web
         .@"style.css" => generic_serve(
             serverConn, "text/css", web.style
         ) catch |e| {
@@ -104,6 +111,7 @@ pub fn handle_web(
     }
 }
 
+//generic helper to serve byte slice
 fn generic_serve(
     conn:ServerConn,
     typ:[]const u8,
@@ -114,6 +122,7 @@ fn generic_serve(
     conn.req.server.out.flush() catch {};
 }
 
+//api for new note
 fn newNote(
     serverConn:ServerConn,
     alloc:mem.Allocator,
@@ -126,8 +135,9 @@ fn newNote(
     const conf = serverConn.conf;
     const conn = serverConn;
 
+    //iterate over head header
     var is_file, var respond_html, var note:[]u8 = .{ false, false, "" };
-    {
+    {   //scoped so I don't have to worry about var names clobbering 
         var hItr = req.iterateHeaders();
         while (hItr.next()) |h_C| {
             const h = meta.stringToEnum(enum {
@@ -148,7 +158,8 @@ fn newNote(
             }
         }
     }
-    var len_req:u64 = 0;
+
+    var len_req:u64 = 0; //placeholder
     //make sure the 'Content-Length' header isn't larger than the maximum note size
     if (req.head.content_length) |si| {
         len_req = si; if (si > conf.max_note_size) {
@@ -171,6 +182,7 @@ fn newNote(
             411, curTime, req, "text/plain"
         ) catch {}; return "need \"Content-Length\" header";
     }
+
     const new_conn = ServerConn{
         .conn = conn.conn,
         .req = conn.req,
@@ -181,10 +193,14 @@ fn newNote(
         .len_req = len_req,
         .respond_html = respond_html,
     };
+
+    //combine err possible err types into one
     const combined_err_typ = mem.Allocator.Error || std.io.Reader.ReadAllocError;
+    //array of fns that chk places for note 
     const fns = [2]*const fn(
         mem.Allocator, ServerConn, []const u8
     ) combined_err_typ![]u8{ get_params, read_body, };
+    //iterate through fns
     for (fns) |f| {
         if (note.len == 0) note = f(alloc, new_conn, "note") catch |e| {
             try log.err("{t}", .{e}); continue;
@@ -225,24 +241,29 @@ fn newNote(
     return id;
 }
 
+//api for new note 
 fn viewNote(
     conn:ServerConn,
     alloc:mem.Allocator,
     isReq:bool,
     db:*std.StringHashMap(Note)
 ) ![]const u8 {
+    //pull things from conn struct
     const req = conn.req;
     const curTime = conn.reqTime;
-    //iterate over the query params
     const params = conn.params;
+
+    //TODO: switch to new helper fn
+    //iterate over the query params
     var pItr = mem.splitAny(u8, params, "&");
-    var id:[]const u8 = "";
+    var id:[]const u8 = ""; //placeholder
     while (pItr.next()) |par| {
         var p = mem.splitScalar(u8, par, '=');
         while (p.next()) |k| {
             if (mem.eql(u8, k, "id") or mem.eql(u8, k, "note-id")) {
                 //set id parameter
                 if (p.next()) |n| {
+                    //duplicate mem for value (seg-faults when viewed otherwise)
                     id = alloc.dupe(u8, n) catch |e| {
                         try log.err("failed to allocate id duplication: {t}", .{e});
                         hlp.send.headersWithType(
@@ -308,6 +329,7 @@ fn viewNote(
     return note;
 }
 
+//web page for new note (not much goes on here)
 fn newNotePage(
     conn:ServerConn,
     alloc:mem.Allocator,
@@ -332,6 +354,7 @@ fn newNotePage(
     conn.req.server.out.flush() catch {};
 }
 
+//web page for view note 
 fn viewNotePage(
     conn:ServerConn,
     alloc:mem.Allocator,
@@ -350,12 +373,14 @@ fn viewNotePage(
         },
         else => { web.send_err(500, "server error", conn); return; },
     };
+    //whether or not to escape ampersand
     const esc_html_amper = conn.conf.escape_html_ampersand;
+    //escape html in note
     const note = hlp.sanitizeHTML(noteR, alloc, esc_html_amper) catch |e| {
         try log.err("failed to sanitize html: {t}", .{e});
         web.send_err(500, "failed to sanitize html", conn);
         return e;
-    }; defer alloc.free(note);
+    }; defer alloc.free(note); 
 
 
     //define placeholder replacements
@@ -427,17 +452,21 @@ fn get_params(
     serverConn:ServerConn,
     which:[]const u8
 ) mem.Allocator.Error![]u8 {
+    //read the params 
     const params = serverConn.params;
     var pItr = mem.splitAny(u8, params, "&");
     while (pItr.next()) |par| {
         var p = mem.splitScalar(u8, par, '=');
         while (p.next()) |k| {
+            //get just the target value
             if (mem.eql(u8, k, which)) {
                 //set note parameter's value
                 if (p.next()) |n| return try alloc.dupe(u8, n);
             } _ = p.next(); //skip value
         }
     }
+    
+    //default to empty
     return "";
 }
 
@@ -460,6 +489,7 @@ fn read_body(
     //read the body
     //  (assumes 'Content-Length' header is correct, responds 500 if not)
     const bod:[]u8 = bod_r.readAlloc(alloc, len_req) catch |e| {
+        //respond with either html or plain text
         if (respond_html) web.send_err(500, "failed to read request", conn) else {
             log.err("failed to read req body: {t}", .{e}) catch {};
             hlp.send.headersWithType(

@@ -1,9 +1,14 @@
-* { transition: all 0.15s; }
+* {
+  cursor: default;
+  transition: all 0.15s;
+}
 
 ::selection {
   color: #d8dee9;
   background-color: #bf616a;
 }
+
+button { cursor: pointer; } 
 
 :root, body {
   margin: 0;
@@ -59,6 +64,7 @@ h1, .resText {
   font-family: monospace;
   box-sizing: border-box;
   background-color: #2e3440;
+  cursor: text;
 }
 
 textarea#note { border: solid #d8dee9 0.25em; }
@@ -79,6 +85,10 @@ pre#note { border: solid #697da3 0.25em; }
   &.send {
     cursor: pointer;
     text-align: center;
+  }
+  &::selection {
+    color: #2e3440 !important;
+    background-color: #d8dee9 !important;
   }
   &:hover {
     color: #d8dee9;
@@ -102,8 +112,15 @@ pre#note { border: solid #697da3 0.25em; }
   border-radius: 1em;
   width: 80vw;
   cursor: pointer;
+  &::selection {
+    color: #2e3440 !important;
+    background-color: #697da3 !important;
+  }
   &:hover {
     background-color: #d8dee9;
+    &::selection {
+      background-color: #d8dee9 !important;
+    }
   }
   margin-bottom: 1em;
 }

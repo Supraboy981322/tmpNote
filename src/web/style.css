@@ -1,3 +1,5 @@
+* { transition: all 0.15s; }
+
 :root, body {
   margin: 0;
   padding: 0;
@@ -19,7 +21,19 @@ h1 {
   }
   &> .page { color: #d8dee9; }
 }
-h1, .resText, .id { text-align: center }
+h1, .resText {
+  text-align: center;
+  &> button {
+    border: none;
+    outline: none;
+    padding: 0.5em 1em;
+    margin-bottom: 1em;
+    border-radius: 1em;
+  }
+  &> .id {
+    text-align: center;
+  }
+}
 #note {
   width: 80vw;
   height: 50vw;
@@ -50,6 +64,10 @@ h1, .resText, .id { text-align: center }
     cursor: pointer;
     text-align: center;
   }
+  &:hover {
+    background-color: white;
+  }
+  margin-bottom: 1em;
 }
 .new_note {
   outline: none;
@@ -64,6 +82,10 @@ h1, .resText, .id { text-align: center }
   border-radius: 1em;
   width: 80vw;
   cursor: pointer;
+  &:hover {
+    background-color: white;
+  }
+  margin-bottom: 1em;
 }
 
 #js_warn { color: red; }

@@ -5,6 +5,7 @@ const hlp = @import("helpers.zig");
 const ServerConn = globs.ServerConn;
 const globAlloc = globs.alloc;
 const log = hlp.log;
+const lazy_lw_note = hlp.lazy_lw_note;
 const note_errs = globs.note_errs;
 
 //structs from std
@@ -16,7 +17,10 @@ const meta = std.meta;
 const heap = std.heap;
 const http = std.http;
 
+//types
 const Note = globs.Note;
+const File = globs.File;
+const LW_Note = globs.LW_Note;
 
 //handles api requests
 pub fn handle_api(
@@ -59,13 +63,13 @@ pub fn handle_api(
                         hlp.send.headersWithType(
                             400, curTime, req, "text/plain"
                         ) catch {};
-                        break :blk "note doesn't exist";
+                        break :blk lazy_lw_note("note doesn't exist");
                     },
-                    else => break :blk "server error",
+                    else => break :blk lazy_lw_note("server error"),
                 }
             }; defer req.server.out.flush() catch {};
             //respond with note
-            req.server.out.print("{s}", .{note}) catch return;
+            req.server.out.print("{s}", .{note.cont}) catch return;
         },
         .bad => web.send_err(404, "Not Found", conn),
     }
@@ -137,15 +141,25 @@ fn newNote(
     const conf = serverConn.conf;
     const conn = serverConn;
 
-    //iterate over head header
-    var is_file, var respond_html, var note:[]u8 = .{ false, false, "" };
+    //iterate over headers
+    var is_file, var respond_html = .{ false, false, };
+    var note:[]u8, var mime_type:[]u8 = .{ "", "", };
     {   //scoped so I don't have to worry about var names clobbering 
         var hItr = req.iterateHeaders();
         while (hItr.next()) |h_C| {
             const h = meta.stringToEnum(enum {
-                @"is-file", @"err-html", note, skip
+                @"is-file", @"err-html", note, @"Content-Type", skip
             }, h_C.name) orelse .skip;
             switch (h) {
+                .@"Content-Type" => mime_type = alloc.dupe(u8, h_C.value) catch {
+                    const msg:[]const u8 = "bad \"Content-Type\" header";
+                    if (respond_html) web.send_err(400, msg, conn) else {
+                        hlp.send.headersWithType(
+                            400, curTime, req, "text/plain"
+                        ) catch {};
+                        req.server.out.print("{s}", .{msg}) catch {};
+                    } return "";
+                },
                 .@"err-html" => respond_html = true,
                 .@"is-file" => is_file = true,
                 .note => note = alloc.dupe(u8, h_C.value) catch {
@@ -159,7 +173,7 @@ fn newNote(
                 .skip => continue,
             }
         }
-    }
+    } if (mime_type.len == 0) mime_type = @constCast("text/plain");
 
     var len_req:u64 = 0; //placeholder
     //make sure the 'Content-Length' header isn't larger than the maximum note size
@@ -213,15 +227,22 @@ fn newNote(
     const id:[]u8 = hlp.ranStr(16, alloc) catch |e| {
         try log.err("failed to generate random string (hlp.ranStr()) {t}", .{e});
         if (respond_html) web.send_err(500, "server err", new_conn) else {
-            hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
-            return "server error";
+            hlp.send.headersWithType(
+                500, curTime, req, "text/plain"
+            ) catch {}; return "server error";
         } return "";
+    };
+
+    const file:File = .{
+        .is_file = is_file,
+        .mime = mime_type,
+        .size = note.len,
     };
 
     //note struct
     const n:Note = .{
         .content = note,
-        .is_file = is_file,
+        .file = file,
         .encrypt = false, //may add encryption later
     };
 
@@ -249,7 +270,7 @@ fn viewNote(
     alloc:mem.Allocator,
     isReq:bool,
     db:*std.StringHashMap(Note)
-) ![]const u8 {
+) !LW_Note {
     //pull things from conn struct
     const req = conn.req;
     const curTime = conn.reqTime;
@@ -271,13 +292,13 @@ fn viewNote(
                         hlp.send.headersWithType(
                             500, curTime, req, "text/plain"
                         ) catch {};
-                        return "failed to allocate id duplication";
+                        return lazy_lw_note("failed to allocate id duplication");
                     };
                 } else if (isReq) {
                     hlp.send.headersWithType(
                         400, curTime, req, "text/plain"
                     ) catch {};
-                    return "missing id";
+                    return lazy_lw_note("missing id");
                 } else return note_errs.no_key_found;
                 break;
             } _ = p.next(); //skip value
@@ -292,7 +313,7 @@ fn viewNote(
                         400, curTime, req, "text/plain"
                     ) catch {};
                     req.server.out.print("bad id", .{}) catch {};
-                    return "";
+                    return lazy_lw_note("");
                 };
                 break;
             }
@@ -303,32 +324,44 @@ fn viewNote(
         if (isReq) {
             hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
             req.server.out.print("missing note key", .{}) catch {};
-            return "";
+            return lazy_lw_note("");
         } return note_errs.no_key_found;
     }
 
     //default to invalid
+    var mime:[]const u8 = "";
+    var is_file:bool = false;
     var note:[]const u8 = "key not found";
     if (db.get(id)) |n| {
         //set note and delete from db
         note = n.content;
+        mime = if (n.file.is_file) n.file.mime else "text/plain";
+        is_file = n.file.is_file;
         if (!db.remove(id)) {
             //send headers (500 server err)
             hlp.send.headersWithType(
                 500, conn.reqTime, conn.req, "text/plain"
             ) catch {}; //ignore err
             try log.err("failed to remove from db", .{});
-            return "failed to remove from db";
+            return lazy_lw_note("failed to remove from db");
         }
     } else return note_errs.note_not_found;
 
     //only send headers if not internal request
     if (isReq) {
         //send headers (200 OK)
-        hlp.send.headers(200, conn.reqTime, conn.req) catch {}; //ignore err
+        hlp.send.headersWithType(
+            200, conn.reqTime, conn.req, mime
+        ) catch {}; //ignore err
     }
 
-    return note;
+    const lw_note:LW_Note = .{
+        .cont = note,
+        .is_file = is_file,
+        .mime = mime,
+    };
+
+    return lw_note;
 }
 
 //web page for new note (not much goes on here)
@@ -366,7 +399,7 @@ fn viewNotePage(
     const curTime = conn.reqTime;
 
     //get the note content
-    const noteR:[]const u8 = viewNote(conn, alloc, false, db) catch |e| switch (e) {
+    const note_lw:LW_Note = viewNote(conn, alloc, false, db) catch |e| switch (e) {
         note_errs.no_key_found => {
             web.send_err(400, "key not provided", conn); return;
         },
@@ -375,6 +408,7 @@ fn viewNotePage(
         },
         else => { web.send_err(500, "server error", conn); return; },
     };
+    const noteR:[]const u8 = note_lw.cont;
     //whether or not to escape ampersand
     const esc_html_amper = conn.conf.escape_html_ampersand;
     //escape html in note

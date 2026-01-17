@@ -38,8 +38,20 @@ pub const log_lvl = enum {
     bad, //invalid
 };
 
+pub const File = struct {
+    mime: []u8,
+    is_file: bool,
+    size: usize, //might do this at some point
+};
+
 pub const Note = struct {
     content: []u8,
-    is_file: bool, //TODO: files
+    file: File, //TODO: files
     encrypt: bool, //might do this at some point
+};
+
+pub const LW_Note = struct {
+    is_file: bool,
+    mime: []const u8,
+    cont: []const u8,
 };

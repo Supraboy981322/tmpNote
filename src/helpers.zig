@@ -12,6 +12,7 @@ const mem = std.mem;
 //structs other imports
 const ServerConn = glob_types.ServerConn;
 const note_errs = glob_types.note_errs;
+const LW_Note = glob_types.LW_Note;
 
 //defaulting to stderr is stupid 
 var stdout_buf:[1024]u8 = undefined;
@@ -226,4 +227,12 @@ pub fn gen_page(
     }
 
     return respPage;
+}
+
+pub fn lazy_lw_note(msg:[]const u8) LW_Note {
+    return LW_Note{
+        .cont = msg, 
+        .is_file = false,
+        .mime = "text/error",
+    };
 }

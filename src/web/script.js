@@ -23,14 +23,18 @@ async function newNote() {
   }
   let id = await resp.text();
   console.log(id)
-  let idElm = document.getElementById("id");
-  idElm.innerText = id;
+  let idElm = document.querySelector(".note_page_btn");
+  idElm.setAttribute("id", "id");
+  idElm.innerText = `${id}`;
   idElm.setAttribute("class", "id");
   idElm.setAttribute("onclick", "copy_id(this);");
   document.getElementById("note").remove();
-  let resView = document.querySelector(".resText");
-  resView.querySelector("button").setAttribute("note_id", id);
-  resView.removeAttribute("hidden");
+  let resView = document.querySelectorAll(".resText");
+  for (var i = 0; i < resView.length; i++) {
+    const btn = resView[i].querySelector("button")
+    if (btn != null) { btn.setAttribute("note_id", id); }
+    resView[i].removeAttribute("hidden");
+  }
 }
 
 function view_from_new(elm) {
@@ -50,12 +54,8 @@ async function copy_id(elm) {
   let id = elm.innerText;
   try {
     await navigator.clipboard.writeText(id);
-  } catch (e) { err_popup("failed to copy text"); }
+  } catch (e) { alert(`couldn't copy to clipboard\n\t${e}`); }
   setTimeout(() => {
     elm.setAttribute("class", old_class);
   }, 100);
-}
-
-function err_popup(msg) {
-  _ = msg;
 }

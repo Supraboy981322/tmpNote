@@ -80,7 +80,8 @@ h1, .resText {
   }
   margin-bottom: 1em;
 }
-.new_note {
+.note_page_btn {
+  text-align:center;
   outline: none;
   border: none;
   display: block;
@@ -105,4 +106,11 @@ h1, .resText {
   font-size: 1.1em !important;
   background-color: #d8dee9 !important;
   color: black !important;
+}
+
+.below_is_id {
+  padding: 0em;
+  margin: 0em;
+  margin-bottom: 1em;
+  font-size: 1.75em;
 }

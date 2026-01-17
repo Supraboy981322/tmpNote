@@ -2,3 +2,5 @@ testing/
 zig-out/
 .zig_cache/
 .zig-cache/
+hT.conf
+src/web/hT.conf

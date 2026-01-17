@@ -141,32 +141,31 @@ fn newNote(
         hlp.send.headersWithType(
             411, curTime, req, "text/plain"
         ) catch {}; return "need \"Content-Length\" header";
-    } {
-        const new_conn = ServerConn{
-            .conn = conn.conn,
-            .req = conn.req,
-            .reqPage = conn.reqPage,
-            .reqTime = conn.reqTime,
-            .params = conn.params,
-            .conf = conn.conf,
-            .len_req = len_req,
-            .respond_html = respond_html,
-        };
-        const combined_err_typ = mem.Allocator.Error || std.io.Reader.ReadAllocError;
-        const fns = [2]*const fn(mem.Allocator, ServerConn) combined_err_typ![]u8{
-            get_params, read_body,
-        };
-        for (fns) |f| {
-            if (note.len == 0) note = f(alloc, new_conn) catch |e| {
-                try log.err("{t}", .{e}); continue;
-            } else break;
-        }
+    }
+    const new_conn = ServerConn{
+        .conn = conn.conn,
+        .req = conn.req,
+        .reqPage = conn.reqPage,
+        .reqTime = conn.reqTime,
+        .params = conn.params,
+        .conf = conn.conf,
+        .len_req = len_req,
+        .respond_html = respond_html,
+    };
+    const combined_err_typ = mem.Allocator.Error || std.io.Reader.ReadAllocError;
+    const fns = [2]*const fn(
+        mem.Allocator, ServerConn, []const u8
+    ) combined_err_typ![]u8{ get_params, read_body, };
+    for (fns) |f| {
+        if (note.len == 0) note = f(alloc, new_conn, "note") catch |e| {
+            try log.err("{t}", .{e}); continue;
+        } else break;
     }
 
     //generate note id (freeing causes seg-fault)
     const id:[]u8 = hlp.ranStr(16, alloc) catch |e| {
         try log.err("failed to generate random string (hlp.ranStr()) {t}", .{e});
-        if (respond_html) web.send_err(500, "server err", conn) else {
+        if (respond_html) web.send_err(500, "server err", new_conn) else {
             hlp.send.headersWithType(500, curTime, req, "text/plain") catch {};
             return "server error";
         } return "";
@@ -181,7 +180,7 @@ fn newNote(
 
     //add the note to db
     db.put(id, n) catch |e| { //on err
-        if (respond_html) web.send_err(500, "failed to store note", conn) else {
+        if (respond_html) web.send_err(500, "failed to store note", new_conn) else {
             //send headers (500 server err)
             hlp.send.headersWithType(
                 500, curTime, req, "text/plain"
@@ -394,14 +393,15 @@ pub const web = struct {
 
 fn get_params(
     alloc: mem.Allocator,
-    serverConn:ServerConn
+    serverConn:ServerConn,
+    which:[]const u8
 ) mem.Allocator.Error![]u8 {
     const params = serverConn.params;
     var pItr = mem.splitAny(u8, params, "&");
     while (pItr.next()) |par| {
         var p = mem.splitScalar(u8, par, '=');
         while (p.next()) |k| {
-            if (mem.eql(u8, k, "note")) {
+            if (mem.eql(u8, k, which)) {
                 //set note parameter's value
                 if (p.next()) |n| return try alloc.dupe(u8, n);
             } _ = p.next(); //skip value
@@ -412,8 +412,10 @@ fn get_params(
 
 fn read_body(
     alloc: mem.Allocator,
-    conn: ServerConn
+    conn: ServerConn,
+    which:[]const u8
 ) ![]u8 {
+    _ = which;
     //get req connection reader and req length
     const req = conn.req;
     const conn_r = &req.server.reader;

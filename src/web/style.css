@@ -1,5 +1,10 @@
 * { transition: all 0.15s; }
 
+::selection {
+  color: #d8dee9;
+  background-color: #bf616a;
+}
+
 :root, body {
   margin: 0;
   padding: 0;
@@ -19,6 +24,7 @@ h1 {
     color: #ff5454;
     font-style: italic;
   }
+  &> .separator { color: #697da3; }
   &> .page { color: #d8dee9; }
 }
 h1, .resText {
@@ -32,14 +38,13 @@ h1, .resText {
     border-radius: 1em;
     background-color: #d8dee9;
     &:hover {
-      color: white;
+      color: #d8dee9;
       background-color: #4c5a73;
     }
   }
-  &> .id {
-    text-align: center;
-  }
+  &> .id { text-align: center; }
 }
+
 #note {
   width: 80vw;
   height: 50vw;
@@ -54,14 +59,17 @@ h1, .resText {
   font-family: monospace;
   box-sizing: border-box;
   background-color: #2e3440;
-  border: solid #d8dee9 0.25em;
 }
+
+textarea#note { border: solid #d8dee9 0.25em; }
+pre#note { border: solid #697da3 0.25em; }
+
 #id {
   display: block;
   color: #2e3440;
   font-weight: bold;
   box-sizing: border-box;
-  background-color: grey;
+  background-color: #697da3;
   font-size: 2ch;
   padding: 1em;
   border-radius: 1em;
@@ -73,9 +81,9 @@ h1, .resText {
     text-align: center;
   }
   &:hover {
-    padding: 0.75em;
     color: #d8dee9;
-    border: solid #d8dee9 0.25em;
+    box-shadow: inset 0 0 0 0.25em #697da3;
+    font-size: 1.25em;
     background-color: transparent;
   }
   margin-bottom: 1em;
@@ -88,14 +96,14 @@ h1, .resText {
   color: #2e3440;
   font-weight: bold;
   box-sizing: border-box;
-  background-color: grey;
+  background-color: #697da3;
   font-size: 2ch;
   padding: 1em;
   border-radius: 1em;
   width: 80vw;
   cursor: pointer;
   &:hover {
-    background-color: white;
+    background-color: #d8dee9;
   }
   margin-bottom: 1em;
 }
@@ -113,4 +121,5 @@ h1, .resText {
   margin: 0em;
   margin-bottom: 1em;
   font-size: 1.75em;
+  font-style: italic;
 }

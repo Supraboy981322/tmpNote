@@ -1,3 +1,4 @@
 testing/
 zig-out/
 .zig_cache/
+.zig-cache/

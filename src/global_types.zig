@@ -20,6 +20,8 @@ pub const ServerConn = struct {
     reqTime: []u8,
     params: []const u8,
     conf: config,
+    len_req: u64,
+    respond_html: bool,
 };
 
 pub const log_lvl = enum {

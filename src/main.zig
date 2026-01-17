@@ -118,6 +118,8 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
         .reqTime = curTime,
         .params = params,
         .conf = conf,
+        .len_req = 0,
+        .respond_html = false,
     };
 
     var target = mem.tokenizeSequence(u8, reqPage, "/");

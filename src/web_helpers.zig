@@ -259,7 +259,9 @@ fn newNote(
     };
    
     //send headers (200 OK)
-    hlp.send.headers(200, curTime, req) catch {}; //ignore err
+    hlp.send.headersWithType(
+        200, curTime, req, "text/plain"
+    ) catch {}; //ignore err
 
     return id;
 }

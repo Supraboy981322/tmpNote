@@ -266,7 +266,7 @@ fn newNote(
     return id;
 }
 
-//api for new note 
+//api for new note
 fn viewNote(
     conn:ServerConn,
     alloc:mem.Allocator,
@@ -355,7 +355,7 @@ fn viewNote(
         hlp.send.headersWithType(
             200, conn.reqTime, conn.req, mime
         ) catch {}; //ignore err
-    }
+    } else if (is_file) note = ""; //save on the amount of data being moved around
 
     const lw_note:LW_Note = .{
         .cont = note,
@@ -424,9 +424,13 @@ fn viewNotePage(
     //define placeholder replacements
     const placs = [_][]const u8 {
         "<!-- server name -->",
+        "<!-- file or plain-text -->",
         "<!-- split here -->",
     }; const replacs = [_][]const u8 {
         conn.conf.name,
+        if (note_lw.is_file) blk: {
+            break :blk "<div id=\"file\"><p>TODO: FILE</p></div>";
+        } else "<pre id=\"note\"><!-- split here --></pre>",
         note,
     };//generate the page
     const respPage = hlp.gen_page(

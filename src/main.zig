@@ -97,7 +97,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
 
     //get the requested page
     var req = http_server.receiveHead() catch |e| {
-        try log.err("failed to recieve html head {t}", .{e});
+        try log.err("failed to receive html head {t}", .{e});
         return; //return on err (a netcat cmd could cause problems otherwise)
     };
     var itr = mem.splitAny(u8, req.head.target[1..], "?"); //remove query params

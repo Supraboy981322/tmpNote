@@ -72,13 +72,13 @@ pub const send = struct {
 pub fn ranStr(len:usize, alloc: mem.Allocator) ![]u8 {
     const chars:[]const u8 = "qwertyuioplkjhgfdsazxcvbnmQWERTYUIOPKLJHGFDSAZXCVBNM1234567890";
 
-    var pran = crypto.random;
+    var p_ran = crypto.random;
     const buf = alloc.alloc(u8, len) catch |e| {
         try log.err("failed to allocate ranStr(len = {d}) buffer: {t}", .{len, e});
         return e;
     };
     for (buf) |*byte| {
-        const i = pran.intRangeAtMost(usize, 0, chars.len-1);
+        const i = p_ran.intRangeAtMost(usize, 0, chars.len-1);
         byte.* = chars[i];
     }
 

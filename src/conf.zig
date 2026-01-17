@@ -77,7 +77,7 @@ pub const conf = struct {
         var default_page:[]const u8 = "new";
         var log_level:i8 = 0;
 
-        //open the condfig
+        //open the config
         var fi = fs.cwd().openFile("config", .{}) catch |e| {
             try log.errf("failed to read config {t}", .{e});
             @panic("failed to fail");
@@ -120,7 +120,7 @@ pub const conf = struct {
                         .name => name = try alloc.dupe(u8, val),
                         //set the maximum note size
                         .max_note_size => {
-                            //shorter name for accepted measurments
+                            //shorter name for accepted measurements
                             const v_b_s = valid_byte_sizes;
 
                             //create array to hold measurement array
@@ -159,11 +159,11 @@ pub const conf = struct {
                             //    from the specified measurement to bytes
                             var mult_num:usize = 0;
 
-                            //convert measurment array into lowercase string
+                            //convert measurement array into lowercase string
                             var extL_buf:[1024]u8 = undefined;
                             const extL = ascii.lowerString(&extL_buf, ext.items);
 
-                            //convert measurment string into enum
+                            //convert measurement string into enum
                             const v = meta.stringToEnum(
                                 v_b_s, extL
                             ) orelse v_b_s.bad;

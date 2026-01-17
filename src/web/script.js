@@ -26,7 +26,7 @@ async function newNote() {
   let idElm = document.getElementById("id");
   idElm.innerText = id;
   idElm.setAttribute("class", "id");
-  idElm.removeAttribute("onclick");
+  idElm.setAttribute("onclick", "copy_id(this);");
   document.getElementById("note").remove();
   let resView = document.querySelector(".resText");
   resView.querySelector("button").setAttribute("note_id", id);
@@ -42,4 +42,20 @@ function view_from_new(elm) {
 function new_from_view() {
   let url = `${window.location.origin}/new`;
   window.location.replace(url);
+}
+
+async function copy_id(elm) {
+  let old_class = elm.getAttribute("class");
+  elm.setAttribute("class", `${old_class}, clipboard_copy`);
+  let id = elm.innerText;
+  try {
+    await navigator.clipboard.writeText(id);
+  } catch (e) { err_popup("failed to copy text"); }
+  setTimeout(() => {
+    elm.setAttribute("class", old_class);
+  }, 100);
+}
+
+function err_popup(msg) {
+  _ = msg;
 }

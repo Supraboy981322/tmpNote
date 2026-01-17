@@ -1,5 +1,11 @@
+"use strict";
+
+(async function() {
+  document.getElementById("js_warn").remove();
+})(); 
+
 async function newNote() {
-  url = `${window.location.origin}/api_new`;
+  let url = `${window.location.origin}/api_new`;
   let n = document.getElementById("note").value;
   let resp = await fetch(url, {
     method: 'POST',

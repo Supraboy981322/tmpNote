@@ -65,3 +65,5 @@ h1, .resText, .id { text-align: center }
   width: 80vw;
   cursor: pointer;
 }
+
+#js_warn { color: red; }

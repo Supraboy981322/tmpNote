@@ -18,6 +18,7 @@ const http = std.http;
 
 const Note = globs.Note;
 
+//handles api requests
 pub fn handle_api(
     conn:ServerConn,
     t2:[]const u8,
@@ -70,6 +71,7 @@ pub fn handle_api(
     }
 }
 
+//determines what file to send and handles it
 pub fn handle_web(
     serverConn:ServerConn,
     db:*std.StringHashMap(Note)

@@ -2,7 +2,8 @@
 <html lang="en">
   <head>
     <title><!-- server name --> - new</title>
-    <style>
+    <link rel="stylesheet" href="style.css" />
+    <!--<style>
       :root, body {
         margin: 0;
         padding: 0;
@@ -53,7 +54,7 @@
           text-align: center;
         }
       }
-    </style>
+    </style>-->
   </head>
   <body>
     <div>
@@ -64,46 +65,11 @@
       <div class="resText" hidden>
         <h2>note created</h2>
         <p>below is the id</p>
-        <button note_id="" onclick="view(this);">remove now</button>
+        <button note_id="" onclick="view_from_new(this);">remove now</button>
       </div>
       <textarea id="note"></textarea>
       <mono id="id" class="send" onclick="newNote();">send</mono>
     </div>
   </body>
-  <script>
-    async function newNote() {
-      url = `${window.location.origin}/api_new`;
-      let n = document.getElementById("note").value;
-      let resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'err-html': 'true',
-        },
-        body: n
-      });
-      if (!resp.ok) {
-        const bod = await resp.text();
-        document.open("text/html", "replace");
-        document.write(bod);
-        document.close();
-        throw new Error(`err, stat: ${resp.status}\n`);
-      }
-      let id = await resp.text();
-      console.log(id)
-      let idElm = document.getElementById("id");
-      idElm.innerText = id;
-      idElm.setAttribute("class", "id");
-      idElm.removeAttribute("onclick");
-      document.getElementById("note").remove();
-      let resView = document.querySelector(".resText");
-      resView.querySelector("button").setAttribute("note_id", id);
-      resView.removeAttribute("hidden");
-      
-    }
-    function view(elm) {
-      let id = elm.getAttribute("note_id");
-      url = `${window.location.origin}/view?id=${id}`;
-      window.location.replace(url);
-    }
-  </script>
+  <script async src="script.js"></script>
 </html>

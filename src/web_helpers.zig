@@ -68,7 +68,14 @@ pub fn handle_web(
 ) void {
     const reqPage = serverConn.reqPage;
 
-    const vp = enum { new, view, dash, invalid };
+    const vp = enum {
+        new,
+        view,
+        dash,
+        invalid,
+        @"script.js",
+        @"style.css",
+    };
     const page = std.meta.stringToEnum(vp, reqPage) orelse vp.invalid;
     switch (page) {
         //new note web page
@@ -81,8 +88,30 @@ pub fn handle_web(
             log.err("failed to serve view note page {t}", .{e}) catch {};
         },
 
+        .@"script.js" => generic_serve( 
+            serverConn, "text/javascript", web.script
+        ) catch |e| {
+            log.err("failed to serve generic page {t}", .{e}) catch {};
+        },
+
+        .@"style.css" => generic_serve(
+            serverConn, "text/css", web.style
+        ) catch |e| {
+            log.err("failed to serve generic page {t}", .{e}) catch {};
+        },
+
         else => web.send_err(404, "not found", serverConn),
     }
+}
+
+fn generic_serve(
+    conn:ServerConn,
+    typ:[]const u8,
+    content:[]const u8,
+) !void {
+    hlp.send.headersWithType(200, conn.reqTime, conn.req, typ) catch {};
+    conn.req.server.out.print("{s}", .{content}) catch {};
+    conn.req.server.out.flush() catch {};
 }
 
 fn newNote(
@@ -357,6 +386,8 @@ fn viewNotePage(
 pub const web = struct {
     var new:[]const u8 = @embedFile("web/new_note.html");
     var view:[]const u8 = @embedFile("web/view_note.html");
+    var script:[]const u8 = @embedFile("web/script.js");
+    var style:[]const u8 = @embedFile("web/style.css");
 
     //helper to send error page
     pub fn send_err(code:i16, stat:[]const u8, conn:ServerConn) void {

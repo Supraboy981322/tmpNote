@@ -2,7 +2,8 @@
 <html lang="en">
   <head>
     <title><!-- server name --> - view</title>
-    <style>
+    <link rel="stylesheet" href="style.css" />
+    <!--<style>
       :root, body {
         margin: 0;
         padding: 0;
@@ -55,7 +56,7 @@
         width: 80vw;
         cursor: pointer;
       }
-    </style>
+    </style>-->
   </head>
   <body>
     <div>
@@ -65,13 +66,8 @@
       </h1>
       <p><i>note deleted</i></p>
       <pre id="note"><!-- split here --></pre>
-      <button class="new_note" onclick="newNote();">new note</button>
+      <button class="new_note" onclick="new_from_view();">new note</button>
     </div>
   </body>
-  <script>
-    function newNote() {
-      url = `${window.location.origin}/new`;
-      window.location.replace(url);
-    }
-  </script>
+  <script async src="script.js"></script>
 </html>

@@ -35,11 +35,11 @@ async function newNote() {
 
 function view_from_new(elm) {
   let id = elm.getAttribute("note_id");
-  url = `${window.location.origin}/view?id=${id}`;
+  let url = `${window.location.origin}/view?id=${id}`;
   window.location.replace(url);
 }
 
 function new_from_view() {
-  url = `${window.location.origin}/new`;
+  let url = `${window.location.origin}/new`;
   window.location.replace(url);
 }

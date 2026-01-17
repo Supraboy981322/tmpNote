@@ -27,7 +27,7 @@ async function newNote() {
   resView.removeAttribute("hidden");
 }
 
-function view_from_new_note(elm) {
+function view_from_new(elm) {
   let id = elm.getAttribute("note_id");
   url = `${window.location.origin}/view?id=${id}`;
   window.location.replace(url);

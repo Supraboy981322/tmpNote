@@ -141,36 +141,26 @@ fn newNote(
         hlp.send.headersWithType(
             411, curTime, req, "text/plain"
         ) catch {}; return "need \"Content-Length\" header";
-    }
-    if (note.len == 0) note = get_params(alloc, serverConn) catch |e| {
-        if (respond_html) web.send_err(500, "server err", conn) else {
-            try log.err("failed to allocate note duplication: {t}", .{e});
-            hlp.send.headersWithType(
-                500, curTime, req, "text/plain"
-            ) catch {};
-            return "failed to allocate note duplication";
-        } return "";
-    };
-    if (note.len == 0) {
-        //get req connection reader
-        const conn_r = &req.server.reader;
-
-        //get req body reader
-        const bod_buf:[]u8 = ""; //body buffer
-        const bod_r = conn_r.bodyReader(bod_buf, http.TransferEncoding.none, len_req);
-        
-        //read the body
-        //  (assumes 'Content-Length' header is correct, responds 500 if not)
-        const bod:[]u8 = bod_r.readAlloc(alloc, len_req) catch |e| {
-            if (respond_html) web.send_err(500, "failed to read request", conn) else {
-                try log.err("failed to read req body: {t}", .{e});
-                hlp.send.headersWithType(
-                    500, curTime, req, "text/plain"
-                ) catch {};
-                req.server.out.print("failed to read request body", .{}) catch {};
-                return "server err";
-            } return "";
-        }; note = bod;
+    } {
+        const new_conn = ServerConn{
+            .conn = conn.conn,
+            .req = conn.req,
+            .reqPage = conn.reqPage,
+            .reqTime = conn.reqTime,
+            .params = conn.params,
+            .conf = conn.conf,
+            .len_req = len_req,
+            .respond_html = respond_html,
+        };
+        const combined_err_typ = mem.Allocator.Error || std.io.Reader.ReadAllocError;
+        const fns = [2]*const fn(mem.Allocator, ServerConn) combined_err_typ![]u8{
+            get_params, read_body,
+        };
+        for (fns) |f| {
+            if (note.len == 0) note = f(alloc, new_conn) catch |e| {
+                try log.err("{t}", .{e}); continue;
+            } else break;
+        }
     }
 
     //generate note id (freeing causes seg-fault)
@@ -405,7 +395,7 @@ pub const web = struct {
 fn get_params(
     alloc: mem.Allocator,
     serverConn:ServerConn
-) ![]u8 {
+) mem.Allocator.Error![]u8 {
     const params = serverConn.params;
     var pItr = mem.splitAny(u8, params, "&");
     while (pItr.next()) |par| {
@@ -418,4 +408,33 @@ fn get_params(
         }
     }
     return "";
+}
+
+fn read_body(
+    alloc: mem.Allocator,
+    conn: ServerConn
+) ![]u8 {
+    //get req connection reader and req length
+    const req = conn.req;
+    const conn_r = &req.server.reader;
+    const len_req = conn.len_req;
+    const respond_html = conn.respond_html;
+
+    //get req body reader
+    const bod_buf:[]u8 = ""; //body buffer
+    const bod_r = conn_r.bodyReader(bod_buf, http.TransferEncoding.none, len_req);
+    
+    //read the body
+    //  (assumes 'Content-Length' header is correct, responds 500 if not)
+    const bod:[]u8 = bod_r.readAlloc(alloc, len_req) catch |e| {
+        if (respond_html) web.send_err(500, "failed to read request", conn) else {
+            log.err("failed to read req body: {t}", .{e}) catch {};
+            hlp.send.headersWithType(
+                500, conn.reqTime, req, "text/plain"
+            ) catch {};
+            req.server.out.print("failed to read request body", .{}) catch {};
+            return alloc.dupe(u8, "server err");
+        } return e;
+    };
+    return bod;
 }

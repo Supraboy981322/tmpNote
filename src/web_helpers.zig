@@ -339,14 +339,14 @@ fn viewNote(
         file.typ = if (n.file.is_file) n.file.typ else "text/plain";
         file.is_file = n.file.is_file;
         file.size = n.file.size;
-        if (!db.remove(id)) {
+        if (isReq or !file.is_file) if (!db.remove(id)) {
             //send headers (500 server err)
             hlp.send.headersWithType(
                 500, conn.reqTime, conn.req, "text/plain"
             ) catch {}; //ignore err
             try log.err("failed to remove from db", .{});
             return lazy_lw_note("failed to remove from db");
-        }
+        };
     } else return note_errs.note_not_found;
 
     //passed to light-weight note struct

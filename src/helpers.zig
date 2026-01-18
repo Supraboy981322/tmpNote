@@ -242,11 +242,6 @@ pub fn lazy_lw_note(msg:[]const u8) LW_Note {
 }
 
 fn chk_mime_all(b_s:[]const u8) []const u8 {
-    if (b_s.len == 16) {
-        if (mem.eql(u8, b_s, "SQLite format 3\x00")) {
-            return "SQLite format 3";
-        }
-    }
     switch (b_s.len) {
         0 => return "",
 
@@ -291,8 +286,12 @@ fn chk_mime_all(b_s:[]const u8) []const u8 {
             .unknown => "",
         },
 
+        16 => {
+            if (mem.eql(u8, b_s, "SQLite format 3\x00")) return "SQLite format 3\x00";
+        },
+
         else => return "",
-    }
+    } return "";
 }
 
 pub fn chk_mime(b_s:[]const u8) Mime {

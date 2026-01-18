@@ -248,22 +248,27 @@ pub fn starts_with(b_s:[]const u8, pre:[]const u8) bool {
     return mem.eql(u8, first_half, pre);
 }
 
-pub fn chk_file_type(b_s:[]u8) File_Type {
-    var is_text:bool = false;
+pub fn chk_is_ascii(b_s:[]u8) bool {
     for (b_s) |b| {
-        if (std.ascii.isAscii(b)) is_text = true else { 
-            is_text = false; break;
-        }
+        if (!std.ascii.isAscii(b)) return false; 
     }
-    var typ:[]const u8 = if (is_text) "text/plain" else "";
-    for (file_types.list) |p| {
-        if (typ.len > 0) break;
+    return true;
+}
+
+pub fn chk_file_type(b_s:[]u8) File_Type {
+    const is_text = chk_is_ascii(b_s);
+    var typ:[]const u8 = if (is_text) "text/plain" else "unknown";
+
+    if (!is_text) for (file_types.list) |p| {
         const m = p[0];
         const t = p[1];
         if (starts_with(b_s, m)) { typ = t; break; }
-    } if (typ.len < 1) typ = "unknown";
+    };
+    
     return File_Type{
-        .is_text = true,
+        .is_text = is_text,
+        .is_file = true,
+        .is_img = false,
         .typ = typ
     };
 }

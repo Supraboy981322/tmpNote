@@ -22,6 +22,7 @@ const http = std.http;
 const Note = globs.Note;
 const File = globs.File;
 const LW_Note = globs.LW_Note;
+const File_Type = globs.File_Type;
 
 //handles api requests
 pub fn handle_api(
@@ -143,7 +144,9 @@ fn newNote(
     const conn = serverConn;
 
     //iterate over headers
-    var is_file, var respond_html = .{ false, false, };
+    var is_file, var respond_html = .{
+        false, false,
+    };
     var note:[]u8 = "";
     {   //scoped so I don't have to worry about var names clobbering 
         var hItr = req.iterateHeaders();
@@ -224,12 +227,19 @@ fn newNote(
             ) catch {}; return "server error";
         } return "";
     };
-    const file_type = hlp.chk_file_type(
+    const is_text = hlp.chk_is_ascii(note);
+    const file_type:File_Type = if (is_file) hlp.chk_file_type(
         if (note.len > 100) note else note
-    );
+    ) else .{
+        .is_text = if (is_text) true else false,
+        .is_file = false,
+        .is_img = false,
+        .typ = if (is_text) "text/plain" else "unknown",
+    };
 
     const file:File = .{
         .is_file = is_file,
+        .is_img = file_type.is_img,
         .typ = file_type.typ,
         .size = note.len,
     };
@@ -330,6 +340,7 @@ fn viewNote(
     var file:File = .{
         .typ = "unknown",
         .is_file = false,
+        .is_img = false,
         .size = 0, //might do this at some point
     };
     var note:[]const u8 = "key not found";

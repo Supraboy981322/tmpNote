@@ -156,7 +156,7 @@ pre#note { border: solid #697da3 0.25em; }
     background-color: #4c566a;
   }
   &>.left_pane {
-    &>.fi_typ > code, &>.fi_size > code{
+    &>.fi_typ > code, &>.fi_size > code {
       margin-left: 0.5em;
       padding: 0.25em;
       border-radius: 0.25em;

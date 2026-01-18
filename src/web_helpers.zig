@@ -174,7 +174,10 @@ fn newNote(
                 .skip => continue,
             }
         }
-    } if (mime_type.len == 0) mime_type = @constCast("text/plain");
+    }
+    var mime = hlp.chk_mime(
+        if (note.len > 100) note[0..100] else note
+    ); if (mime_type.len > 0) mime.mime = mime_type;
 
     var len_req:u64 = 0; //placeholder
     //make sure the 'Content-Length' header isn't larger than the maximum note size
@@ -236,7 +239,7 @@ fn newNote(
 
     const file:File = .{
         .is_file = is_file,
-        .mime = mime_type,
+        .mime = mime.mime,
         .size = note.len,
     };
 
@@ -326,20 +329,24 @@ fn viewNote(
     if (id.len == 0) {
         if (isReq) {
             hlp.send.headersWithType(400, curTime, req, "text/plain") catch {};
-            req.server.out.print("missing note key", .{}) catch {};
+    req.server.out.print("missing note key", .{}) catch {};
             return lazy_lw_note("");
         } return note_errs.no_key_found;
     }
 
     //default to invalid
-    var mime:[]const u8 = "";
-    var is_file:bool = false;
+    var file:File = .{
+        .mime = "unknown",
+        .is_file = false,
+        .size = 0, //might do this at some point
+    };
     var note:[]const u8 = "key not found";
     if (db.get(id)) |n| {
         //set note and delete from db
         note = n.content;
-        mime = if (n.file.is_file) n.file.mime else "text/plain";
-        is_file = n.file.is_file;
+        file.mime = if (n.file.is_file) n.file.mime else "text/plain";
+        file.is_file = n.file.is_file;
+        file.size = n.file.size;
         if (!db.remove(id)) {
             //send headers (500 server err)
             hlp.send.headersWithType(
@@ -360,9 +367,9 @@ fn viewNote(
     if (isReq) {
         //send headers (200 OK)
         hlp.send.headersWithType(
-            200, conn.reqTime, conn.req, mime
+            200, conn.reqTime, conn.req, file.mime
         ) catch {}; //ignore err
-    } else if (is_file) note = ""; //save on the amount of data being moved around
+    } else if (file.is_file) note = ""; //save on the amount of data being moved around
 
     var prev_buf:[500]u8 = undefined;
     var prev_stream = std.io.fixedBufferStream(&prev_buf);
@@ -371,20 +378,14 @@ fn viewNote(
         log.err("failed to escape JSON string: {t}", .{e}) catch {};
         return lazy_lw_note("failed to generate preview");
     };
-    
     const prev = prev_wr.buffer[0..prev_wr.end];
-    var is_text:bool = false;
-    {
-        const mime_real_s = hlp.chk_mime(prev);
-        if (mime_real_s.mime.len > 0) mime = mime_real_s.mime;
-        is_text = mime_real_s.is_text;
-    }
-    try log.info("{}", .{is_text});
+    
+    const is_text = mem.eql(u8, file.mime, "text/plain");
     const lw_note:LW_Note = .{
-        .size = size,
+        .size = file.size,
         .cont = note,
-        .is_file = is_file,
-        .mime = mime,
+        .is_file = file.is_file,
+        .mime = file.mime,
         .prev = if (is_text) prev else "can't generate preview",
     };
 

@@ -39,7 +39,7 @@ pub const log_lvl = enum {
 };
 
 pub const File = struct {
-    mime: []u8,
+    mime: []const u8,
     is_file: bool,
     size: usize, //might do this at some point
 };

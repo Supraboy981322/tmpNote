@@ -23,7 +23,7 @@ var note_info = undefined; //may use for more than rendering the page
       {
         //download button
         var dl_btn = document.createElement("button");
-        dl_btn.onclick = "dl_file();";
+        dl_btn.setAttribute("onclick", "dl_file();");
         dl_btn.setAttribute("class", "dl_btn");
         dl_btn.innerText = "download";
         left.appendChild(dl_btn);
@@ -154,4 +154,15 @@ async function newNote() {
     //unhide element
     resView[i].removeAttribute("hidden");
   }
+}
+
+function dl_file() {
+  const elm = document.createElement("a");
+  const link = `${window.location.origin}/api/view?id=${note_info.note_id}`;
+  elm.href = link;
+  elm.setAttribute("download", "TODO_download_with_filename");
+  elm.style.display = "none";
+  document.body.appendChild(elm);
+  elm.click();
+  document.body.removeChild(elm);
 }

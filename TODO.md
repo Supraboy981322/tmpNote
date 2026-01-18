@@ -1,0 +1,45 @@
+## Progress
+
+- [x] Go prototype
+  - [x] HTTP server
+    - [x] parsing HTTP headers
+    - [x] parsing query params
+  - [x] database
+  - [x] making notes
+  - [x] viewing notes
+  - [x] deleting notes when viewed
+- [x] web prototype
+- [x] Zig rewrite
+  - [x] HTTP server
+    - [x] parsing query params for note ID
+    - [x] parsing headers for note ID 
+    - [x] parsing headers for new note
+    - [x] parsing query params for new note
+    - [x] reading POST request body for note content
+    - [x] replacing HTML placeholder comment with note
+    - [x] replying with the note ID when creating a new note
+    - [x] determine api vs webui requests
+    - [x] dedicated api http handlers
+    - [ ] determining if something is a file client-side
+    - [ ] some way to handle files on web-ui
+    - [ ] Better web ui
+  - [x] Catch-up to Go proto
+- [x] files
+  - [x] sniffing for file type
+  - [x] plain-text
+  - [x] binary
+  - [ ] uploading from webui
+  - [ ] downloading from webui
+  - [ ] previewing files
+    - [x] plain-text
+    - [ ] images
+    - [ ] videos (?)
+- [ ] set an expiration date/time for a note
+- [ ] an admin dashboard (?)
+- [x] cli
+  - [x] tool
+  - [ ] tool wrapper with tui
+- [x] api
+  - [ ] Spec
+  - [ ] Go module
+- [ ] mascot(?)

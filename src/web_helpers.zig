@@ -69,7 +69,10 @@ pub fn handle_api(
                     },
                     else => break :blk lazy_lw_note("server error"),
                 }
-            }; defer req.server.out.flush() catch {};
+            }; defer {
+                globAlloc.free(note.id);
+                req.server.out.flush() catch {};
+            }
             //respond with note
             req.server.out.print("{s}", .{note.cont}) catch return;
         },
@@ -326,7 +329,7 @@ fn viewNote(
                 break;
             }
         }
-    } defer alloc.free(id);
+    }
 
     if (id.len == 0) {
         if (isReq) {
@@ -393,6 +396,7 @@ fn viewNote(
         .cont = note,
         .is_file = file.is_file,
         .typ = file.typ,
+        .id = id,
         .prev = if (is_text) prev else "can't generate preview",
     };
 
@@ -442,7 +446,7 @@ fn viewNotePage(
             web.send_err(404, "note not found", conn); return;
         },
         else => { web.send_err(500, "server error", conn); return; },
-    };
+    }; defer alloc.free(note_lw.id);
     const noteR:[]const u8 = note_lw.cont;
     //whether or not to escape ampersand
     const esc_html_amper = conn.conf.escape_html_ampersand;
@@ -586,26 +590,47 @@ fn generate_server_info(
     lw_note:LW_Note
 ) []const u8 {
     _ = conn; //might need this at some point
-    var res:[]const u8 = "";
-    const lines = [_][]const u8 {
-        "{",
-        fmt.allocPrint(alloc, "\t\"note_size\": {d},", .{lw_note.size}) catch blk: {
-            break :blk "\t\"note_size\": null";
-        },
-        fmt.allocPrint(alloc, "\t\"is_file\": {},", .{lw_note.is_file}) catch blk: {
-            break :blk "\t\"is_file\": false";
-        },
-        fmt.allocPrint(alloc, "\t\"file_type\": \"{s}\",", .{lw_note.typ}) catch blk: {
-            break :blk "\t\"file_type\": \"text/plain\",";
-        },
-        fmt.allocPrint(alloc, "\t\"prev\": \"{s}\"", .{lw_note.prev}) catch blk: {
-            break :blk "\t\"prev\": null";
-        },
-        "}",
+    const str_is_file = fmt.allocPrint(alloc, "{}", .{lw_note.is_file}) catch "false";
+    const str_size = fmt.allocPrint(alloc, "{d}", .{lw_note.size}) catch "null";
+    
+    const T, const F = .{ "_", "" };
+
+    //fields:
+    //  .{ [key], [value], [is_string] }
+    const stuff = [_][3][]const u8 {
+        .{ "note_size", str_size,    F },
+        .{ "is_file",   str_is_file, F },
+        .{ "file_type", lw_note.typ, T },
+        .{ "prev",      lw_note.prev, T },
+        .{ "note_id",   lw_note.id,  T },
     };
-    for (lines) |l| res = fmt.allocPrint(alloc, "{s}{s}\n", .{res, l}) catch |e| {
-        log.err("failed to generate note info: {t}", .{e}) catch {};
-        return res;
+
+    var res:[]const u8 = "{\n";
+    for (0..,stuff) |i, t| {
+        const v = if (mem.eql(u8, t[2], F)) t[1] else blk: {
+            break :blk fmt.allocPrint(alloc, "\"{s}\"", .{t[1]}) catch |e| blk2: {
+                log.err("failed to format note info value {t}", .{e}) catch {};
+                break :blk2 "";
+            };
+        };
+
+        const end = if (i == stuff.len-1) "\n" else ",\n";
+
+        const line = fmt.allocPrint(
+            alloc, "\t\"{s}\": {s}{s}", .{t[0], v, end}
+        ) catch |e| blk: {
+            log.err("failed to format note info line: {t}", .{e}) catch {};
+            break :blk  "";
+        };
+
+        res = fmt.allocPrint(alloc, "{s}{s}", .{res, line}) catch |e| blk: {
+            log.err("failed to generate note info: {t}", .{e}) catch {};
+            break :blk res;
+        };
+    } res = fmt.allocPrint(alloc, "{s}}}\n", .{res}) catch |e| blk: {
+        log.err("failed to close note info json object: {t}", .{e}) catch {};
+        break :blk "{}";
     };
+    
     return res;
 }

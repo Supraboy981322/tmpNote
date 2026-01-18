@@ -239,6 +239,7 @@ pub fn lazy_lw_note(msg:[]const u8) LW_Note {
         .typ = "text/error",
         .size = msg.len,
         .prev = msg,
+        .id = "",
     };
 }
 

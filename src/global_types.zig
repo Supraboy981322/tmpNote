@@ -54,6 +54,7 @@ pub const Note = struct {
 pub const LW_Note = struct {
     is_file: bool,
     size: usize,
+    id:[]const u8,
     typ: []const u8,
     cont: []const u8,
     prev: []const u8,

@@ -217,7 +217,6 @@ pub const list = [_][2][]const u8 {
 	.{ "\x80\x00\x00\x20\x03\x12\x04", "Dreamcast audio" },
 	.{ "\x81\x32\x84\xC1\x85\x05\xD0\x11", "Outlook Express address book (Win95)" },
 	.{ "\x4D\x53\x46\x54\x02\x00\x01\x00", "OLE-SPSS-Visual C++ library file" },
-	.{ "\x7C", "Health Level-7 data (pipe delimited) file" },
 	.{ "\x4D\x53\x5F\x56\x4F\x49\x43\x45", "Sony Compressed Voice File" },
 	.{ "\x4D\x5A", "ActiveX-OLE Custom Control" },
 	.{ "\x4D\x5A\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xFF\xFF", "ZoneAlam data file" },

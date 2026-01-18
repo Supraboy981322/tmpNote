@@ -361,17 +361,21 @@ fn viewNote(
             200, conn.reqTime, conn.req, file.typ
         ) catch {}; //ignore err
     } else if (file.is_file) note = ""; //save on the amount of data being moved around
-
-    var prev_buf:[500]u8 = undefined;
-    var prev_stream = std.io.fixedBufferStream(&prev_buf);
-    var prev_wr = prev_stream.writer().adaptToNewApi(&prev_buf).new_interface;
-    std.zig.stringEscape(prev_R, &prev_wr) catch |e| {
-        log.err("failed to escape JSON string: {t}", .{e}) catch {};
-        return lazy_lw_note("failed to generate preview");
-    };
-    const prev = prev_wr.buffer[0..prev_wr.end];
-    
+ 
     const is_text = mem.eql(u8, file.typ, "text/plain");
+    const prev = if (!is_text) "" else blk: {
+        var prev_buf:[500]u8 = undefined;
+        var prev_stream = std.io.fixedBufferStream(&prev_buf);
+        var prev_wr = prev_stream.writer().adaptToNewApi(&prev_buf).new_interface;
+        std.zig.stringEscape(prev_R, &prev_wr) catch |e| {
+            log.err("failed to escape JSON string: {t}", .{e}) catch {};
+            return lazy_lw_note("failed to generate preview");
+        };
+        break :blk fmt.allocPrint(
+            alloc, "{s}", .{prev_wr.buffer[0..prev_wr.end]}
+        ) catch "failed to generate preview"; 
+    };
+    
     const lw_note:LW_Note = .{
         .size = file.size,
         .cont = note,

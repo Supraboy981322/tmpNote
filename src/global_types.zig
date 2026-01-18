@@ -52,6 +52,13 @@ pub const Note = struct {
 
 pub const LW_Note = struct {
     is_file: bool,
+    size: usize,
     mime: []const u8,
     cont: []const u8,
+    prev: []const u8,
+};
+
+pub const Mime = struct {
+    is_text: bool,
+    mime: []const u8,
 };

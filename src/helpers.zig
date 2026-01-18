@@ -13,6 +13,7 @@ const mem = std.mem;
 const ServerConn = glob_types.ServerConn;
 const note_errs = glob_types.note_errs;
 const LW_Note = glob_types.LW_Note;
+const Mime = glob_types.Mime;
 
 //defaulting to stderr is stupid 
 var stdout_buf:[1024]u8 = undefined;
@@ -224,6 +225,7 @@ pub fn gen_page(
         _ = mem.replace(u8, respPage, plac, replac_with, between);
         //replace response page with in-between
         respPage = between;
+
     }
 
     return respPage;
@@ -234,5 +236,80 @@ pub fn lazy_lw_note(msg:[]const u8) LW_Note {
         .cont = msg, 
         .is_file = false,
         .mime = "text/error",
+        .size = msg.len,
+        .prev = msg,
+    };
+}
+
+fn chk_mime_all(b_s:[]const u8) []const u8 {
+    if (b_s.len == 16) {
+        if (mem.eql(u8, b_s, "SQLite format 3\x00")) {
+            return "SQLite format 3";
+        }
+    }
+    switch (b_s.len) {
+        0 => return "",
+
+        1 => return "",
+
+        2 => return switch (std.meta.stringToEnum(
+            enum {
+                BM, MZ, unknown
+            }, b_s
+        ) orelse .unknown){
+            .BM => "BMP",
+            .MZ => "Windows Executable",
+            .unknown => "",
+        },
+
+        3 => return "",
+
+        4 => return switch (std.meta.stringToEnum(
+            enum {
+                @"\x89PNG", @"\x7fELF", @"\xff\xd8\xff\xfe0", @"%PDF",
+                @"\x50\x4b\x03\x04",
+                unknown
+            }, b_s
+        ) orelse .unknown){
+            .@"%PDF" => "PDF",
+            .@"\x89PNG" => "PNG",
+            .@"\x7fELF" => "ELF",
+            .@"\x50\x4b\x03\x04" => "zip",
+            .@"\xff\xd8\xff\xfe0" => "jpeg",
+            .unknown => "",
+        },
+
+        5 => return "",
+
+        6 => return switch (std.meta.stringToEnum(
+            enum {
+                GIF87a, GIF89a, unknown
+            }, b_s
+        ) orelse .unknown) {
+            .GIF87a => "GIF",
+            .GIF89a => "GIF",
+            .unknown => "",
+        },
+
+        else => return "",
+    }
+}
+
+pub fn chk_mime(b_s:[]const u8) Mime {
+    var is_text:bool = true;
+    for (b_s) |b| {
+        if (!std.ascii.isAscii(b)) { is_text = false ; break; }
+    }
+    log.deb("is_text == {}", .{is_text}) catch {};
+    var mime:[]const u8 = if (is_text) "text/plain" else "";
+    for (0..10) |i| {
+        if (mime.len > 0) break;
+        if (b_s.len <= i) return Mime{ .is_text = false, .mime = "unknown" };
+        mime = chk_mime_all(b_s[0..i]);
+    }
+    log.deb("{s}", .{mime}) catch {};
+    return Mime{
+        .is_text = true,
+        .mime = mime
     };
 }

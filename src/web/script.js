@@ -1,10 +1,60 @@
 "use strict";
 
+var note_info = undefined;
+
 //remove "enable JavaScript" warning
 (async function() {
   document.getElementById("js_warn").remove();
-})(); 
+  const note_info_elm = document.getElementById("note_info");
+  if (note_info_elm != null) {
+    note_info = JSON.parse(note_info_elm.innerText);
+    if (note_info.is_file) {
+      console.log("is a file");
+      const file_elm = document.getElementById("file");
 
+      var left = document.createElement("div");
+      left.setAttribute("class", "left_pane");
+      {
+        var dl_btn = document.createElement("button");
+        dl_btn.onclick = "dl_file();";
+        dl_btn.setAttribute("class", "dl_btn");
+        dl_btn.innerText = "download";
+        left.appendChild(dl_btn);
+
+        var fi_size = document.createElement("p");
+        fi_size.setAttribute("class", "fi_size");
+        fi_size.innerText = `note size: ${note_info.note_size} bytes`;
+        left.appendChild(fi_size);
+        
+        var fi_typ = document.createElement("p");
+        fi_typ.setAttribute("class", "fi_typ");
+        fi_typ.innerText = `mime type: `;
+        var mime_elm = document.createElement("code");
+        mime_elm.setAttribute("class", "mime");
+        mime_elm.innerText = note_info.mime;
+        fi_typ.appendChild(mime_elm);
+        left.appendChild(fi_typ);
+      }
+      var right = document.createElement("div");
+      right.setAttribute("class", "right_pane");
+      {
+        var preview_title = document.createElement("h3");
+        preview_title.innerText = "preview";
+        right.appendChild(preview_title);
+
+        var preview_text = document.createElement("pre");
+        preview_text.setAttribute("class", "preview");
+        const p_R = note_info.prev;
+        preview_text.innerText = (p_R == null) ? "couldn't generate preview" : p_R;
+        right.appendChild(preview_text);
+      }
+
+      file_elm.appendChild(left);
+      file_elm.appendChild(right);
+    } else { console.log("not a file"); }
+  }
+})(); 
+  
 //switches to new_note page
 function new_from_view() {
   let url = `${window.location.origin}/new`;

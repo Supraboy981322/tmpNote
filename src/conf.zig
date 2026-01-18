@@ -43,6 +43,7 @@ const bool_enum = enum {
 };
 //valid config keys
 const conf_vals = enum {
+    preview_size,
     port, //server port
     name, //server name
     max_note_size, //maximum note size
@@ -70,6 +71,7 @@ pub const conf = struct {
     escape_html_ampersand: bool,
     default_page: []const u8,
     log_level:i8,
+    preview_size:usize,
 
     const Self = @This();
 
@@ -82,6 +84,7 @@ pub const conf = struct {
         var escape_html_ampersand:bool = true; //do escape '&'
         var default_page:[]const u8 = "new";
         var log_level:i8 = 0;
+        var prev_si:usize = 100;
 
         //open the config
         var fi = fs.cwd().openFile("config", .{}) catch |e| {
@@ -237,10 +240,12 @@ pub const conf = struct {
                         },
                         //set the default web page
                         .default_page => default_page = try alloc.dupe(u8, val),
+                        //size of file preview in web page
+                        .preview_size => prev_si = try fmt.parseInt(usize, val, 10),
                         //invalid option
                         .bad => conf_err(
                             err.Invalid_Key, li_N, keyR, null
-                        ), 
+                        ),
                     }
                 } else conf_err( //likely missing something
                     err.Invalid_Line, li_N, "not a key-value pair", null
@@ -261,6 +266,7 @@ pub const conf = struct {
             .escape_html_ampersand = escape_html_ampersand,
             .default_page = default_page,
             .log_level = log_level,
+            .preview_size = prev_si,
         };
     }
 };

@@ -349,6 +349,12 @@ fn viewNote(
         }
     } else return note_errs.note_not_found;
 
+    //passed to light-weight note struct
+    const size = note.len;
+    const conf_prev_size:usize = conn.conf.preview_size;
+    const prev_si = if (size < conf_prev_size) size else conf_prev_size;
+    const prev_R = note[0..prev_si];
+
     //only send headers if not internal request
     if (isReq) {
         //send headers (200 OK)
@@ -357,10 +363,28 @@ fn viewNote(
         ) catch {}; //ignore err
     } else if (is_file) note = ""; //save on the amount of data being moved around
 
+    var prev_buf:[500]u8 = undefined;
+    var prev_stream = std.io.fixedBufferStream(&prev_buf);
+    var prev_wr = prev_stream.writer().adaptToNewApi(&prev_buf).new_interface;
+    std.zig.stringEscape(prev_R, &prev_wr) catch |e| {
+        log.err("failed to escape JSON string: {t}", .{e}) catch {};
+        return lazy_lw_note("failed to generate preview");
+    };
+    
+    const prev = prev_wr.buffer[0..prev_wr.end];
+    var is_text:bool = false;
+    {
+        const mime_real_s = hlp.chk_mime(prev);
+        if (mime_real_s.mime.len > 0) mime = mime_real_s.mime;
+        is_text = mime_real_s.is_text;
+    }
+    try log.info("{}", .{is_text});
     const lw_note:LW_Note = .{
+        .size = size,
         .cont = note,
         .is_file = is_file,
         .mime = mime,
+        .prev = if (is_text) prev else "can't generate preview",
     };
 
     return lw_note;
@@ -424,12 +448,14 @@ fn viewNotePage(
     //define placeholder replacements
     const placs = [_][]const u8 {
         "<!-- server name -->",
+        "<!-- note info -->",
         "<!-- file or plain-text -->",
         "<!-- split here -->",
     }; const replacs = [_][]const u8 {
         conn.conf.name,
+        generate_server_info(alloc, conn, note_lw),
         if (note_lw.is_file) blk: {
-            break :blk "<div id=\"file\"><p>TODO: FILE</p></div>";
+            break :blk "<div id=\"file\"></div>";
         } else "<pre id=\"note\"><!-- split here --></pre>",
         note,
     };//generate the page
@@ -541,5 +567,38 @@ fn read_body(
             return alloc.dupe(u8, "server err");
         } return e;
     };
+
+    _ = hlp.chk_mime(bod);
+
     return bod;
+}
+
+fn generate_server_info(
+    alloc:mem.Allocator,
+    conn:ServerConn,
+    lw_note:LW_Note
+) []const u8 {
+    _ = conn; //might need this at some point
+    var res:[]const u8 = "";
+    const lines = [_][]const u8 {
+        "{",
+        fmt.allocPrint(alloc, "\t\"note_size\": {d},", .{lw_note.size}) catch blk: {
+            break :blk "\t\"note_size\": null";
+        },
+        fmt.allocPrint(alloc, "\t\"is_file\": {},", .{lw_note.is_file}) catch blk: {
+            break :blk "\t\"is_file\": false";
+        },
+        fmt.allocPrint(alloc, "\t\"mime\": \"{s}\",", .{lw_note.mime}) catch blk: {
+            break :blk "\t\"mime_type\": \"text/plain\",";
+        },
+        fmt.allocPrint(alloc, "\t\"prev\": \"{s}\"", .{lw_note.prev}) catch blk: {
+            break :blk "\t\"prev\": null";
+        },
+        "}",
+    };
+    for (lines) |l| res = fmt.allocPrint(alloc, "{s}{s}\n", .{res, l}) catch |e| {
+        log.err("failed to generate note info: {t}", .{e}) catch {};
+        return res;
+    };
+    return res;
 }

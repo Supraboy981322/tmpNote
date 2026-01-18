@@ -166,9 +166,6 @@ fn newNote(
             }
         }
     }
-    const file_type = hlp.chk_file_type(
-        if (note.len > 100) note[0..100] else note
-    );
 
     var len_req:u64 = 0; //placeholder
     //make sure the 'Content-Length' header isn't larger than the maximum note size
@@ -227,6 +224,9 @@ fn newNote(
             ) catch {}; return "server error";
         } return "";
     };
+    const file_type = hlp.chk_file_type(
+        if (note.len > 100) note else note
+    );
 
     const file:File = .{
         .is_file = is_file,
@@ -240,6 +240,7 @@ fn newNote(
         .file = file,
         .encrypt = false, //may add encryption later
     };
+    log.deb("{s}", .{file_type.typ}) catch {};
 
     //add the note to db
     db.put(id, n) catch |e| { //on err

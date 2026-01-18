@@ -251,7 +251,7 @@ fn chk_mime_all(b_s:[]const u8) []const u8 {
             enum {
                 BM, MZ, unknown
             }, b_s
-        ) orelse .unknown){
+        ) orelse .unknown) {
             .BM => "BMP",
             .MZ => "Windows Executable",
             .unknown => "",
@@ -265,7 +265,7 @@ fn chk_mime_all(b_s:[]const u8) []const u8 {
                 @"\x50\x4b\x03\x04",
                 unknown
             }, b_s
-        ) orelse .unknown){
+        ) orelse .unknown) {
             .@"%PDF" => "PDF",
             .@"\x89PNG" => "PNG",
             .@"\x7fELF" => "ELF",

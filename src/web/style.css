@@ -157,8 +157,7 @@ pre#note { border: solid #697da3 0.25em; }
   }
   &>.left_pane {
     &>.fi_typ, &>.fi_size {
-      text-align: right;
-      .mime {
+      .file_type {
         padding: 0.25em;
         border-radius: 0.25em;
         background-color: #2e3440;

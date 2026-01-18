@@ -28,11 +28,11 @@ var note_info = undefined;
         
         var fi_typ = document.createElement("p");
         fi_typ.setAttribute("class", "fi_typ");
-        fi_typ.innerText = `mime type: `;
-        var mime_elm = document.createElement("code");
-        mime_elm.setAttribute("class", "mime");
-        mime_elm.innerText = note_info.mime;
-        fi_typ.appendChild(mime_elm);
+        fi_typ.innerText = `file type: `;
+        var file_type_elm = document.createElement("code");
+        file_type_elm.setAttribute("class", "file_type");
+        file_type_elm.innerText = note_info.file_type;
+        fi_typ.appendChild(file_type_elm);
         left.appendChild(fi_typ);
       }
       var right = document.createElement("div");

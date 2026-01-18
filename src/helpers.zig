@@ -261,7 +261,7 @@ pub fn chk_file_type(b_s:[]u8) File_Type {
         const m = p[0];
         const t = p[1];
         if (starts_with(b_s, m)) { typ = t; break; }
-    }
+    } if (typ.len < 1) typ = "unknown";
     return File_Type{
         .is_text = true,
         .typ = typ

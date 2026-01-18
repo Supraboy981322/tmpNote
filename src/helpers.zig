@@ -1,6 +1,7 @@
 //imports
 const std = @import("std");
 const glob_types = @import("global_types.zig");
+const mimes = @import("mimes.zig");
 
 //structs from std
 const crypto = std.crypto;
@@ -245,4 +246,24 @@ pub fn starts_with(b_s:[]const u8, pre:[]const u8) bool {
     if (b_s.len < pre.len) return false;
     const first_half = b_s[0..pre.len];
     return mem.eql(u8, first_half, pre);
+}
+
+pub fn chk_mime(b_s:[]const u8) Mime {
+    var is_text:bool = true;
+    for (b_s) |b| {
+        if (!std.ascii.isAscii(b)) { is_text = false ; break; }
+    }
+    log.deb("is_text == {}", .{is_text}) catch {};
+    var mime:[]const u8 = if (is_text) "text/plain" else "";
+    for (mimes.list) |p| {
+        if (mime.len > 0) break;
+        const mag = p[0];
+        const mim = p[1];
+        if (starts_with(b_s, mag)) { mime = mim; break; }
+    }
+    log.deb("mime: {s}", .{mime}) catch {};
+    return Mime{
+        .is_text = true,
+        .mime = mime
+    };
 }

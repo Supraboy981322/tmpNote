@@ -375,7 +375,7 @@ fn viewNote(
     const prev = prev_wr.buffer[0..prev_wr.end];
     var is_text:bool = false;
     {
-        const mime_real_s = mimes.chk_mime(prev);
+        const mime_real_s = hlp.chk_mime(prev);
         if (mime_real_s.mime.len > 0) mime = mime_real_s.mime;
         is_text = mime_real_s.is_text;
     }
@@ -569,7 +569,7 @@ fn read_body(
         } return e;
     };
 
-    _ = mimes.chk_mime(bod);
+    _ = hlp.chk_mime(bod);
 
     return bod;
 }

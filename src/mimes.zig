@@ -5,7 +5,7 @@ const globs = @import("global_types.zig");
 const log = hlp.log;
 const Mime = globs.Mime;
 
-const list = [_][2][]const u8 {
+pub const list = [_][2][]const u8 {
     .{ "BM", "BMP" },
     .{ "MZ", "Windows executable" },
     .{ "%PDF", "PDF" },
@@ -15,24 +15,6 @@ const list = [_][2][]const u8 {
     .{ "\xff\xd8\xff", "jpeg" },
     .{ "\x47\x49\x46\x38", "GIF" },
     .{ "SQLite format 3\x00", "SQLite database file" },
+    .{ "\x43\x41\x54\x20", "EA Interchange Format File (IFF)_3" },
+    .{ "\x4D\x41\x54\x4C\x41\x42\x20\x35\x2E\x30\x20\x4D\x41\x54\x2D\x66\x69\x6C\x65", "MATLAB v5 workspace" },
 };
-
-pub fn chk_mime(b_s:[]const u8) Mime {
-    var is_text:bool = true;
-    for (b_s) |b| {
-        if (!std.ascii.isAscii(b)) { is_text = false ; break; }
-    }
-    log.deb("is_text == {}", .{is_text}) catch {};
-    var mime:[]const u8 = if (is_text) "text/plain" else "";
-    for (list) |p| {
-        if (mime.len > 0) break;
-        const mag = p[0];
-        const mim = p[1];
-        if (hlp.starts_with(b_s, mag)) { mime = mim; break; }
-    }
-    log.deb("mime: {s}", .{mime}) catch {};
-    return Mime{
-        .is_text = true,
-        .mime = mime
-    };
-}

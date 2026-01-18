@@ -42,12 +42,12 @@ pub const File = struct {
     typ: []const u8,
     is_file: bool,
     is_img: bool,
-    size: usize, //might do this at some point
+    size: usize,
 };
 
 pub const Note = struct {
     content: []u8,
-    file: File, //TODO: files
+    file: File,
     encrypt: bool, //might do this at some point
 };
 

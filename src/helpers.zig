@@ -232,6 +232,7 @@ pub fn gen_page(
     return respPage;
 }
 
+//helper to generate a light-weight note with a message 
 pub fn lazy_lw_note(msg:[]const u8) LW_Note {
     return LW_Note{
         .cont = msg, 
@@ -243,12 +244,14 @@ pub fn lazy_lw_note(msg:[]const u8) LW_Note {
     };
 }
 
+//helper to check if a string starts with another string
 pub fn starts_with(b_s:[]const u8, pre:[]const u8) bool {
     if (b_s.len < pre.len) return false;
     const first_half = b_s[0..pre.len];
     return mem.eql(u8, first_half, pre);
 }
 
+//helper for plain-text checks
 pub fn chk_is_ascii(b_s:[]u8) bool {
     for (b_s) |b| {
         if (!std.ascii.isAscii(b)) return false; 
@@ -256,13 +259,14 @@ pub fn chk_is_ascii(b_s:[]u8) bool {
     return true;
 }
 
+//helper to check binary type
 pub fn chk_file_type(b_s:[]u8) File_Type {
     const is_text = chk_is_ascii(b_s);
     var typ:[]const u8 = if (is_text) "text/plain" else "unknown";
-
+    
     if (!is_text) for (file_types.list) |p| {
-        const m = p[0];
-        const t = p[1];
+        const m = p[0]; //"magic" byte pattern
+        const t = p[1]; //type description
         if (starts_with(b_s, m)) { typ = t; break; }
     };
     

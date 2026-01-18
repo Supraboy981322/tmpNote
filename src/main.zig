@@ -61,7 +61,9 @@ pub fn main() !void {
     //wait for connections
     while (true) {
         const acc = server.accept() catch continue;
-        hanConn(acc, conf) catch continue;
+        hanConn(acc, conf) catch |e| {
+            log.err("failed to handle connection {t}", .{e}) catch {};
+        };
     }
 }
 
@@ -132,7 +134,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
         if (target.next()) |t2| web_hlp.handle_api(serverConn, t2, &db) else {
             web.send_err(404, "Not Found", serverConn);
         }
-    } else web_hlp.handle_web(serverConn, &db);
+    } else web_hlp.handle_web(serverConn, &db) catch |e| return e;
 
     //make sure the buffer was flushed
     req.server.out.flush() catch {};

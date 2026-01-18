@@ -241,74 +241,8 @@ pub fn lazy_lw_note(msg:[]const u8) LW_Note {
     };
 }
 
-fn chk_mime_all(b_s:[]const u8) []const u8 {
-    switch (b_s.len) {
-        0 => return "",
-
-        1 => return "",
-
-        2 => return switch (std.meta.stringToEnum(
-            enum {
-                BM, MZ, unknown
-            }, b_s
-        ) orelse .unknown) {
-            .BM => "BMP",
-            .MZ => "Windows Executable",
-            .unknown => "",
-        },
-
-        3 => return "",
-
-        4 => return switch (std.meta.stringToEnum(
-            enum {
-                @"\x89PNG", @"\x7fELF", @"\xff\xd8\xff\xfe0", @"%PDF",
-                @"\x50\x4b\x03\x04",
-                unknown
-            }, b_s
-        ) orelse .unknown) {
-            .@"%PDF" => "PDF",
-            .@"\x89PNG" => "PNG",
-            .@"\x7fELF" => "ELF",
-            .@"\x50\x4b\x03\x04" => "zip",
-            .@"\xff\xd8\xff\xfe0" => "jpeg",
-            .unknown => "",
-        },
-
-        5 => return "",
-
-        6 => return switch (std.meta.stringToEnum(
-            enum {
-                GIF87a, GIF89a, unknown
-            }, b_s
-        ) orelse .unknown) {
-            .GIF87a => "GIF",
-            .GIF89a => "GIF",
-            .unknown => "",
-        },
-
-        16 => {
-            if (mem.eql(u8, b_s, "SQLite format 3\x00")) return "SQLite format 3\x00";
-        },
-
-        else => return "",
-    } return "";
-}
-
-pub fn chk_mime(b_s:[]const u8) Mime {
-    var is_text:bool = true;
-    for (b_s) |b| {
-        if (!std.ascii.isAscii(b)) { is_text = false ; break; }
-    }
-    log.deb("is_text == {}", .{is_text}) catch {};
-    var mime:[]const u8 = if (is_text) "text/plain" else "";
-    for (0..10) |i| {
-        if (mime.len > 0) break;
-        if (b_s.len <= i) return Mime{ .is_text = false, .mime = "unknown" };
-        mime = chk_mime_all(b_s[0..i]);
-    }
-    log.deb("{s}", .{mime}) catch {};
-    return Mime{
-        .is_text = true,
-        .mime = mime
-    };
+pub fn starts_with(b_s:[]const u8, pre:[]const u8) bool {
+    if (b_s.len < pre.len) return false;
+    const first_half = b_s[0..pre.len];
+    return mem.eql(u8, first_half, pre);
 }

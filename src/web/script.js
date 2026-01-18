@@ -21,14 +21,17 @@ var note_info = undefined;
         dl_btn.innerText = "download";
         left.appendChild(dl_btn);
 
-        var fi_size = document.createElement("p");
-        fi_size.setAttribute("class", "fi_size");
-        fi_size.innerText = `note size: ${note_info.note_size} bytes`;
-        left.appendChild(fi_size);
+        var fi_size_cont = document.createElement("p");
+        fi_size_cont.setAttribute("class", "fi_size");
+        fi_size_cont.innerText = "note size:";
+        var fi_size = document.createElement("code");
+        fi_size.innerText = `${note_info.note_size} bytes`;
+        fi_size_cont.appendChild(fi_size);
+        left.appendChild(fi_size_cont);
         
         var fi_typ = document.createElement("p");
         fi_typ.setAttribute("class", "fi_typ");
-        fi_typ.innerText = `file type: `;
+        fi_typ.innerText = "file type:";
         var file_type_elm = document.createElement("code");
         file_type_elm.setAttribute("class", "file_type");
         file_type_elm.innerText = note_info.file_type;

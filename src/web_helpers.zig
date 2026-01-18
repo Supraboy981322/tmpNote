@@ -367,6 +367,10 @@ fn viewNote(
         file.typ = if (n.file.is_file) n.file.typ else "text/plain";
         file.is_file = n.file.is_file;
         file.size = n.file.size;
+        if (n.file.size == 0) {
+            log.err("n.file.size == 0", .{}) catch {};
+            return hlp.lazy_lw_note("");
+        }
 
         //could be from either api request or internal function call
         if (isReq or !file.is_file) if (!db.remove(id)) {
@@ -379,20 +383,12 @@ fn viewNote(
         };
     } else return note_errs.note_not_found;
 
-    //only send headers if not internal request
-    if (isReq) {
-        //send headers (200 OK)
-        hlp.send.headersWithType(
-            200, conn.reqTime, conn.req, file.typ
-        ) catch {}; //ignore err
-    } else if (file.is_file) note = ""; //save on the amount of data being moved around
-
     //passed to light-weight note struct
-    const size = file.size;
+    //const size = file.size;
 
     //generate note preview 
     const conf_prev_size:usize = conn.conf.preview_size;
-    const prev_si = if (size < conf_prev_size) size else conf_prev_size;
+    const prev_si = if (note.len < conf_prev_size) note.len else conf_prev_size;
     const prev_R = note[0..prev_si];
 
     //check if type is plain-text 
@@ -416,6 +412,11 @@ fn viewNote(
             alloc, "{s}", .{prev_wr.buffer[0..prev_wr.end]}
         ) catch "failed to generate preview"; 
     };
+    
+    //only send headers if not internal request
+    if (isReq) hlp.send.headersWithType(
+        200, conn.reqTime, conn.req, file.typ
+    ) catch {}; //ignore err
 
     //create light-weight note
     const lw_note:LW_Note = .{

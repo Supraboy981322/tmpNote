@@ -1,7 +1,7 @@
 const std = @import("std");
 const globs = @import("global_types.zig");
 const hlp = @import("helpers.zig");
-const mimes = @import("mimes.zig");
+const file_types = @import("file_types.zig");
 
 const ServerConn = globs.ServerConn;
 const globAlloc = globs.alloc;
@@ -144,23 +144,14 @@ fn newNote(
 
     //iterate over headers
     var is_file, var respond_html = .{ false, false, };
-    var note:[]u8, var mime_type:[]u8 = .{ "", "", };
+    var note:[]u8 = "";
     {   //scoped so I don't have to worry about var names clobbering 
         var hItr = req.iterateHeaders();
         while (hItr.next()) |h_C| {
             const h = meta.stringToEnum(enum {
-                @"is-file", @"err-html", note, @"Content-Type", skip
+                @"is-file", @"err-html", note, skip
             }, h_C.name) orelse .skip;
             switch (h) {
-                .@"Content-Type" => mime_type = alloc.dupe(u8, h_C.value) catch {
-                    const msg:[]const u8 = "bad \"Content-Type\" header";
-                    if (respond_html) web.send_err(400, msg, conn) else {
-                        hlp.send.headersWithType(
-                            400, curTime, req, "text/plain"
-                        ) catch {};
-                        req.server.out.print("{s}", .{msg}) catch {};
-                    } return "";
-                },
                 .@"err-html" => respond_html = true,
                 .@"is-file" => is_file = true,
                 .note => note = alloc.dupe(u8, h_C.value) catch {
@@ -175,9 +166,9 @@ fn newNote(
             }
         }
     }
-    var mime = hlp.chk_mime(
+    const file_type = hlp.chk_file_type(
         if (note.len > 100) note[0..100] else note
-    ); if (mime_type.len > 0) mime.mime = mime_type;
+    );
 
     var len_req:u64 = 0; //placeholder
     //make sure the 'Content-Length' header isn't larger than the maximum note size
@@ -239,7 +230,7 @@ fn newNote(
 
     const file:File = .{
         .is_file = is_file,
-        .mime = mime.mime,
+        .typ = file_type.typ,
         .size = note.len,
     };
 
@@ -336,7 +327,7 @@ fn viewNote(
 
     //default to invalid
     var file:File = .{
-        .mime = "unknown",
+        .typ = "unknown",
         .is_file = false,
         .size = 0, //might do this at some point
     };
@@ -344,7 +335,7 @@ fn viewNote(
     if (db.get(id)) |n| {
         //set note and delete from db
         note = n.content;
-        file.mime = if (n.file.is_file) n.file.mime else "text/plain";
+        file.typ = if (n.file.is_file) n.file.typ else "text/plain";
         file.is_file = n.file.is_file;
         file.size = n.file.size;
         if (!db.remove(id)) {
@@ -367,7 +358,7 @@ fn viewNote(
     if (isReq) {
         //send headers (200 OK)
         hlp.send.headersWithType(
-            200, conn.reqTime, conn.req, file.mime
+            200, conn.reqTime, conn.req, file.typ
         ) catch {}; //ignore err
     } else if (file.is_file) note = ""; //save on the amount of data being moved around
 
@@ -380,12 +371,12 @@ fn viewNote(
     };
     const prev = prev_wr.buffer[0..prev_wr.end];
     
-    const is_text = mem.eql(u8, file.mime, "text/plain");
+    const is_text = mem.eql(u8, file.typ, "text/plain");
     const lw_note:LW_Note = .{
         .size = file.size,
         .cont = note,
         .is_file = file.is_file,
-        .mime = file.mime,
+        .typ = file.typ,
         .prev = if (is_text) prev else "can't generate preview",
     };
 
@@ -570,8 +561,6 @@ fn read_body(
         } return e;
     };
 
-    _ = hlp.chk_mime(bod);
-
     return bod;
 }
 
@@ -590,8 +579,8 @@ fn generate_server_info(
         fmt.allocPrint(alloc, "\t\"is_file\": {},", .{lw_note.is_file}) catch blk: {
             break :blk "\t\"is_file\": false";
         },
-        fmt.allocPrint(alloc, "\t\"mime\": \"{s}\",", .{lw_note.mime}) catch blk: {
-            break :blk "\t\"mime_type\": \"text/plain\",";
+        fmt.allocPrint(alloc, "\t\"file_type\": \"{s}\",", .{lw_note.typ}) catch blk: {
+            break :blk "\t\"file_type\": \"text/plain\",";
         },
         fmt.allocPrint(alloc, "\t\"prev\": \"{s}\"", .{lw_note.prev}) catch blk: {
             break :blk "\t\"prev\": null";

@@ -1,7 +1,7 @@
 //imports
 const std = @import("std");
 const glob_types = @import("global_types.zig");
-const mimes = @import("mimes.zig");
+const file_types = @import("file_types.zig");
 
 //structs from std
 const crypto = std.crypto;
@@ -14,7 +14,7 @@ const mem = std.mem;
 const ServerConn = glob_types.ServerConn;
 const note_errs = glob_types.note_errs;
 const LW_Note = glob_types.LW_Note;
-const Mime = glob_types.Mime;
+const File_Type = glob_types.File_Type;
 
 //defaulting to stderr is stupid 
 var stdout_buf:[1024]u8 = undefined;
@@ -236,7 +236,7 @@ pub fn lazy_lw_note(msg:[]const u8) LW_Note {
     return LW_Note{
         .cont = msg, 
         .is_file = false,
-        .mime = "text/error",
+        .typ = "text/error",
         .size = msg.len,
         .prev = msg,
     };
@@ -248,22 +248,20 @@ pub fn starts_with(b_s:[]const u8, pre:[]const u8) bool {
     return mem.eql(u8, first_half, pre);
 }
 
-pub fn chk_mime(b_s:[]const u8) Mime {
+pub fn chk_file_type(b_s:[]const u8) File_Type {
     var is_text:bool = true;
     for (b_s) |b| {
         if (!std.ascii.isAscii(b)) { is_text = false ; break; }
     }
-    log.deb("is_text == {}", .{is_text}) catch {};
-    var mime:[]const u8 = if (is_text) "text/plain" else "";
-    for (mimes.list) |p| {
-        if (mime.len > 0) break;
-        const mag = p[0];
-        const mim = p[1];
-        if (starts_with(b_s, mag)) { mime = mim; break; }
+    var typ:[]const u8 = if (is_text) "text/plain" else "";
+    for (file_types.list) |p| {
+        if (typ.len > 0) break;
+        const m = p[0];
+        const t = p[1];
+        if (starts_with(b_s, m)) { typ = t; break; }
     }
-    log.deb("mime: {s}", .{mime}) catch {};
-    return Mime{
+    return File_Type{
         .is_text = true,
-        .mime = mime
+        .typ = typ
     };
 }

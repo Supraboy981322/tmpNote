@@ -1,9 +1,5 @@
-const std = @import("std");
-const hlp = @import("helpers.zig");
-const globs = @import("global_types.zig");
-
-const log = hlp.log;
-const Mime = globs.Mime;
+//thank you, https://filesig.search.org/
+//  for your table of file signatures
 
 pub const list = [_][2][]const u8 {
     .{ "\x00\x00\x00\x14\x66\x74\x79\x70\x69\x73\x6F\x6D", "MPEG-4 v1" },

@@ -1,29 +1,55 @@
-* {
-  cursor: default;
-  transition: all 0.15s;
-}
-
 ::selection {
   color: #d8dee9;
   background-color: #bf616a;
 }
 
-button { cursor: pointer; } 
+:root {
+  height: 100%;
+  background-color: #2e3440;
+  transition: background-color 0ms !important;
+}
+
+* {
+  opacity: 1;
+  cursor: default;
+  transition: all 250ms;
+}
 
 :root, body {
   margin: 0;
   padding: 0;
   color: #d8dee9;
   font-family: monospace;
-  background-color: #2e3440;
+  &:has(.collapsed) {
+    overflow: hidden;
+  }
   &> div {
+    &.collapsed * {
+      opacity: 0;
+      width: 0 !important;
+      height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      top: 50%;
+      position: absolute;
+      align-content: center;
+      transform: translateY(-50%);
+      box-sizing: border-box !important;
+    }
     margin-left: auto;
     margin-right: auto;
     width: fit-content;
-    height: fit-content;
+    &:not(.collapsed){
+      height: fit-content;
+    }
     p { text-align: center; }
   }
 }
+
+
+button { cursor: pointer; } 
+
 h1 {
   &> .server_name {
     color: #ff5454;

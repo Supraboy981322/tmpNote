@@ -7,6 +7,9 @@ var note_info = undefined; //may use for more than rendering the page
 (async function() {
   //remove "enable JavaScript" warning
   document.getElementById("js_warn").remove();
+  setTimeout(() => {
+    document.querySelector(".collapsed").removeAttribute("class");
+  }, -1);
 
   //if the '#note_info' element exists, it's a file 
   const note_info_elm = document.getElementById("note_info");

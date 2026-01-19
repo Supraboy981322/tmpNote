@@ -506,6 +506,7 @@ fn viewNotePage(
         "<style>\n" ++ @embedFile("web/style.css") ++ "</style>\n",
         "<script async>\n" ++ @embedFile("web/script.js") ++ "</script>\n",
     };
+
     //generate the page
     const respPage = hlp.gen_page(
         web.view, &placs, &replacs, alloc

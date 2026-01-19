@@ -2,40 +2,8 @@
 <html lang="en">
   <head>
     <title><!-- server name --> - <!-- error code --></title>
-    <style>
-      ::selection {
-        color: #d8dee9;
-        background-color: #bf616a;
-      }
-      :root, body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        color: #d8dee9;
-        font-size: 3vw;
-        overflow-x: hidden;
-        overflow-y: hidden;
-        font-family: monospace;
-        background-color: #2e3440;
-      }
-      .stuff {
-        width: 100%;
-        text-align: center;
-        align-content: center;
-        height: -webkit-fill-available;
-      }
-      h1 {
-        color: #ff5454;
-        &> .comment {
-          color: #8294ab;
-        }
-      }
-      .reqPage {
-        color: white;
-        font-weight: bold;
-        font-size: 1.325em;
-      }
-    </style>
+    <data id="response_code" hidden><!-- error code --></data>
+    <!-- err.css -->
   </head>
   <body>
     <div class="stuff">
@@ -43,8 +11,5 @@
       <p class="reqPage"></p>
     </div>
   </body>
-  <script>
-    var p = window.location.href.split("//")[1];
-    document.querySelector(".reqPage").innerText = p;
-  </script>
+  <!-- err.js -->
 </html>

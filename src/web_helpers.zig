@@ -542,21 +542,32 @@ pub const web = struct {
             "<!-- server name -->",
             "<!-- error code -->",
             "<!-- error status -->",
+            "<!-- err.css -->",
+            "<!-- err.js -->",
         }; const replacs = [_][]const u8 {
             conn.conf.name, //server name
             //status code as string
             fmt.allocPrint(globAlloc, "{d}", .{code}) catch |e| {
+                //log err
                 log.err("failed to allocPrint() {t}", .{e}) catch {};
+                //respond with 500
+                hlp.send.headers(500, curTime, req) catch {};
+                req.server.out.print("500 server err", .{}) catch {};
                 return;
             },
             stat, //the err msg
+            "<style>\n" ++ @embedFile("web/err.css") ++ "    </style>",
+            "<script async>\n" ++ @embedFile("web/err.js") ++ "  </script>",
         };
 
         //generate response page
-        const err_page:[]const u8 = @embedFile("web/err.html");
+        const err_html:[]const u8 = @embedFile("web/err.html");
         const respPage = hlp.gen_page(
-            err_page, &placs, &replacs, globAlloc
-        ) catch return;
+            err_html, &placs, &replacs, globAlloc
+        ) catch |e| blk: {
+            log.err("failed to generate error page: {t}", .{e}) catch {};
+            break :blk "500 server err";
+        };
 
         //send response
         hlp.send.headers(code, curTime, req) catch {};

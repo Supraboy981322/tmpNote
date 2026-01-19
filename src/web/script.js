@@ -168,4 +168,10 @@ function dl_file() {
   document.body.appendChild(elm);
   elm.click();
   document.body.removeChild(elm);
+  const p = document.createElement("p");
+  const i = document.createElement("i");
+  i.innerText = "note deleted";
+  p.appendChild(i);
+  const fi_elm = document.getElementById("file");
+  fi_elm.before(p);
 }

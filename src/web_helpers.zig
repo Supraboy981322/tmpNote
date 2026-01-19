@@ -90,7 +90,7 @@ pub fn handle_web(
 
     const page = std.meta.stringToEnum(
         enum { 
-            new, view, dash, invalid, @"script.js", @"style.css",
+            new, view, dash, invalid,
         }, reqPage
     ) orelse .invalid;
 
@@ -103,16 +103,6 @@ pub fn handle_web(
         //view note web page 
         .view => viewNotePage(
             serverConn, globAlloc, db
-        ) catch |e| return e,
-
-        //shared js for web
-        .@"script.js" => generic_serve( 
-            serverConn, "text/javascript", web.script
-        ) catch |e| return e,
-
-        //shared stylesheet for web
-        .@"style.css" => generic_serve(
-            serverConn, "text/css", web.style
         ) catch |e| return e,
 
         else => web.send_err(404, "not found", serverConn),
@@ -537,8 +527,6 @@ fn viewNotePage(
 pub const web = struct {
     var new:[]const u8 = @embedFile("web/new_note.html");
     var view:[]const u8 = @embedFile("web/view_note.html");
-    var script:[]const u8 = @embedFile("web/script.js");
-    var style:[]const u8 = @embedFile("web/style.css");
 
     //helper to send error page
     pub fn send_err(code:i16, stat:[]const u8, conn:ServerConn) void {

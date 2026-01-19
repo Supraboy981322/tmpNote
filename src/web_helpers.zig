@@ -490,6 +490,7 @@ fn viewNotePage(
         "<!-- note info -->",
         "<!-- file or plain-text -->",
         "<!-- note content -->",
+        "<!-- is deleted -->",
         "<!-- style.css -->",
         "<!-- script.js -->",
     }; const replacs = [_][]const u8 {
@@ -503,6 +504,8 @@ fn viewNotePage(
         },
         //note content (discarded if file)
         note,
+        //only show "note deleted" if it's not a file 
+        if (note_lw.is_file) "" else "<p><i>note deleted</i></p>",
         "<style>\n" ++ @embedFile("web/style.css") ++ "</style>\n",
         "<script async>\n" ++ @embedFile("web/script.js") ++ "</script>\n",
     };

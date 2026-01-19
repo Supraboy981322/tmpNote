@@ -1,5 +1,5 @@
 window.onload = async () => {
-  var p = window.location.href.split("//")[1];
+  const p = window.location.hostname+window.location.pathname;
   document.querySelector(".reqPage").innerText = p;
   const code = document.getElementById("response_code").innerText;
   switch (+code) {
@@ -22,3 +22,8 @@ window.onload = async () => {
       break;
   } 
 };
+
+function new_note() {
+  const o = window.location.origin;
+  window.location.assign(`${o}/new`);
+} 

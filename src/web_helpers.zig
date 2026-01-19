@@ -439,8 +439,12 @@ fn newNotePage(
     //define placeholder replacements
     const placs = [_][]const u8 {
         "<!-- server name -->",
+        "<!-- style.css -->",
+        "<!-- script.js -->",
     }; const replacs = [_][]const u8 {
         conn.conf.name,
+        "<style>\n" ++ @embedFile("web/style.css") ++ "</style>\n",
+        "<script async>\n" ++ @embedFile("web/script.js") ++ "</script>\n",
     };//generate the page
     const respPage = hlp.gen_page(
         web.new, &placs, &replacs, alloc
@@ -495,7 +499,9 @@ fn viewNotePage(
         "<!-- server name -->",
         "<!-- note info -->",
         "<!-- file or plain-text -->",
-        "<!-- split here -->",
+        "<!-- note content -->",
+        "<!-- style.css -->",
+        "<!-- script.js -->",
     }; const replacs = [_][]const u8 {
         //server name
         conn.conf.name,
@@ -503,10 +509,12 @@ fn viewNotePage(
         generate_note_info(alloc, conn, note_lw),
         //either put note view element or file view element 
         if (note_lw.is_file) "<div id=\"file\"></div>" else blk: {
-            break :blk "<pre id=\"note\"><!-- split here --></pre>";
+            break :blk "<pre id=\"note\"><!-- note content --></pre>";
         },
         //note content (discarded if file)
         note,
+        "<style>\n" ++ @embedFile("web/style.css") ++ "</style>\n",
+        "<script async>\n" ++ @embedFile("web/script.js") ++ "</script>\n",
     };
     //generate the page
     const respPage = hlp.gen_page(

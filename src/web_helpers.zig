@@ -358,7 +358,7 @@ fn viewNote(
         file.is_file = n.file.is_file;
         file.size = n.file.size;
         if (n.file.size == 0) {
-            log.err("n.file.size == 0", .{}) catch {};
+            log.deb("n.file.size == 0 (viewNote(...))", .{}) catch {};
             return hlp.lazy_lw_note("");
         }
 

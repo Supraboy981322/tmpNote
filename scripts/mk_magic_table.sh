@@ -5,11 +5,11 @@
 
   printf "pub const list = [_][2][]const u8 {\n"
 
-  declare -i len=$(cat foo.json | jq '. | length')
+  declare -i len=$(cat magic.json | jq '. | length')
 
   for i in $(seq 0 $((len-1))); do
 
-    declare header_R="$(cat foo.json | jq -r ".[${i}].\"Header (HEX)\"")"
+    declare header_R="$(cat magic.json | jq -r ".[${i}].\"Header (HEX)\"")"
     [[ ${#header_R} -lt 2 ]] && continue
 
     declare -a first_dig=$(echo "${header_R}" | sed 's|'" "'.*||')
@@ -19,9 +19,11 @@
 
     declare -a header="$(echo "\x${header_R}" | sed 's| |\\x|g')"
 
-    declare -a desc="$(cat foo.json | jq ".[${i}].\"ASCII File Description\"")"
+    declare -a desc="$(cat magic.json | jq ".[${i}].\"ASCII File Description\"")"
 
-    printf "\t.{ \"%s\", %s },\n" "${header}" "${desc}"
+    declare -a type="$(cat magic.json | jq ".[${i}].\"File Class\"")"
+
+    printf "  .{\n    \"%s\",\n    %s,\n    %s\n  },\n" "${header}" "${desc}" "${type}"
   done
   printf "};\n"
 )

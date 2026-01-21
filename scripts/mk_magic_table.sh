@@ -3,7 +3,17 @@
 (
   set -eou pipefail
 
-  printf "pub const list = [_][2][]const u8 {\n"
+cat <<EOF
+//thank you, https://filesig.search.org/
+//  for your amazing table of file header signatures
+//
+//script to generate the list:
+EOF
+  
+  declare -a filename="$(echo "${0}")"
+  cat "${filename}" | sed 's|^|//  |g'
+
+  printf "\npub const list = [_][2][]const u8 {\n"
 
   declare -i len=$(cat magic.json | jq '. | length')
 

@@ -29,7 +29,7 @@
   - [x] plain-text
   - [x] binary
   - [ ] uploading from webui
-  - [ ] downloading from webui
+  - [x] downloading from webui
   - [ ] previewing files
     - [x] plain-text
     - [ ] images

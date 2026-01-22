@@ -41,7 +41,7 @@ pub const log_lvl = enum {
 pub const File = struct {
     typ: []const u8,
     is_file: bool,
-    is_img: bool,
+    magic: Magic,
     size: usize,
 };
 
@@ -58,11 +58,18 @@ pub const LW_Note = struct {
     typ: []const u8,
     cont: []const u8,
     prev: []const u8,
+    magic: Magic,
+};
+
+pub const Magic = struct {
+    raw: []const u8,
+    desc: []const u8,
+    class: []const u8,
 };
 
 pub const File_Type = struct {
     is_text: bool,
     is_file: bool,
-    is_img: bool,
+    magic: Magic,
     typ: []const u8,
 };

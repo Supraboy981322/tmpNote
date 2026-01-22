@@ -1,6 +1,6 @@
 //imports
 const std = @import("std");
-const glob_types = @import("global_types.zig");
+const globs = @import("global_types.zig");
 const file_types = @import("file_types.zig");
 
 //structs from std
@@ -11,10 +11,10 @@ const fmt = std.fmt;
 const mem = std.mem;
 
 //structs other imports
-const ServerConn = glob_types.ServerConn;
-const note_errs = glob_types.note_errs;
-const LW_Note = glob_types.LW_Note;
-const File_Type = glob_types.File_Type;
+const ServerConn = globs.ServerConn;
+const note_errs = globs.note_errs;
+const LW_Note = globs.LW_Note;
+const File_Type = globs.File_Type;
 
 //defaulting to stderr is stupid 
 var stdout_buf:[1024]u8 = undefined;
@@ -136,7 +136,7 @@ pub const log = struct {
     //debug logger
     pub fn deb(comptime msg:[]const u8, args:anytype) !void {
         //only log if debug (TODO: other log levels)
-        if (glob_types.conf.log_level == 0) try Self.generic(
+        if (globs.conf.log_level == 0) try Self.generic(
             "\x1b[1;37m[\x1b[1;34mdebug\x1b[1;37m]:\x1b[0m", msg, args
         );
     }
@@ -241,6 +241,7 @@ pub fn lazy_lw_note(msg:[]const u8) LW_Note {
         .size = msg.len,
         .prev = msg,
         .id = "",
+        .magic = text_magic(),
     };
 }
 
@@ -260,20 +261,34 @@ pub fn chk_is_ascii(b_s:[]u8) bool {
 }
 
 //helper to check binary type
-pub fn chk_file_type(b_s:[]u8) File_Type {
+pub fn chk_magic(b_s:[]u8) File_Type {
     const is_text = chk_is_ascii(b_s);
     var typ:[]const u8 = if (is_text) "text/plain" else "unknown";
     
+    var m:globs.Magic = undefined;
+
     if (!is_text) for (file_types.list) |p| {
-        const m = p[0]; //"magic" byte pattern
         const t = p[1]; //type description
-        if (starts_with(b_s, m)) { typ = t; break; }
+        m = globs.Magic {
+            .raw = p[0],
+            .desc = t,
+            .class = p[2],
+        };//"magic" byte pattern
+        if (starts_with(b_s, m.raw)) { typ = t; break; }
     };
     
     return File_Type{
         .is_text = is_text,
         .is_file = true,
-        .is_img = false,
-        .typ = typ
+        .typ = typ,
+        .magic = m, 
+    };
+}
+
+pub fn text_magic() globs.Magic {
+    return globs.Magic {
+        .raw = "",
+        .desc = "plain text",
+        .class = "text",
     };
 }

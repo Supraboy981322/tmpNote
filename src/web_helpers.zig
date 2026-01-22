@@ -224,19 +224,19 @@ fn api_new(
     const is_text = hlp.chk_is_ascii(note);
     
     //either handle as a file or use generic struct 
-    const file_type:File_Type = if (is_file) hlp.chk_file_type(
+    const file_type:File_Type = if (is_file) hlp.chk_magic(
         if (note.len > 100) note else note
     ) else .{
         .is_text = if (is_text) true else false,
         .is_file = false,
-        .is_img = false,
+        .magic = hlp.text_magic(),
         .typ = if (is_text) "text/plain" else "unknown",
     };
 
     //file info struct
     const file:File = .{
+        .magic = file_type.magic,
         .is_file = is_file,
-        .is_img = file_type.is_img,
         .typ = file_type.typ,
         .size = note.len,
     };
@@ -343,7 +343,11 @@ fn viewNote(
     var file:File = .{
         .typ = "unknown",
         .is_file = false,
-        .is_img = false,
+        .magic = globs.Magic{
+            .class = "",
+            .raw = "",
+            .desc = "",
+        },
         .size = 0,
     };
 
@@ -354,6 +358,7 @@ fn viewNote(
     if (db.get(id)) |n| {
         //set note and delete from db
         note = n.content;
+        file.magic = n.file.magic; 
         file.typ = if (n.file.is_file) n.file.typ else "text/plain";
         file.is_file = n.file.is_file;
         file.size = n.file.size;
@@ -410,6 +415,7 @@ fn viewNote(
 
     //create light-weight note
     const lw_note:LW_Note = .{
+        .magic = file.magic,
         .size = file.size,
         .cont = note,
         .is_file = file.is_file,
@@ -661,6 +667,7 @@ fn generate_note_info(
         .{ "file_type", lw_note.typ,  T },
         .{ "prev",      lw_note.prev, T },
         .{ "note_id",   lw_note.id,   T },
+        .{ "class",     lw_note.magic.class,T },
     };
 
     //open JSON body

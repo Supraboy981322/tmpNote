@@ -16,7 +16,7 @@ EOF
   cat "${filename}" | sed 's|^|//  |g'
 
   # create the table as an exported constant
-  printf "\npub const list = [_][2][]const u8 {\n"
+  printf "\npub const list = [_][3][]const u8 {\n"
 
   # get the length of the json input
   declare -i len=$(cat magic.json | jq '. | length')

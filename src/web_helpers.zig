@@ -542,29 +542,45 @@ pub const web = struct {
     pub fn send_err(code:i16, stat:[]const u8, conn:ServerConn) void {
         const curTime = conn.reqTime;
         const req = conn.req;
+
+        //status code as string
+        const code_str = fmt.allocPrint(globAlloc, "{d}", .{code}) catch |e| {
+            //log err
+            log.err("failed to allocPrint() {t}", .{e}) catch {};
+            //respond with 500
+            hlp.send.headers(500, curTime, req) catch {};
+            req.server.out.print("500 server err", .{}) catch {};
+            return;
+        }; defer globAlloc.free(code_str);
+
+        const err_json = blk: {
+            //fields:
+            //  .{ [key], [value], [is_string (empty for false)] }
+            const stuff = [_][3][]const u8 {
+                .{ "code",    code_str,  ""  },
+                .{ "status",  stat,      "_" },
+            };
+            break :blk hlp.mk_json(
+                globAlloc, @TypeOf(stuff[0]),  stuff.len, stuff
+            );
+        };
         
         //define placeholders and replacements
         const placs = [_][]const u8 {
             "<!-- server name -->",
             "<!-- error code -->",
             "<!-- error status -->",
+            "<!-- err data -->",
             "<!-- err.css -->",
             "<!-- err.js -->",
         }; const replacs = [_][]const u8 {
             conn.conf.name, //server name
-            //status code as string
-            fmt.allocPrint(globAlloc, "{d}", .{code}) catch |e| {
-                //log err
-                log.err("failed to allocPrint() {t}", .{e}) catch {};
-                //respond with 500
-                hlp.send.headers(500, curTime, req) catch {};
-                req.server.out.print("500 server err", .{}) catch {};
-                return;
-            },
+            code_str,
             stat, //the err msg
+            err_json,
             "<style>\n" ++ @embedFile("web/err.css") ++ "    </style>",
             "<script async>\n" ++ @embedFile("web/err.js") ++ "  </script>",
-        };
+        }; defer globAlloc.free(err_json);
 
         //generate response page
         const err_html:[]const u8 = @embedFile("web/err.html");
@@ -658,7 +674,6 @@ fn generate_note_info(
     
     //"true" and "false" (used for flagging a string or non-string)
     const T, const F = .{ "_", "" };
-
     //fields:
     //  .{ [key], [value], [is_string] }
     const stuff = [_][3][]const u8 {
@@ -669,40 +684,8 @@ fn generate_note_info(
         .{ "note_id",   lw_note.id,   T },
         .{ "class",     lw_note.magic.class,T },
     };
-
-    //open JSON body
-    var res:[]const u8 = "{\n";
-
-    //iterate through each pair 
-    for (0..,stuff) |i, t| {
-        //either put in quotations (string; unescaped) or leave alone (non-string)
-        const v = if (mem.eql(u8, t[2], F)) t[1] else blk: {
-            break :blk fmt.allocPrint(alloc, "\"{s}\"", .{t[1]}) catch |e| blk2: {
-                log.err("failed to format note info value {t}", .{e}) catch {};
-                break :blk2 "";
-            };
-        };
-
-        //only use a comma if it isn't he last pair
-        const end = if (i == stuff.len-1) "\n" else ",\n";
-
-        //format the line
-        const line = fmt.allocPrint(
-            alloc, "\t\"{s}\": {s}{s}", .{t[0], v, end}
-        ) catch |e| blk: {
-            log.err("failed to format note info line: {t}", .{e}) catch {};
-            break :blk  "";
-        };
-
-        //add the line to the result
-        res = fmt.allocPrint(alloc, "{s}{s}", .{res, line}) catch |e| blk: {
-            log.err("failed to generate note info: {t}", .{e}) catch {};
-            break :blk res;
-        }; //close the JSON object
-    } res = fmt.allocPrint(alloc, "{s}}}\n", .{res}) catch |e| blk: {
-        log.err("failed to close note info json object: {t}", .{e}) catch {};
-        break :blk "{}";
-    };
     
-    return res;
+    return hlp.mk_json(
+        alloc, @TypeOf(stuff[0]),  stuff.len, stuff
+    );
 }

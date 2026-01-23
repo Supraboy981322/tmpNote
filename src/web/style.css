@@ -218,7 +218,6 @@ pre#note { border: solid #697da3 0.25em; }
   align-items: center;
   height: 100%;
   &> div {
-    font-size: 1vh;
     margin-left: auto;
     margin-right: auto;
   }

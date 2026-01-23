@@ -1,5 +1,5 @@
 window.onload = async () => {
-  const p = window.location.hostname+window.location.pathname;
+  const p = window.location.href;
   document.querySelector(".reqPage").innerText = p;
   const err_info = document.getElementById("err_info");
   const err_json = JSON.parse(err_info.innerText);

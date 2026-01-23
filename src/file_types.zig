@@ -782,6 +782,11 @@ pub const list = [_][3][]const u8 {
   },
   .{
     "\x50\x4B\x03\x04",
+    "(.zip) PKZIP archive_1",
+    "Compressed archive"
+  },
+  .{
+    "\x50\x4B\x03\x04",
     "StarOffice spreadsheet",
     "Spreadsheet"
   },
@@ -1048,11 +1053,6 @@ pub const list = [_][3][]const u8 {
   .{
     "\x50\x47\x50\x64\x4D\x41\x49\x4E",
     "PGP disk image",
-    "Compressed archive"
-  },
-  .{
-    "\x50\x4B\x03\x04",
-    "PKZIP archive_1",
     "Compressed archive"
   },
   .{

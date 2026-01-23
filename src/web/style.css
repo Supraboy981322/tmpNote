@@ -143,7 +143,10 @@ pre#note { border: solid #697da3 0.25em; }
     background-color: #697da3 !important;
   }
   &:hover {
-    background-color: #d8dee9;
+    padding: 0.005;
+    background-color: #88c0d0;
+    font-size: 1.05em;
+    margin: -0.25em auto;
     &::selection {
       background-color: #d8dee9 !important;
     }
@@ -206,6 +209,33 @@ pre#note { border: solid #697da3 0.25em; }
       width: 100%;
       height: 90%;
       border-radius: 0.7em;
+    }
+  }
+}
+
+#warning_container { 
+  display: flex;
+  align-items: center;
+  height: 100%;
+  &> div {
+    font-size: 1vh;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .continue {
+    color: #2e3440;
+    padding: 0.2em 0.5em;
+    font-size: 1.75em;
+    border-radius: 0.5em;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+    background-color: #81a1c1;
+    &:hover {
+      background-color: #88c0d0;
+      font-size: 1.85em;
+      margin: -0.05em auto;
     }
   }
 }

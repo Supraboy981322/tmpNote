@@ -16,63 +16,86 @@ var note_info = undefined; //may use for more than rendering the page
   if (note_info_elm != null) {
     //(it's JSON')
     note_info = JSON.parse(note_info_elm.innerText);
-    //setup for file page 
-    if (note_info.is_file) { 
+    if (note_info.is_file) {
+      //setup for file page
       const file_elm = document.getElementById("file");
 
-      //left pane
-      var left = document.createElement("div");
-      left.setAttribute("class", "left_pane");
-      {
-        //download button
-        var dl_btn = document.createElement("button");
-        dl_btn.setAttribute("onclick", "dl_file();");
-        dl_btn.setAttribute("class", "dl_btn");
-        dl_btn.innerText = "download";
-        left.appendChild(dl_btn);
+      if (note_info.class == "Picture") {
+        console.log("is picture"); 
 
-        //note file size element
-        var fi_size_cont = document.createElement("p");
-        fi_size_cont.setAttribute("class", "fi_size");
-        fi_size_cont.innerText = "note size:";
-        //nest value in '<code>' element 
-        var fi_size = document.createElement("code");
-        fi_size.innerText = `${note_info.note_size} bytes`;
-        fi_size_cont.appendChild(fi_size);
-        left.appendChild(fi_size_cont);
+        let warning_container = document.createElement("div");
+        warning_container.setAttribute("id", "warning_container");
+        warning_container.setAttribute("class", "full-screen");
+        let warning = document.createElement("div");
+        warning_container.appendChild(warning);
+
+        let txt = document.createElement("p");
+        txt.setAttribute("class", "text");
+        txt.innerText = "this note is a picture, once viewed, it will be deleted." 
+        warning.appendChild(txt);
         
-        //note file type 
-        var fi_typ = document.createElement("p");
-        fi_typ.setAttribute("class", "fi_typ");
-        fi_typ.innerText = "file type:";
-        //nest value in '<code>' element 
-        var file_type_elm = document.createElement("code");
-        file_type_elm.setAttribute("class", "file_type");
-        file_type_elm.innerText = note_info.file_type;
-        fi_typ.appendChild(file_type_elm);
-        left.appendChild(fi_typ);
+        let continue_btn = document.createElement("div");
+        continue_btn.setAttribute("class", "continue");
+        continue_btn.setAttribute("onclick", "view_image");
+        continue_btn.innerText = "continue";
+        warning.appendChild(continue_btn);
+        
+        file_elm.appendChild(warning_container);
+      } else {
+        //left pane
+        var left = document.createElement("div");
+        left.setAttribute("class", "left_pane");
+        {
+          //download button
+          var dl_btn = document.createElement("button");
+          dl_btn.setAttribute("onclick", "dl_file();");
+          dl_btn.setAttribute("class", "dl_btn");
+          dl_btn.innerText = "download";
+          left.appendChild(dl_btn);
+
+          //note file size element
+          var fi_size_cont = document.createElement("p");
+          fi_size_cont.setAttribute("class", "fi_size");
+          fi_size_cont.innerText = "note size:";
+          //nest value in '<code>' element 
+          var fi_size = document.createElement("code");
+          fi_size.innerText = `${note_info.note_size} bytes`;
+          fi_size_cont.appendChild(fi_size);
+          left.appendChild(fi_size_cont);
+          
+          //note file type 
+          var fi_typ = document.createElement("p");
+          fi_typ.setAttribute("class", "fi_typ");
+          fi_typ.innerText = "file type:";
+          //nest value in '<code>' element 
+          var file_type_elm = document.createElement("code");
+          file_type_elm.setAttribute("class", "file_type");
+          file_type_elm.innerText = note_info.file_type;
+          fi_typ.appendChild(file_type_elm);
+          left.appendChild(fi_typ);
+        }
+
+        //right pane
+        var right = document.createElement("div");
+        right.setAttribute("class", "right_pane");
+        {
+          //preview pane title
+          var preview_title = document.createElement("h3");
+          preview_title.innerText = "preview";
+          right.appendChild(preview_title);
+
+          //file preview
+          var preview_text = document.createElement("pre");
+          preview_text.setAttribute("class", "preview");
+          const p_R = note_info.prev;
+          preview_text.innerText = (p_R == null) ? "couldn't generate preview" : p_R;
+          right.appendChild(preview_text);
+        }
+
+        //add the panes to the document
+        file_elm.appendChild(left);
+        file_elm.appendChild(right);
       }
-
-      //right pane
-      var right = document.createElement("div");
-      right.setAttribute("class", "right_pane");
-      {
-        //preview pane title
-        var preview_title = document.createElement("h3");
-        preview_title.innerText = "preview";
-        right.appendChild(preview_title);
-
-        //file preview
-        var preview_text = document.createElement("pre");
-        preview_text.setAttribute("class", "preview");
-        const p_R = note_info.prev;
-        preview_text.innerText = (p_R == null) ? "couldn't generate preview" : p_R;
-        right.appendChild(preview_text);
-      }
-
-      //add the panes to the document
-      file_elm.appendChild(left);
-      file_elm.appendChild(right);
     }
   }
 })(); 

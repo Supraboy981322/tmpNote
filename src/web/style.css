@@ -48,7 +48,7 @@
 }
 
 
-button { cursor: pointer; } 
+button:not([disabled]) { cursor: pointer; } 
 
 h1 {
   &> .server_name {
@@ -68,7 +68,7 @@ h1, .resText {
     margin-bottom: 1em;
     border-radius: 1em;
     background-color: #d8dee9;
-    &:hover {
+    &:hover:not([disabled]) {
       color: #d8dee9;
       background-color: #4c5a73;
     }
@@ -185,6 +185,12 @@ pre#note { border: solid #697da3 0.25em; }
     background-color: #4c566a;
   }
   &>.left_pane {
+    .dl_btn {
+      border-radius: 0.3em;
+      padding: 0.2em 0.5em;
+      outline: none;
+      border: none;
+    }
     &>.fi_typ > code, &>.fi_size > code {
       margin-left: 0.5em;
       padding: 0.25em;

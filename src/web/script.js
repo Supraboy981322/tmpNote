@@ -20,20 +20,25 @@ var note_info = undefined; //may use for more than rendering the page
       //setup for file page
       const file_elm = document.getElementById("file");
 
+      //warn if image
       if (note_info.class == "Picture") {
-        console.log("is picture"); 
-
+        //container so the child elements are centered vertically
         let warning_container = document.createElement("div");
         warning_container.setAttribute("id", "warning_container");
         warning_container.setAttribute("class", "full-screen");
+
+        //another container so the child elements the
+        //  'display: block;' attribute actually does something 
         let warning = document.createElement("div");
         warning_container.appendChild(warning);
 
+        //warning text
         let txt = document.createElement("p");
         txt.setAttribute("class", "text");
         txt.innerText = "this note is a picture, once viewed, it will be deleted." 
         warning.appendChild(txt);
         
+        //continue button
         let continue_btn = document.createElement("div");
         continue_btn.setAttribute("class", "continue");
         continue_btn.setAttribute("onclick", "view_image");
@@ -48,7 +53,7 @@ var note_info = undefined; //may use for more than rendering the page
         {
           //download button
           var dl_btn = document.createElement("button");
-          dl_btn.setAttribute("onclick", "dl_file();");
+          dl_btn.setAttribute("onclick", "dl_file(this);");
           dl_btn.setAttribute("class", "dl_btn");
           dl_btn.innerText = "download";
           left.appendChild(dl_btn);
@@ -182,7 +187,9 @@ async function newNote() {
   }
 }
 
-function dl_file() {
+function dl_file(caller) {
+  //the stupid "dance" (as they say) that must be done
+  //  to download a file programmatically in JS
   const elm = document.createElement("a");
   const link = `${window.location.origin}/api/view?id=${note_info.note_id}`;
   elm.href = link;
@@ -191,10 +198,15 @@ function dl_file() {
   document.body.appendChild(elm);
   elm.click();
   document.body.removeChild(elm);
+
+  //let user know that it's now deleted
+  const fi_elm = document.getElementById("file");
   const p = document.createElement("p");
   const i = document.createElement("i");
   i.innerText = "note deleted";
   p.appendChild(i);
-  const fi_elm = document.getElementById("file");
   fi_elm.before(p);
+
+  //disable the download button
+  caller.setAttribute("disabled", "");
 }

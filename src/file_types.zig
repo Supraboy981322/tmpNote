@@ -782,7 +782,7 @@ pub const list = [_][3][]const u8 {
   },
   .{
     "\x50\x4B\x03\x04",
-    "(.zip) PKZIP archive_1",
+    "ZIP",
     "Compressed archive"
   },
   .{

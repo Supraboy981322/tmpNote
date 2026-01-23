@@ -1,9 +1,11 @@
 window.onload = async () => {
   const p = window.location.hostname+window.location.pathname;
   document.querySelector(".reqPage").innerText = p;
-  const code = document.getElementById("response_code").innerText;
+  const err_info = document.getElementById("err_info");
+  const err_json = JSON.parse(err_info.innerText);
+  const code = err_json.code;
   switch (+code) {
-    case 400:
+    case 400 | 404:
       var btn = document.createElement("button");
       btn.setAttribute("id", "new_note_btn");
       btn.setAttribute("onclick", "new_note()");

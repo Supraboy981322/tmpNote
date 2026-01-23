@@ -292,3 +292,47 @@ pub fn text_magic() globs.Magic {
         .class = "text",
     };
 }
+
+//fields:
+//  .{ [key], [value], [is_string (empty for false)] }
+pub fn mk_json(
+    alloc:mem.Allocator,
+    comptime T:type,
+    comptime N: usize,
+    stuff:[N]T
+) []const u8 {
+    //open JSON body
+    var res:[]const u8 = "{\n";
+
+    //iterate through each pair 
+    for (0..,stuff) |i, t| {
+        //either put in quotations (string; unescaped) or leave alone (non-string)
+        const v = if (t[2].len == 0) t[1] else blk: {
+            break :blk fmt.allocPrint(alloc, "\"{s}\"", .{t[1]}) catch |e| blk2: {
+                log.err("failed to format note info value {t}", .{e}) catch {};
+                break :blk2 "";
+            };
+        };
+
+        //only use a comma if it isn't he last pair
+        const end = if (i == stuff.len-1) "\n" else ",\n";
+
+        //format the line
+        const line = fmt.allocPrint(
+            alloc, "\t\"{s}\": {s}{s}", .{t[0], v, end}
+        ) catch |e| blk: {
+            log.err("failed to format note info line: {t}", .{e}) catch {};
+            break :blk  "";
+        };
+
+        //add the line to the result
+        res = fmt.allocPrint(alloc, "{s}{s}", .{res, line}) catch |e| blk: {
+            log.err("failed to generate note info: {t}", .{e}) catch {};
+            break :blk res;
+        }; //close the JSON object
+    } res = fmt.allocPrint(alloc, "{s}}}\n", .{res}) catch |e| blk: {
+        log.err("failed to close note info json object: {t}", .{e}) catch {};
+        break :blk "{}";
+    };
+    return res;
+}

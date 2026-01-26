@@ -122,12 +122,12 @@ pub const log = struct {
         reqPage: []const u8
     ) !void {
         try Self.generic(
-            "\x1b[1;37m[\x1b[1;33mreq\x1b[1;37m]:\x1b[0m",
+            "\x1b[1;37m[\x1b[1;36mreq\x1b[1;37m]:\x1b[0m",
             blk: { //message with a few fields
                 break :blk 
                     "\x1b[1;35maddr\x1b[1;37m{{\x1b[0m{s}\x1b[1;37m}}\x1b[0m " ++
                     "\x1b[1;34mpage\x1b[1;37m{{\x1b[0m{s}\x1b[1;37m}}\x1b[0m " ++
-                    "\x1b[1;36mdate\x1b[1;37m{{\x1b[0m{s}\x1b[1;37m}}\x1b[0m";
+                    "\x1b[1;32mdate\x1b[1;37m{{\x1b[0m{s}\x1b[1;37m}}\x1b[0m";
             },
             .{remAddr, reqPage, curTime}
         );
@@ -155,6 +155,10 @@ pub const log = struct {
     //info logger
     pub fn info(comptime msg:[]const u8, args:anytype) !void {
         try Self.generic("\x1b[1;37m[\x1b[1;35minfo\x1b[1;37m]:\x1b[0m", msg, args);
+    }
+
+    pub fn warn(comptime msg:[]const u8, args:anytype) !void {
+        try Self.generic("\x1b[1;37m[\x1b[1;33mWARN\x1b[1;37m]:\x1b[0m", msg, args);
     }
 };
 

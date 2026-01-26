@@ -41,8 +41,12 @@ pub fn main() !void {
     defer db.deinit();
 
     //set the global config
-    glob_types.conf = config.read(globAlloc) catch unreachable;
+    glob_types.conf = config.read(globAlloc) catch |e| {
+        try log.errf("failed to initialize: {t}", .{e});
+        @panic("failed to fail");
+    };
     const conf = glob_types.conf; //just an alias
+    init(conf) catch |e| try log.errf("{t}", .{e});
 
     //get server addr
     const addr = net.Address.resolveIp("::", conf.port) catch |e| {
@@ -138,4 +142,17 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
 
     //make sure the buffer was flushed
     req.server.out.flush() catch {};
+}
+
+pub fn init(conf:config) !void {
+    if (conf.log_file.len > 0) {
+        const fi = std.fs.cwd().openFile(conf.log_file, .{}) catch |e| blk: { 
+            if (e == error.FileNotFound) {
+                try log.warn(
+                    "log file ({s}) does not exist, creating one", .{conf.log_file}
+                );
+            } else return e;
+            break :blk null;
+        }; defer if (fi) |f| f.close();
+    } else try log.deb("no log file set in config", .{});
 }

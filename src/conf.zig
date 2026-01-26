@@ -50,6 +50,7 @@ const conf_vals = enum {
     escape_html_ampersand, //escaping '&' in note HTML
     default_page, //default web page
     log_level, //log verbosity
+    log_file, //log file
     bad, //invalid
 };
 
@@ -72,6 +73,7 @@ pub const conf = struct {
     default_page: []const u8,
     log_level:i8,
     preview_size:usize,
+    log_file:[]const u8,
 
     const Self = @This();
 
@@ -85,6 +87,7 @@ pub const conf = struct {
         var default_page:[]const u8 = "new";
         var log_level:i8 = 0;
         var prev_si:usize = 100;
+        var log_file:[]const u8 = "";
 
         //open the config
         var fi = fs.cwd().openFile("config", .{}) catch |e| {
@@ -238,6 +241,7 @@ pub const conf = struct {
                                 },
                             };
                         },
+                        .log_file => log_file = try alloc.dupe(u8, val),
                         //set the default web page
                         .default_page => default_page = try alloc.dupe(u8, val),
                         //size of file preview in web page
@@ -267,6 +271,7 @@ pub const conf = struct {
             .default_page = default_page,
             .log_level = log_level,
             .preview_size = prev_si,
+            .log_file = log_file,
         };
     }
 };

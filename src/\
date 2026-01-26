@@ -164,7 +164,7 @@ pub const log = struct {
             }
 
             const msg_R = std.fmt.allocPrint(
-                globs.alloc, tag++" "++msg, args
+                globs.alloc, "["++tag++"]: "++msg, args
             ) catch |e| {
                 fat_err("failed to format log message {t}", .{e});
                 @panic("failed to fail");
@@ -436,8 +436,16 @@ pub fn strip_ansi(alloc:mem.Allocator, in:[]const u8) ![]const u8 {
     var esc:bool = false;
     for (0..in.len) |i| {
         if (esc) {
-            if (!str_has_byte(";[0987654321", in[i])) esc = false;
-        } else if (in[i] == '\x1b') esc = true else if (std.ascii.isAscii(in[i])) {
+            std.enums.fromInt(
+                enum {
+                    @";", @"9", @"8", @"6", @"5", @"4", @"3", @"2", @"1", @"0", ign
+                }, in[i]
+            ) orelse .ign;
+            switch 
+        }
+        if (mem.eql(in[i], "\x1b")) {
+            esc = true;
+        } else if (std.ascii.isAscii(in[i])) {
             try out_R.append(alloc, in[i]);
         }
     }
@@ -445,9 +453,4 @@ pub fn strip_ansi(alloc:mem.Allocator, in:[]const u8) ![]const u8 {
     const out = out_R.items[0..out_R.items.len];
 
     return try alloc.dupe(u8, out);
-}
-
-pub fn str_has_byte(str:[]const u8, b:u8) bool {
-    for (str) |c| if (c == b) return true;
-    return false;
 }

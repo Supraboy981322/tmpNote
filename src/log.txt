@@ -1,2 +1,2 @@
-[[1;37m[[1;34mdebug[1;37m]:[0m]: reset log
-[[1;37m[[1;35minfo[1;37m]:[0m]: //tmpNote is listening on port 8795
+[debug]: reset log
+[info]: //tmpNote is listening on port 8795

@@ -51,6 +51,7 @@ const conf_vals = enum {
     default_page, //default web page
     log_level, //log verbosity
     log_file, //log file
+    log_format,
     bad, //invalid
 };
 
@@ -74,6 +75,7 @@ pub const conf = struct {
     log_level:i8,
     preview_size:usize,
     log_file:[]const u8,
+    log_format:globs.log_fmt,
 
     const Self = @This();
 
@@ -88,6 +90,7 @@ pub const conf = struct {
         var log_level:i8 = 0;
         var prev_si:usize = 100;
         var log_file:[]const u8 = "";
+        var log_format:globs.log_fmt = globs.log_fmt.txt;
 
         //open the config
         var fi = fs.cwd().openFile("config", .{}) catch |e| {
@@ -246,6 +249,14 @@ pub const conf = struct {
                         .default_page => default_page = try alloc.dupe(u8, val),
                         //size of file preview in web page
                         .preview_size => prev_si = try fmt.parseInt(usize, val, 10),
+                        .log_format => {
+                            log_format = meta.stringToEnum(
+                                globs.log_fmt, val
+                            ) orelse {
+                                conf_err(err.Invalid_Value, li_N, val, null);
+                                @panic("failed to fail");
+                            };
+                        },
                         //invalid option
                         .bad => conf_err(
                             err.Invalid_Key, li_N, keyR, null
@@ -272,6 +283,7 @@ pub const conf = struct {
             .log_level = log_level,
             .preview_size = prev_si,
             .log_file = log_file,
+            .log_format = log_format,
         };
     }
 };

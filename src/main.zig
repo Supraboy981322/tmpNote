@@ -146,13 +146,10 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
 
 pub fn init(conf:config) !void {
     if (conf.log_file.len > 0) {
-        const fi = std.fs.cwd().openFile(conf.log_file, .{}) catch |e| blk: { 
-            if (e == error.FileNotFound) {
-                try log.warn(
-                    "log file ({s}) does not exist, creating one", .{conf.log_file}
-                );
-            } else return e;
-            break :blk null;
-        }; defer if (fi) |f| f.close();
-    } else try log.deb("no log file set in config", .{});
+        try log.deb("resetting log ({s})", .{conf.log_file}); 
+        const fi = std.fs.cwd().createFile(conf.log_file, .{}) catch |e| {
+            try log.errf("failed to create/clear log file: {t}", .{e});
+            @panic("failed to fail");
+        }; fi.close();
+    } else try log.deb("config file not set in config", .{});
 }

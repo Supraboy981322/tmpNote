@@ -73,3 +73,9 @@ pub const File_Type = struct {
     magic: Magic,
     typ: []const u8,
 };
+
+pub const log_fmt = enum {
+    txt,
+    json,
+    invalid,
+};

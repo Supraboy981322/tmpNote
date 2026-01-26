@@ -12,3 +12,9 @@ max_note_size : 1MB
 
 # enable or disable escaping '&' in view page when escaping HTML for XSS
 escape_html_ampersand : false
+
+# log file (cleared when server starts)
+log_file : log.txt
+
+# log format (valid options: 'txt', 'json')  TODO: JSON
+log_format : txt

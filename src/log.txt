@@ -1,0 +1,2 @@
+reset log
+//tmpNote is listening on port 8795

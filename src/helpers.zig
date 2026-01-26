@@ -111,6 +111,85 @@ pub const log = struct {
         comptime msg:[]const u8,
         args:anytype
     ) !void {
+        const cwd = std.fs.cwd();
+
+        var tmp_name:[]const u8 = undefined;
+        //duplicate log file before doing anything to it
+        { const e:anyerror!void = blk: {
+            //temp name 
+            tmp_name = std.fmt.allocPrint(
+                globs.alloc, "{s}.tmp", .{globs.conf.log_file}
+            ) catch |e| break :blk e;
+
+            //copy the file
+            cwd.copyFile(
+                globs.conf.log_file, cwd, tmp_name, .{}
+            ) catch |e| {
+                globs.alloc.free(tmp_name);
+                break :blk e;
+            };
+        //treat any errs as fatal
+        }; if (e) {} else |er| fat_err("{t}", .{er}); }
+        defer {
+            cwd.deleteFile(tmp_name) catch |e| {
+                fat_err("failed to remove temp log file: {t}", .{e});
+            };
+            globs.alloc.free(tmp_name);
+        }
+
+        const log_fi = cwd.openFile(
+            globs.conf.log_file, .{ .mode = .read_write }
+        ) catch |e| {
+            fat_err("failed to open log file: {t}", .{e});
+            @panic("failed to fail");
+        }; defer log_fi.close();
+
+        const new_log = blk: {
+            var fi = cwd.openFile(tmp_name, .{}) catch |e| {
+                fat_err("couldn't read temp log {t}", .{e});
+                @panic("failed to fail");
+            };
+            defer fi.close();
+            var fi_buf:[10240]u8 = undefined;
+            var fi_re = fi.reader(&fi_buf);
+            var li_N:usize = 0;
+            const fi_in = &fi_re.interface;
+
+            var lines = std.array_list.Managed([]const u8).init(globs.alloc);
+            defer lines.deinit();
+
+            while (fi_in.takeDelimiter('\n') catch |e| return e) |li| {
+                li_N += 1;
+                lines.append(li) catch |e| fat_err("{t}", .{e});
+            }
+
+            const msg_R = std.fmt.allocPrint(
+                globs.alloc, msg, args
+            ) catch |e| {
+                fat_err("failed to format log message {t}", .{e});
+                @panic("failed to fail");
+            };
+
+            const new_li = strip_ansi(globs.alloc, msg_R) catch |e| {
+                fat_err("failed to strip ansi: {t}", .{e});
+                @panic("failed to fail");
+            };
+
+            lines.append(new_li) catch |e| fat_err("{t}", .{e});
+            const res = std.mem.join(globs.alloc, "\n", lines.items) catch |e| {
+                fat_err("failed to merge log messages: {t}", .{e});
+                @panic("failed to fail");
+            };
+
+            //return copy in mem so it can be freeed here (scoped allocation crap) 
+            break :blk globs.alloc.dupe(u8, res) catch |e| {
+                fat_err("failed to allocate new log: {t}", .{e});
+                @panic("failed to fail");
+            };
+        }; defer globs.alloc.free(new_log);
+
+        _ = log_fi.write(new_log) catch |e| fat_err("failed to write log: {t}", .{e});
+        
         try stdout.print(tag++" "++msg++"\n", args);
         try stdout.flush();
     }
@@ -161,6 +240,15 @@ pub const log = struct {
         try Self.generic("\x1b[1;37m[\x1b[1;33mWARN\x1b[1;37m]:\x1b[0m", msg, args);
     }
 };
+
+pub fn fat_err(comptime msg:[]const u8, args:anytype) void {
+    var buf:[1024]u8 = undefined;
+    var wr = std.fs.File.stderr().writer(&buf);
+    const stderr = &wr.interface;
+    stderr.print(msg, args) catch {};
+    stderr.flush() catch {};
+    std.process.exit(1);
+}
 
 //escape html special characters in web ui
 pub fn sanitizeHTML(
@@ -339,4 +427,17 @@ pub fn mk_json(
         break :blk "{}";
     };
     return res;
+}
+
+pub fn strip_ansi(alloc:mem.Allocator, in:[]const u8) ![]const u8 {
+    var out_R = try std.ArrayList(u8).initCapacity(alloc, in.len);
+    defer out_R.deinit(alloc);
+
+    for (0..in.len) |i| {
+        try out_R.append(alloc, in[i]);
+    }
+
+    const out = out_R.items[0..out_R.items.len];
+
+    return try alloc.dupe(u8, out);
 }

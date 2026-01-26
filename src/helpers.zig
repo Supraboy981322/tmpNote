@@ -163,13 +163,8 @@ pub const log = struct {
                 lines.append(li) catch |e| fat_err("{t}", .{e});
             }
 
-            const tag_P = strip_ansi(tag) catch |e| {
-                fat_err("failed to strip ansi from tag: {t}", .{e});
-                @panic("failed to fail");
-            };
-
             const msg_R = std.fmt.allocPrint(
-                globs.alloc, "["++tag_P++"]: "++msg, args
+                globs.alloc, "["++tag++"]: "++msg, args
             ) catch |e| {
                 fat_err("failed to format log message {t}", .{e});
                 @panic("failed to fail");

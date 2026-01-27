@@ -252,7 +252,9 @@ pub const conf = struct {
                         .log_format => {
                             log_format = meta.stringToEnum(
                                 globs.log_fmt, val
-                            ) orelse {
+                            ) orelse if (mem.eql(u8, val, "text")) blk: {
+                                break :blk globs.log_fmt.txt;
+                            } else {
                                 conf_err(err.Invalid_Value, li_N, val, null);
                                 @panic("failed to fail");
                             };

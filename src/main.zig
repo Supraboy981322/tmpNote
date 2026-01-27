@@ -3,6 +3,7 @@ const std = @import("std");
 const hlp = @import("helpers.zig");
 const config = @import("conf.zig").conf;
 const glob_types = @import("global_types.zig");
+const globs = glob_types;
 const web_hlp = @import("web_helpers.zig");
 const c = @cImport({
     @cInclude("time.h");
@@ -164,4 +165,17 @@ pub fn init(conf:config) !void {
         };
         try log.deb("reset log", .{});
     } else try log.deb("config file not set in config", .{});
+
+    if (conf.log_file.len > 0) {
+        var stuff = std.mem.splitAny(u8, conf.log_file, ".");
+        var ext:[]const u8 = "";
+        while (stuff.next()) |f| ext = f;
+        const e = std.meta.stringToEnum(globs.log_fmt, ext) orelse .invalid;
+        switch (e) {
+            .invalid => {},
+            else => if (e != conf.log_format) try log.warn(
+                "log file format doesn't match file extension", .{}
+            ),
+        }
+    } else try log.warn("no log file set in config", .{});
 }

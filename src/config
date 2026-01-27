@@ -17,4 +17,4 @@ escape_html_ampersand : false
 log_file : log.txt
 
 # log format (valid options: 'txt', 'json')  TODO: JSON
-log_format : json
+log_format : text

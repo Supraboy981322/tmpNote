@@ -163,17 +163,39 @@ pub const log = struct {
                 lines.append(li) catch |e| fat_err("{t}", .{e});
             }
 
-            const msg_R = std.fmt.allocPrint(
-                globs.alloc, tag++" "++msg, args
-            ) catch |e| {
-                fat_err("failed to format log message {t}", .{e});
-                @panic("failed to fail");
-            };
+            const new_li = switch (globs.conf.log_format) {
+                .txt => b: {
+                    const li_R = std.fmt.allocPrint(
+                        globs.alloc, tag++" "++msg, args
+                    ) catch |e| {
+                        fat_err("failed to format log message {t}", .{e});
+                        @panic("failed to fail");
+                    }; defer globs.alloc.free(li_R);
+                    break :b strip_ansi(globs.alloc, li_R) catch |e| {
+                        fat_err("failed to strip ansi: {t}", .{e});
+                        @panic("failed to fail");
+                    };
+                },
+                .json => b: {
+                    const tag_P = strip_ansi(globs.alloc, tag) catch |e| {
+                        fat_err("couldn't strip ansi from log json: {t}", .{e});
+                        @panic("failed to fail");
+                    }; defer globs.alloc.free(tag_P);
+                    const msg_P = strip_ansi(globs.alloc, msg) catch |e| {
+                        fat_err("couldn't strip ansi from log json: {t}", .{e});
+                        @panic("failed to fail");
+                    }; defer globs.alloc.free(msg_P);
+                    const stuff = [_][3][]const u8{
+                        .{ "tag", tag_P, "_", },
+                        .{ "msg", msg_P, "_", },
+                    };
+                    break :b mk_json_inline(
+                        globs.alloc, @TypeOf(stuff[0]), stuff.len, stuff
+                    );
+                },
+                else => @panic("unknown log format"),
+            }; defer globs.alloc.free(new_li);
 
-            const new_li = strip_ansi(globs.alloc, msg_R) catch |e| {
-                fat_err("failed to strip ansi: {t}", .{e});
-                @panic("failed to fail");
-            };
 
             lines.append(new_li) catch |e| fat_err("{t}", .{e});
             const res = std.mem.join(globs.alloc, "\n", lines.items) catch |e| {
@@ -318,7 +340,6 @@ pub fn gen_page(
         _ = mem.replace(u8, respPage, plac, replac_with, between);
         //replace response page with in-between
         respPage = between;
-
     }
 
     return respPage;
@@ -346,9 +367,7 @@ pub fn starts_with(b_s:[]const u8, pre:[]const u8) bool {
 
 //helper for plain-text checks
 pub fn chk_is_ascii(b_s:[]u8) bool {
-    for (b_s) |b| {
-        if (!std.ascii.isAscii(b)) return false; 
-    }
+    for (b_s) |b| if (!std.ascii.isAscii(b)) return false; 
     return true;
 }
 
@@ -385,16 +404,49 @@ pub fn text_magic() globs.Magic {
     };
 }
 
-//fields:
-//  .{ [key], [value], [is_string (empty for false)] }
 pub fn mk_json(
     alloc:mem.Allocator,
     comptime T:type,
+    comptime N:usize,
+    stuff:[N]T,
+) []const u8 {
+    return mk_json_with_opts(alloc, T, N, stuff, .{
+        .pack = false,
+        .delim = ' ',
+    });
+}
+
+pub fn mk_json_inline(
+    alloc:mem.Allocator,
+    comptime T:type,
+    comptime N:usize,
+    stuff:[N]T,
+) []const u8 {
+    return mk_json_with_opts(alloc, T, N, stuff, .{
+        .pack = true,
+        .delim = ' ',
+    });
+}
+
+//fields:
+//  .{ [key], [value], [is_string (empty for false)] }
+pub fn mk_json_with_opts(
+    alloc:mem.Allocator,
+    comptime T:type,
     comptime N: usize,
-    stuff:[N]T
+    stuff:[N]T,
+    comptime opts:struct{
+        pack:bool = false,
+        delim:?u8 = null,
+    },
 ) []const u8 {
     //open JSON body
-    var res:[]const u8 = "{\n";
+    var res:[]const u8 = "{"++if (!opts.pack) "\n" else blk: {
+        break :blk if (opts.delim) |d| b: {
+            const foo = &[_]u8{d};
+            break :b foo[0..];
+        } else "";
+    };
 
     //iterate through each pair 
     for (0..,stuff) |i, t| {
@@ -407,14 +459,32 @@ pub fn mk_json(
         };
 
         //only use a comma if it isn't he last pair
-        const end = if (i == stuff.len-1) "\n" else ",\n";
+        const end = blk: {
+            const delim:[]const u8 = if (opts.pack) bl: {
+                break :bl if (opts.delim) |d| b: {
+                    const foo:[]const u8 = &[_]u8{d};
+                    break :b foo[0..];
+                } else "";
+            } else "\n";
+            break :blk if (i == stuff.len-1) delim else ","++delim;
+        };
 
         //format the line
-        const line = fmt.allocPrint(
-            alloc, "\t\"{s}\": {s}{s}", .{t[0], v, end}
-        ) catch |e| blk: {
-            log.err("failed to format note info line: {t}", .{e}) catch {};
-            break :blk  "";
+        const line = blk: {
+            const sep = if (!opts.pack) b: {
+                if (opts.delim) |d| {
+                    const foo:[]const u8 = &[_]u8{d};
+                    break :b foo[0..];
+                } else " ";
+            } else "";
+            break :blk fmt.allocPrint(
+                alloc, "{s}\"{s}\":{s}{s}{s}", .{
+                    if (opts.pack) sep else "\t", t[0], sep, v, end
+                }
+            ) catch |e| b: {
+                log.err("failed to format json line: {t}", .{e}) catch {};
+                break :b "";
+            };
         };
 
         //add the line to the result
@@ -422,7 +492,9 @@ pub fn mk_json(
             log.err("failed to generate note info: {t}", .{e}) catch {};
             break :blk res;
         }; //close the JSON object
-    } res = fmt.allocPrint(alloc, "{s}}}\n", .{res}) catch |e| blk: {
+    } res = fmt.allocPrint(
+        alloc, "{s}}}{s}", .{ res, if (!opts.pack) "\n" else "" }
+    ) catch |e| blk: {
         log.err("failed to close note info json object: {t}", .{e}) catch {};
         break :blk "{}";
     };

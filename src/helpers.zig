@@ -105,7 +105,22 @@ pub fn ranStr(len:usize, alloc: mem.Allocator) ![]u8 {
 pub const log = struct {
 
     const Self = @This();
+
+    //generic logger
+    pub fn generic(
+        comptime tag:[]const u8,
+        comptime msg:[]const u8,
+        args:anytype
+    ) !void {
+        //log to file if set
+        if (globs.conf.log_file.len > 0) try Self.wr_log_file(tag, msg, args);
+        //... and print to the terminal 
+        try stdout.print(tag++" "++msg++"\n", args);
+        try stdout.flush();
+    }
     
+    //write to log file
+    //  (separate, unexported fn so generic logger is easier to read)
     fn wr_log_file(
         comptime tag:[]const u8,
         comptime msg:[]const u8,
@@ -243,19 +258,6 @@ pub const log = struct {
         _ = log_fi.write(new_log) catch |e| fat_err(
             "failed to write log: {t}", .{e}
         );
-    }
-
-    //generic logger
-    pub fn generic(
-        comptime tag:[]const u8,
-        comptime msg:[]const u8,
-        args:anytype
-    ) !void {
-        //log to file if set
-        if (globs.conf.log_file.len > 0) try Self.wr_log_file(tag, msg, args);
-        //... and print to the terminal 
-        try stdout.print(tag++" "++msg++"\n", args);
-        try stdout.flush();
     }
 
     //helper for formatted request

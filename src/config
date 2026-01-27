@@ -14,7 +14,7 @@ max_note_size : 1MB
 escape_html_ampersand : false
 
 # log file (cleared when server starts)
-log_file : log.json
+#log_file : log.json
 
 # log format (valid options: 'txt', 'json')
-log_format : json
+#log_format : json

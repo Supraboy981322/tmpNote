@@ -105,15 +105,14 @@ pub fn ranStr(len:usize, alloc: mem.Allocator) ![]u8 {
 pub const log = struct {
 
     const Self = @This();
-
-    //generic logger
-    pub fn generic(
+    
+    fn wr_log_file(
         comptime tag:[]const u8,
         comptime msg:[]const u8,
         args:anytype
     ) !void {
         const cwd = std.fs.cwd();
-
+        
         var tmp_name:[]const u8 = undefined;
         //duplicate log file before doing anything to it
         { const e:anyerror!void = blk: {
@@ -241,6 +240,16 @@ pub const log = struct {
         _ = log_fi.write(new_log) catch |e| fat_err(
             "failed to write log: {t}", .{e}
         );
+    }
+
+    //generic logger
+    pub fn generic(
+        comptime tag:[]const u8,
+        comptime msg:[]const u8,
+        args:anytype
+    ) !void {
+        //log to file if set
+        if (globs.conf.log_file.len > 0) try Self.wr_log_file(tag, msg, args);
         //... and print to the terminal 
         try stdout.print(tag++" "++msg++"\n", args);
         try stdout.flush();

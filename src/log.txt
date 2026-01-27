@@ -1,2 +1,0 @@
-{ "tag":"[debug]:", "msg":"reset log" }
-{ "tag":"[info]:", "msg":"//tmpNote is listening on port 8795" }

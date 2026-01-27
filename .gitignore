@@ -4,3 +4,4 @@ zig-out/
 .zig-cache/
 hT.conf
 src/web/hT.conf
+log*

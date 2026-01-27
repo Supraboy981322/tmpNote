@@ -131,13 +131,14 @@ pub const log = struct {
             };
         //treat any errs as fatal
         }; if (e) {} else |er| fat_err("{t}", .{er}); }
-        defer {
+        defer { //cleanup
             cwd.deleteFile(tmp_name) catch |e| {
                 fat_err("failed to remove temp log file: {t}", .{e});
             };
             globs.alloc.free(tmp_name);
         }
 
+        //open the log file
         const log_fi = cwd.openFile(
             globs.conf.log_file, .{ .mode = .read_write }
         ) catch |e| {
@@ -145,81 +146,102 @@ pub const log = struct {
             @panic("failed to fail");
         }; defer log_fi.close();
 
+        //append to the log and remove any logs older than
+        //  999 logs ago
         const new_log = blk: {
+            //open the temp log file (read mode)
             var fi = cwd.openFile(tmp_name, .{}) catch |e| {
                 fat_err("couldn't read temp log {t}", .{e});
                 @panic("failed to fail");
-            };
-            defer fi.close();
+            }; defer fi.close();
+
+            //variables to iterate over log file line-by-line
             var fi_buf:[10240]u8 = undefined;
             var fi_re = fi.reader(&fi_buf);
             var li_N:usize = 0;
             const fi_in = &fi_re.interface;
 
+            //initialize an array list to append to 
             var lines = std.array_list.Managed([]const u8).init(globs.alloc);
             defer lines.deinit();
 
+            //add each line to the file
             while (fi_in.takeDelimiter('\n') catch |e| return e) |li| {
-                li_N += 1;
+                li_N += 1; //keep track of length
                 lines.append(li) catch |e| fat_err("{t}", .{e});
             }
 
+            //construct new log line based on configured format
             const new_li = switch (globs.conf.log_format) {
                 .txt => b: {
+                    //just put the tag and message together
+                    //  (along with any params passed to logger) 
                     const li_R = std.fmt.allocPrint(
                         globs.alloc, tag++" "++msg, args
                     ) catch |e| {
                         fat_err("failed to format log message {t}", .{e});
                         @panic("failed to fail");
                     }; defer globs.alloc.free(li_R);
+
+                    //return an allocated string with only ascii bytes
                     break :b strip_ansi(globs.alloc, li_R) catch |e| {
                         fat_err("failed to strip ansi: {t}", .{e});
                         @panic("failed to fail");
                     };
                 },
                 .json => b: {
-                    const tag_P = strip_ansi(globs.alloc, tag) catch |e| {
+                    //strip non-ascii bytes from the tag 
+                    const tag_P = strip_ansi(
+                        globs.alloc, tag[1..tag.len-3] //remove the '[' and ']:' 
+                    ) catch |e| {
                         fat_err("couldn't strip ansi from log json: {t}", .{e});
                         @panic("failed to fail");
                     }; defer globs.alloc.free(tag_P);
 
+                    //formatted message
                     const m = fmt.allocPrint(globs.alloc, msg, args) catch |e| {
                         fat_err("couldn't format message for json log: {t}", .{e});
                         @panic("failed to fail");
                     }; defer globs.alloc.free(m);
 
+                    //strip non-ascii from formatted message
                     const msg_P = strip_ansi(globs.alloc, m) catch |e| {
                         fat_err("couldn't strip ansi from log json: {t}", .{e});
                         @panic("failed to fail");
                     }; defer globs.alloc.free(msg_P);
 
+                    //json stuff 
                     const stuff = [_][3][]const u8{
                         .{ "tag", tag_P, "_", },
                         .{ "msg", msg_P, "_", },
-                    };
+                    }; //reture allocated string of json
                     break :b mk_json_inline(
                         globs.alloc, @TypeOf(stuff[0]), stuff.len, stuff
                     );
                 },
+                //shouldn't happen
                 else => @panic("unknown log format"),
             }; defer globs.alloc.free(new_li);
 
-
+            //add the new line to the log
             lines.append(new_li) catch |e| fat_err("{t}", .{e});
             const res = std.mem.join(globs.alloc, "\n", lines.items) catch |e| {
                 fat_err("failed to merge log messages: {t}", .{e});
                 @panic("failed to fail");
             };
 
-            //return copy in mem so it can be freeed here (scoped allocation crap) 
+            //return copy in mem so it can be freed here (scoped allocation crap) 
             break :blk globs.alloc.dupe(u8, res) catch |e| {
                 fat_err("failed to allocate new log: {t}", .{e});
                 @panic("failed to fail");
             };
         }; defer globs.alloc.free(new_log);
 
-        _ = log_fi.write(new_log) catch |e| fat_err("failed to write log: {t}", .{e});
-        
+        //finally, actually write the log file
+        _ = log_fi.write(new_log) catch |e| fat_err(
+            "failed to write log: {t}", .{e}
+        );
+        //... and print to the terminal 
         try stdout.print(tag++" "++msg++"\n", args);
         try stdout.flush();
     }
@@ -266,17 +288,21 @@ pub const log = struct {
         try Self.generic("\x1b[1;37m[\x1b[1;35minfo\x1b[1;37m]:\x1b[0m", msg, args);
     }
 
+    //warn logger
     pub fn warn(comptime msg:[]const u8, args:anytype) !void {
         try Self.generic("\x1b[1;37m[\x1b[1;33mWARN\x1b[1;37m]:\x1b[0m", msg, args);
     }
 };
 
+//fatal error (unrecoverable and can't log)
 pub fn fat_err(comptime msg:[]const u8, args:anytype) void {
     var buf:[1024]u8 = undefined;
     var wr = std.fs.File.stderr().writer(&buf);
     const stderr = &wr.interface;
+    //print to stderr
     stderr.print(msg, args) catch {};
     stderr.flush() catch {};
+    //stop server
     std.process.exit(1);
 }
 
@@ -373,6 +399,12 @@ pub fn starts_with(b_s:[]const u8, pre:[]const u8) bool {
     return mem.eql(u8, first_half, pre);
 }
 
+//helper to check if string contains a byte
+pub fn str_has_byte(str:[]const u8, b:u8) bool {
+    for (str) |c| if (c == b) return true;
+    return false;
+}
+
 //helper for plain-text checks
 pub fn chk_is_ascii(b_s:[]u8) bool {
     for (b_s) |b| if (!std.ascii.isAscii(b)) return false; 
@@ -404,6 +436,7 @@ pub fn chk_magic(b_s:[]u8) File_Type {
     };
 }
 
+//helper for plain-text
 pub fn text_magic() globs.Magic {
     return globs.Magic {
         .raw = "",
@@ -412,6 +445,7 @@ pub fn text_magic() globs.Magic {
     };
 }
 
+//helper to adapt mk_json old to new mk_json_with_opts
 pub fn mk_json(
     alloc:mem.Allocator,
     comptime T:type,
@@ -424,6 +458,7 @@ pub fn mk_json(
     });
 }
 
+//single-line json (eg: '{ "foo":"bar", "baz":"qux" }')
 pub fn mk_json_inline(
     alloc:mem.Allocator,
     comptime T:type,
@@ -452,16 +487,18 @@ pub fn mk_json_with_opts(
 ) []const u8 {
     //open JSON body
     var res:[]const u8 = "{"++if (!opts.pack) "\n" else blk: {
+        //only use delimiter at start if set to pack json
         break :blk if (opts.delim) |d| b: {
-            const foo = &[_]u8{d};
-            break :b foo[0..];
-        } else "";
+            const foo = &[_]u8{d}; //turn byte into array of 1 byte
+            break :b foo[0..]; //coerce into a slice
+        } else ""; //default to no spacing
     };
 
     //iterate through each pair 
     for (0..,stuff) |i, t| {
         //either put in quotations (string; unescaped) or leave alone (non-string)
         const v = if (t[2].len == 0) t[1] else blk: {
+            //allocated value in quotes
             break :blk fmt.allocPrint(alloc, "\"{s}\"", .{t[1]}) catch |e| blk2: {
                 log.err("failed to format note info value {t}", .{e}) catch {};
                 break :blk2 "";
@@ -470,28 +507,34 @@ pub fn mk_json_with_opts(
 
         //only use a comma if it isn't he last pair
         const end = blk: {
+            //determine delimiter
             const delim:[]const u8 = if (opts.pack) bl: {
+                //only use check the provided delimiter if set to pack 
                 break :bl if (opts.delim) |d| b: {
-                    const foo:[]const u8 = &[_]u8{d};
-                    break :b foo[0..];
-                } else "";
-            } else "\n";
+                    const foo = &[_]u8{d}; //turn byte into array of 1 byte
+                    break :b foo[0..]; //coerce into a slice
+                } else ""; //default to no spacing when packing
+            } else "\n"; //use newline when not packing
+            //add a comma if not the last item (json sucks)
             break :blk if (i == stuff.len-1) delim else ","++delim;
         };
 
         //format the line
         const line = blk: {
+            //determine the separator
             const sep = if (!opts.pack) b: {
+                //only use provided delimiter if *not* packing
                 if (opts.delim) |d| {
-                    const foo:[]const u8 = &[_]u8{d};
-                    break :b foo[0..];
-                } else " ";
-            } else "";
+                    const foo = &[_]u8{d}; //turn byte into array of 1 byte
+                    break :b foo[0..]; //coerce into a slice
+                } else " "; //default to space when not packing
+            } else ""; //use no spacing when packing
+            //make allocated formatted line string
             break :blk fmt.allocPrint(
                 alloc, "{s}\"{s}\":{s}{s}{s}", .{
                     if (opts.pack) sep else "\t", t[0], sep, v, end
                 }
-            ) catch |e| b: {
+            ) catch |e| b: { //log err and use empty line 
                 log.err("failed to format json line: {t}", .{e}) catch {};
                 break :b "";
             };
@@ -501,35 +544,38 @@ pub fn mk_json_with_opts(
         res = fmt.allocPrint(alloc, "{s}{s}", .{res, line}) catch |e| blk: {
             log.err("failed to generate note info: {t}", .{e}) catch {};
             break :blk res;
-        }; //close the JSON object
-    } res = fmt.allocPrint(
+        };
+    } res = fmt.allocPrint( //close the JSON object
         alloc, "{s}}}{s}", .{ res, if (!opts.pack) "\n" else "" }
-    ) catch |e| blk: {
+    ) catch |e| blk: { //log err and set to empty object on err 
         log.err("failed to close note info json object: {t}", .{e}) catch {};
         break :blk "{}";
     };
     return res;
 }
 
-pub fn strip_ansi(alloc:mem.Allocator, in:[]const u8) ![]const u8 {
+//helper to strip non-ascii from string
+pub fn strip_ansi(
+    alloc:mem.Allocator,
+    in:[]const u8
+) ![]const u8 {
+    //initialize array list (uses input size as capacity) 
     var out_R = try std.ArrayList(u8).initCapacity(alloc, in.len);
     defer out_R.deinit(alloc);
 
+    //iterate over the string
     var esc:bool = false;
     for (0..in.len) |i| {
-        if (esc) {
+        if (esc) {//skip if part of ansi code (stop skipping if not) 
             if (!str_has_byte(";[0987654321", in[i])) esc = false;
         } else if (in[i] == '\x1b') esc = true else if (std.ascii.isAscii(in[i])) {
-            try out_R.append(alloc, in[i]);
+            try out_R.append(alloc, in[i]); //only add if ascii
         }
     }
 
+    //get the output (remove any possible nulls) 
     const out = out_R.items[0..out_R.items.len];
 
+    //return allocated string (so array list can be deinit())
     return try alloc.dupe(u8, out);
-}
-
-pub fn str_has_byte(str:[]const u8, b:u8) bool {
-    for (str) |c| if (c == b) return true;
-    return false;
 }

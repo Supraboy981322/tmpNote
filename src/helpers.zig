@@ -190,11 +190,14 @@ pub const log = struct {
                 },
                 .json => b: {
                     //strip non-ascii bytes from the tag 
-                    const tag_P = strip_ansi(
-                        globs.alloc, tag[1..tag.len-3] //remove the '[' and ']:' 
-                    ) catch |e| {
-                        fat_err("couldn't strip ansi from log json: {t}", .{e});
-                        @panic("failed to fail");
+                    const tag_P = bl: {
+                        const tag_T = strip_ansi(
+                            globs.alloc, tag
+                        ) catch |e| {
+                            fat_err("couldn't strip ansi from log json: {t}", .{e});
+                            @panic("failed to fail");
+                        }; defer globs.alloc.free(tag_T);
+                        break :bl try globs.alloc.dupe(u8, tag_T[1..tag_T.len-2]); //remove the '[' and ']:' 
                     }; defer globs.alloc.free(tag_P);
 
                     //formatted message

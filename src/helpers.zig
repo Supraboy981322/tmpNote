@@ -81,7 +81,8 @@ pub const send = struct {
 
 pub fn ranStr(len:usize, alloc: mem.Allocator) ![]u8 {
     //byte slice of alpha-numeric characters 
-    const chars:[]const u8 = "qwertyuioplkjhgfdsazxcvbnmQWERTYUIOPKLJHGFDSAZXCVBNM1234567890";
+    const chars:[]const u8 = "qwertzuiopasdfghjklycvb" ++
+                             "nmQWERTZUIOPASDFGHJKLYXCVBNM1234567890";
 
     //alias for random
     var p_ran = crypto.random;
@@ -181,10 +182,17 @@ pub const log = struct {
                         fat_err("couldn't strip ansi from log json: {t}", .{e});
                         @panic("failed to fail");
                     }; defer globs.alloc.free(tag_P);
-                    const msg_P = strip_ansi(globs.alloc, msg) catch |e| {
+
+                    const m = fmt.allocPrint(globs.alloc, msg, args) catch |e| {
+                        fat_err("couldn't format message for json log: {t}", .{e});
+                        @panic("failed to fail");
+                    }; defer globs.alloc.free(m);
+
+                    const msg_P = strip_ansi(globs.alloc, m) catch |e| {
                         fat_err("couldn't strip ansi from log json: {t}", .{e});
                         @panic("failed to fail");
                     }; defer globs.alloc.free(msg_P);
+
                     const stuff = [_][3][]const u8{
                         .{ "tag", tag_P, "_", },
                         .{ "msg", msg_P, "_", },
@@ -427,6 +435,8 @@ pub fn mk_json_inline(
         .delim = ' ',
     });
 }
+
+// TODO: escape JSON strings
 
 //fields:
 //  .{ [key], [value], [is_string (empty for false)] }

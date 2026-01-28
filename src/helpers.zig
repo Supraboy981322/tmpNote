@@ -270,6 +270,7 @@ pub const log = struct {
         remAddr:[]const u8,
         reqPage: []const u8
     ) !void {
+        if (globs.conf.log_level > 2) return;
         try Self.generic(
             "\x1b[1;37m[\x1b[1;36mreq\x1b[1;37m]:\x1b[0m",
             blk: { //message with a few fields ('addr{...} page{...} date{...}')
@@ -284,14 +285,17 @@ pub const log = struct {
 
     //debug logger
     pub fn deb(comptime msg:[]const u8, args:anytype) !void {
-        //only log if debug (TODO: other log levels)
-        if (globs.conf.log_level == 0) try Self.generic(
+        //only log if debug level
+        if (globs.conf.log_level > 0) return;
+        try Self.generic(
             "\x1b[1;37m[\x1b[1;34mdebug\x1b[1;37m]:\x1b[0m", msg, args
         );
     }
 
     //err logger
     pub fn err(comptime msg:[]const u8, args:anytype) !void {
+        //only log if err level
+        if (globs.conf.log_level > 4) return;
         try Self.generic("\x1b[1;37m[\x1b[1;31merr\x1b[1;37m]:\x1b[0m", msg, args);
     }
 
@@ -303,11 +307,15 @@ pub const log = struct {
 
     //info logger
     pub fn info(comptime msg:[]const u8, args:anytype) !void {
+        //only log if info level
+        if (globs.conf.log_level > 1) return;
         try Self.generic("\x1b[1;37m[\x1b[1;35minfo\x1b[1;37m]:\x1b[0m", msg, args);
     }
 
     //warn logger
     pub fn warn(comptime msg:[]const u8, args:anytype) !void {
+        //only log if warn level
+        if (globs.conf.log_level > 3) return;
         try Self.generic("\x1b[1;37m[\x1b[1;33mWARN\x1b[1;37m]:\x1b[0m", msg, args);
     }
 };

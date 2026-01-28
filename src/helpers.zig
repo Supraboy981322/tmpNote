@@ -529,7 +529,7 @@ pub fn mk_json_with_opts(
         } else v_S_buf;
 
         //either put in quotations (string; unescaped) or leave alone (non-string)
-        const v = if (v_R.len == 0) v_R else blk: {
+        const v = if (t[2].len == 0) v_R else blk: {
             //allocated value in quotes
             break :blk fmt.allocPrint(alloc, "\"{s}\"", .{v_R}) catch |e| blk2: {
                 log.err("failed to format note info value {t}", .{e}) catch {};

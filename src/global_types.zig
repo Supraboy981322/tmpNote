@@ -30,6 +30,7 @@ pub const ServerConn = struct {
 
 //log level
 pub const log_lvl = enum {
+    @"0", @"1", @"2", @"3", @"4", //so the config can just have a number 
     debug,
     info,
     req,

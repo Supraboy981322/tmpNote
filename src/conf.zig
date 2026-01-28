@@ -19,6 +19,8 @@ var stdout_buf:[1024]u8 = undefined;
 var stdout_wr = fs.File.stdout().writer(&stdout_buf);
 const stdout = &stdout_wr.interface;
 
+pub var safe:bool = false; //determines if it's safe to read conf struct
+
 //accepted units of byte measurement
 const valid_byte_sizes = enum {
     b,  //byte
@@ -230,12 +232,13 @@ pub const conf = struct {
                             const v = meta.stringToEnum(
                                 log_lvl, val
                             ) orelse log_lvl.bad;
+
                             log_level = switch (v) {
-                                .debug => 0,
-                                .info => 1,
-                                .req => 2,
-                                .warn => 3,
-                                .err => 4,
+                                .@"0", .debug => 0,
+                                .@"1", .info => 1,
+                                .@"2", .req => 2,
+                                .@"3", .warn => 3,
+                                .@"4", .err => 4,
                                 .bad => {
                                     const msg:[]const u8 = "not a log level";
                                     conf_err(
@@ -275,6 +278,7 @@ pub const conf = struct {
         //make sure everything was flushed;
         try stdout.flush();
 
+        safe = true;
         //return config struct
         return Self{
             .port = port,

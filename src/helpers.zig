@@ -127,6 +127,8 @@ pub const log = struct {
         comptime msg:[]const u8,
         args:anytype
     ) !void {
+        if (!@import("conf.zig").safe) return;
+
         const cwd = std.fs.cwd();
         
         var tmp_name:[]const u8 = undefined;

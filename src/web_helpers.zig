@@ -296,17 +296,22 @@ fn viewNote(
     //pull things from conn struct
     const req = conn.req;
     const curTime = conn.reqTime;
+    
 
     //check for id
     const id:[]const u8 = b: {
+        //create a new connection struct with content_length
+        var new_conn = conn;
+        new_conn.len_req = req.head.content_length orelse conn.len_req; 
+
         //create a list of fns to check for id
         const fns = [_]*const fn(
             mem.Allocator, ServerConn, []const u8
-        ) anyerror![]u8 { get_params, get_header };
+        ) anyerror![]u8 { get_params, get_header, read_body };
 
         //iterate over the list of fns
         for (fns) |f| for ([_][]const u8{"note-id", "id"}) |p| {
-            const res = f(alloc, conn, p) catch |e| {
+            const res = f(alloc, new_conn, p) catch |e| {
                 try log.err("failed to get id: {t}", .{e});
                 return e;
             }; //break with value if found 

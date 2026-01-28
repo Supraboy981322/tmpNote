@@ -510,10 +510,26 @@ pub fn mk_json_with_opts(
 
     //iterate through each pair 
     for (0..,stuff) |i, t| {
+        //create a writer
+        var v_R_buf:[1024]u8 = undefined;
+        var v_R_stream = std.io.fixedBufferStream(&v_R_buf);
+        var v_R_wr = v_R_stream.writer().adaptToNewApi(&v_R_buf).new_interface;
+
+        //escape json value
+        std.zig.stringEscape(t[1], &v_R_wr) catch |e| {
+            log.err("failed to escape JSON string: {t}", .{e}) catch {};
+            return t[1];
+        };
+
+        //cut-off on first non-ascii byte
+        const v_R = for (0..v_R_stream.buffer.len) |j| {
+            if (!std.ascii.isAscii(v_R_stream.buffer[j])) break v_R_stream.buffer[0..j];
+        } else v_R_stream.buffer;
+
         //either put in quotations (string; unescaped) or leave alone (non-string)
-        const v = if (t[2].len == 0) t[1] else blk: {
+        const v = if (v_R.len == 0) v_R else blk: {
             //allocated value in quotes
-            break :blk fmt.allocPrint(alloc, "\"{s}\"", .{t[1]}) catch |e| blk2: {
+            break :blk fmt.allocPrint(alloc, "\"{s}\"", .{v_R}) catch |e| blk2: {
                 log.err("failed to format note info value {t}", .{e}) catch {};
                 break :blk2 "";
             };

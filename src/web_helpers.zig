@@ -298,32 +298,20 @@ fn viewNote(
     const curTime = conn.reqTime;
 
     //check for id
-    var id:[]const u8 = b: {
-        for ([_][]const u8{"note-id", "id"}) |p| {
-            const res = get_params(alloc, conn, p) catch |e| {
-                try log.err("failed to get params: {t}", .{e});
-                return e;
-            };
-            if (res.len != 0) break :b res;
+    const id:[]const u8 = b: {
+        for ([_]*const fn(
+            mem.Allocator, ServerConn, []const u8
+        ) anyerror![]u8 { get_params, get_header }) |f| {
+            for ([_][]const u8{"note-id", "id"}) |p| {
+                const res = f(alloc, conn, p) catch |e| {
+                    try log.err("failed to get id: {t}", .{e});
+                    return e;
+                };
+                if (res.len != 0) break :b res;
+            }
         }
         break :b "";
     };
-    if (id.len == 0) { //if no id found, chk headers
-        //chk each header until 'note' header
-        var hItr = req.iterateHeaders();
-        while (hItr.next()) |h| {
-            if (mem.eql(u8, h.name, "note-id") or mem.eql(u8, h.name, "id")) {
-                id = alloc.dupe(u8, h.value) catch {
-                    hlp.send.headersWithType(
-                        400, curTime, req, "text/plain"
-                    ) catch {};
-                    req.server.out.print("bad id", .{}) catch {};
-                    return lazy_lw_note("");
-                };
-                break;
-            }
-        }
-    }
 
     //if no id
     if (id.len == 0) {
@@ -595,6 +583,20 @@ pub const web = struct {
     }
 };
 
+fn get_header(
+    alloc:mem.Allocator,
+    conn:ServerConn,
+    which:[]const u8,
+) ![]u8 {
+    //iterate over headers
+    var hItr = conn.req.iterateHeaders();
+    while (hItr.next()) |h| {
+        //return allocated value if match
+        if (mem.eql(u8, h.name, which)) return try alloc.dupe(u8, h.value);
+    } //return empty if not found 
+    return "";
+}
+
 //helper to get the query params
 fn get_params(
     alloc: mem.Allocator,
@@ -686,3 +688,4 @@ fn generate_note_info(
         alloc, @TypeOf(stuff[0]),  stuff.len, stuff
     );
 }
+

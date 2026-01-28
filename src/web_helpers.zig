@@ -299,30 +299,29 @@ fn viewNote(
 
     //check for id
     const id:[]const u8 = b: {
-        for ([_]*const fn(
+        //create a list of fns to check for id
+        const fns = [_]*const fn(
             mem.Allocator, ServerConn, []const u8
-        ) anyerror![]u8 { get_params, get_header }) |f| {
-            for ([_][]const u8{"note-id", "id"}) |p| {
-                const res = f(alloc, conn, p) catch |e| {
-                    try log.err("failed to get id: {t}", .{e});
-                    return e;
-                };
-                if (res.len != 0) break :b res;
-            }
-        }
-        break :b "";
-    };
+        ) anyerror![]u8 { get_params, get_header };
 
-    //if no id
-    if (id.len == 0) {
-        if (isReq) {
+        //iterate over the list of fns
+        for (fns) |f| for ([_][]const u8{"note-id", "id"}) |p| {
+            const res = f(alloc, conn, p) catch |e| {
+                try log.err("failed to get id: {t}", .{e});
+                return e;
+            }; //break with value if found 
+            if (res.len != 0) break :b res;
+        };
+
+        //if 'break' not called yet, id not found
+        if (isReq) { //if api req respond with plain-text err 
             hlp.send.headersWithType(
                 400, curTime, req, "text/plain"
             ) catch {};
             req.server.out.print("missing note key", .{}) catch {};
-            return lazy_lw_note("");
-        } return note_errs.no_key_found;
-    }
+            return lazy_lw_note(""); //don't return err (already handled)
+        } return note_errs.no_key_found; //return missing id err
+    };
 
     //default to invalid
     var file:File = .{

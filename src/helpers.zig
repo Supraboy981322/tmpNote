@@ -5,6 +5,7 @@ const file_types = @import("file_types.zig");
 
 //structs from std
 const crypto = std.crypto;
+const ascii = std.ascii;
 const http = std.http;
 const heap = std.heap;
 const fmt = std.fmt;
@@ -212,7 +213,8 @@ pub const log = struct {
                             fat_err("couldn't strip ansi from log json: {t}", .{e});
                             @panic("failed to fail");
                         }; defer globs.alloc.free(tag_T);
-                        break :bl try globs.alloc.dupe(u8, tag_T[1..tag_T.len-2]); //remove the '[' and ']:' 
+                         //return allocated string without the '[' and ']:'
+                        break :bl try globs.alloc.dupe(u8, tag_T[1..tag_T.len-2]); 
                     }; defer globs.alloc.free(tag_P);
 
                     //formatted message
@@ -268,7 +270,7 @@ pub const log = struct {
     ) !void {
         try Self.generic(
             "\x1b[1;37m[\x1b[1;36mreq\x1b[1;37m]:\x1b[0m",
-            blk: { //message with a few fields
+            blk: { //message with a few fields ('addr{...} page{...} date{...}')
                 break :blk 
                     "\x1b[1;35maddr\x1b[1;37m{{\x1b[0m{s}\x1b[1;37m}}\x1b[0m " ++
                     "\x1b[1;34mpage\x1b[1;37m{{\x1b[0m{s}\x1b[1;37m}}\x1b[0m " ++
@@ -421,7 +423,7 @@ pub fn str_has_byte(str:[]const u8, b:u8) bool {
 
 //helper for plain-text checks
 pub fn chk_is_ascii(b_s:[]u8) bool {
-    for (b_s) |b| if (!std.ascii.isAscii(b)) return false; 
+    for (b_s) |b| if (!ascii.isAscii(b)) return false; 
     return true;
 }
 
@@ -485,8 +487,6 @@ pub fn mk_json_inline(
     });
 }
 
-// TODO: escape JSON strings
-
 //fields:
 //  .{ [key], [value], [is_string (empty for false)] }
 pub fn mk_json_with_opts(
@@ -514,6 +514,8 @@ pub fn mk_json_with_opts(
         var v_R_buf:[1024]u8 = undefined;
         var v_R_stream = std.io.fixedBufferStream(&v_R_buf);
         var v_R_wr = v_R_stream.writer().adaptToNewApi(&v_R_buf).new_interface;
+        //pull buffer out of stream struct (easier to read)
+        const v_S_buf = v_R_stream.buffer;
 
         //escape json value
         std.zig.stringEscape(t[1], &v_R_wr) catch |e| {
@@ -522,9 +524,9 @@ pub fn mk_json_with_opts(
         };
 
         //cut-off on first non-ascii byte
-        const v_R = for (0..v_R_stream.buffer.len) |j| {
-            if (!std.ascii.isAscii(v_R_stream.buffer[j])) break v_R_stream.buffer[0..j];
-        } else v_R_stream.buffer;
+        const v_R = for (0..v_S_buf.len) |j| {
+            if (!ascii.isAscii(v_S_buf[j])) break v_S_buf[0..j];
+        } else v_S_buf;
 
         //either put in quotations (string; unescaped) or leave alone (non-string)
         const v = if (v_R.len == 0) v_R else blk: {
@@ -598,7 +600,7 @@ pub fn strip_ansi(
     for (0..in.len) |i| {
         if (esc) {//skip if part of ansi code (stop skipping if not) 
             if (!str_has_byte(";[0987654321", in[i])) esc = false;
-        } else if (in[i] == '\x1b') esc = true else if (std.ascii.isAscii(in[i])) {
+        } else if (in[i] == '\x1b') esc = true else if (ascii.isAscii(in[i])) {
             try out_R.append(alloc, in[i]); //only add if ascii
         }
     }

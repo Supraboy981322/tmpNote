@@ -137,16 +137,23 @@ fn api_new(
     var is_file, var respond_html = .{
         false, false,
     };
+    //may be set in a few places, so create as empty early
     var note:[]u8 = "";
     {   //scoped so I don't have to worry about var names clobbering 
         var hItr = req.iterateHeaders();
+        //iterate over headers
         while (hItr.next()) |h_C| {
+            //create enum from header so I can 'switch'
             const h = meta.stringToEnum(enum {
                 @"is-file", @"err-html", note, skip
-            }, h_C.name) orelse .skip;
+            }, h_C.name) orelse .skip; //if not wanted, set to skip 
+            //switch on header enum 
             switch (h) {
+                //request wants any errors as html page
                 .@"err-html" => respond_html = true,
+                //request contains file
                 .@"is-file" => is_file = true,
+                //request contains note in header (could be in body or url params)
                 .note => note = alloc.dupe(u8, h_C.value) catch {
                     if (respond_html) web.send_err(400, "bad note", conn) else {
                         hlp.send.headersWithType(
@@ -155,6 +162,7 @@ fn api_new(
                         req.server.out.print("bad note", .{}) catch {};
                     } return "";
                 },
+                //otherwise skip header
                 .skip => continue,
             }
         }
@@ -163,15 +171,20 @@ fn api_new(
     var len_req:u64 = 0; //placeholder
     //make sure the 'Content-Length' header isn't larger than the maximum note size
     if (req.head.content_length) |si| {
-        len_req = si; if (si > conf.max_note_size) {
+        len_req = si; //just an alias 
+        //if the note is too large 
+        if (si > conf.max_note_size) {
+            //message that's sent
             const too_large_msg:[]const u8 = "note exceeds configured limit";
-            if (isReq) {
+            if (isReq) { //only respond with err if it's an api request 
+                //either send html err page or plain-text 
                 if (respond_html) web.send_err(413, too_large_msg, serverConn) else {
                     hlp.send.headersWithType(
                         413, curTime, req, "text/plain"
                     ) catch {};
                     req.server.out.print(too_large_msg, .{}) catch {};
-                } return "";
+                } return ""; //return empty string
+            //otherwise return err to calling fn
             } else return note_errs.note_too_large;
         }
     } else if (respond_html) {
@@ -203,7 +216,6 @@ fn api_new(
     const fns = [2]*const fn(
         mem.Allocator, ServerConn, []const u8
     ) combined_err_typ![]u8{ get_params, read_body, };
-
     //iterate through array of fns (passes new connection struct)
     for (fns) |f| {
         if (note.len == 0) note = f(alloc, new_conn, "note") catch |e| {
@@ -214,6 +226,7 @@ fn api_new(
     //generate note id (random string generator helper)
     const id:[]u8 = hlp.ranStr(16, alloc) catch |e| {
         try log.err("failed to generate random string (hlp.ranStr()) {t}", .{e});
+        //either respond with html err page or plain-text
         if (respond_html) web.send_err(500, "server err", new_conn) else {
             hlp.send.headersWithType(
                 500, curTime, req, "text/plain"
@@ -221,12 +234,12 @@ fn api_new(
         } return "";
     };
 
+    //check if it's plain-text
     const is_text = hlp.chk_is_ascii(note);
-    
     //either handle as a file or use generic struct 
     const file_type:File_Type = if (is_file) hlp.chk_magic(
         if (note.len > 100) note else note
-    ) else .{
+    ) else .{ //handle if it's not plain-text and api call claimed it's not a file
         .is_text = if (is_text) true else false,
         .is_file = false,
         .magic = hlp.text_magic(),
@@ -253,14 +266,15 @@ fn api_new(
 
     //add the note to db
     db.put(id, n) catch |e| { //on err
+        //either respond html err page or plain-text
         if (respond_html) web.send_err(500, "failed to store note", new_conn) else {
             //send headers (500 server err)
             hlp.send.headersWithType(
                 500, curTime, req, "text/plain"
             ) catch {}; //ignore err
-            //log err 
+            //log err and respond with a generic err msg
             try log.err("failed to read store note: {t}", .{e});
-            return "failed to store note"; //respond with generic msg
+            return "failed to store note";
         } return "";
     };
    
@@ -282,36 +296,19 @@ fn viewNote(
     //pull things from conn struct
     const req = conn.req;
     const curTime = conn.reqTime;
-    const params = conn.params;
 
-    //TODO: switch to new helper fn
-    //iterate over the query params
-    var pItr = mem.splitAny(u8, params, "&");
-    var id:[]const u8 = ""; //placeholder
-    while (pItr.next()) |par| {
-        var p = mem.splitScalar(u8, par, '=');
-        while (p.next()) |k| {
-            if (mem.eql(u8, k, "id") or mem.eql(u8, k, "note-id")) {
-                //set id parameter
-                if (p.next()) |n| {
-                    //duplicate mem for value (seg-faults when viewed otherwise)
-                    id = alloc.dupe(u8, n) catch |e| {
-                        try log.err("failed to allocate id duplication: {t}", .{e});
-                        hlp.send.headersWithType(
-                            500, curTime, req, "text/plain"
-                        ) catch {};
-                        return lazy_lw_note("failed to allocate id duplication");
-                    };
-                } else if (isReq) {
-                    hlp.send.headersWithType(
-                        400, curTime, req, "text/plain"
-                    ) catch {};
-                    return lazy_lw_note("missing id");
-                } else return note_errs.no_key_found;
-                break;
-            } _ = p.next(); //skip value
+    //check for id
+    var id:[]const u8 = b: {
+        for ([_][]const u8{"note-id", "id"}) |p| {
+            const res = get_params(alloc, conn, p) catch |e| {
+                try log.err("failed to get params: {t}", .{e});
+                return e;
+            };
+            if (res.len != 0) break :b res;
         }
-    } if (id.len == 0) { //if no id found, chk headers
+        break :b "";
+    };
+    if (id.len == 0) { //if no id found, chk headers
         //chk each header until 'note' header
         var hItr = req.iterateHeaders();
         while (hItr.next()) |h| {

@@ -478,7 +478,6 @@ fn viewNotePage(
         return e;
     }; defer alloc.free(note); //free the escaped note
 
-
     //define placeholder replacements
     const placs = [_][]const u8 {
         "<!-- server name -->",

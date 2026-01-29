@@ -16,7 +16,7 @@ escape_html_ampersand : false
 # log file (cleared when server starts)
 log_file : log.json
 
-# log level 
+# log level (valid options: 'debug', 'req', 'info', 'warn', 'err')
 log_level : debug
 
 # log format (valid options: 'txt', 'json')

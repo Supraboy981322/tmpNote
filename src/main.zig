@@ -38,6 +38,7 @@ const globAlloc = glob_types.alloc;
 var db = std.StringHashMap(Note).init(globAlloc);
 
 pub fn main() !void {
+    if (chk_args()) std.process.exit(0);
     //wipe db on close  TODO: graceful shutdown
     defer db.deinit();
 
@@ -182,4 +183,36 @@ pub fn init(conf:config) !void {
             ),
         }
     } else try log.warn("no log file set in config", .{});
+}
+
+fn chk_args() bool {
+    return false;
+    //var err_buf:[1024]u8 = undefined;
+    //var err_wr = std.fs.File.stdout().writer(&err_buf);
+    //var stderr = &err_wr.interface;
+    //const args = std.process.argsAlloc(globs.alloc) catch |e| {
+    //    stderr.print("failed to read args: {}", .{e}) catch {};
+    //    stderr.flush() catch {};
+    //    return false;
+    //}; defer std.process.argsFree(globs.alloc, args);
+
+    //const valid_args = enum {
+    //    write_config, invalid
+    //};
+    //for (args, 0..) |arg, i| {
+    //    const a = std.meta.stringToEnum(
+    //        valid_args, arg
+    //    ) orelse .invalid;
+    //    switch (a) {
+    //        .write_config => {
+
+    //        },
+    //        .invalid => {
+    //            stderr.print("invalid arg: {s} ({d})\n", .{arg, i}) catch {};
+    //            stderr.flush() catch {};
+    //            return true;
+    //        },
+    //    }
+    //}
+    //return true;
 }

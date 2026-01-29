@@ -38,7 +38,7 @@ const globAlloc = glob_types.alloc;
 var db = std.StringHashMap(Note).init(globAlloc);
 
 pub fn main() !void {
-    if (chk_args()) std.process.exit(0);
+    if (!chk_args()) std.process.exit(0);
     //wipe db on close  TODO: graceful shutdown
     defer db.deinit();
 
@@ -148,7 +148,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
 
 pub fn init(conf:config) !void {
     if (@import("conf.zig").used_default) {
-        try log.warn("config file not found, using default", .{});
+        try log.warn("config file not found, using default (use write_config arg to make the default file)", .{});
     }
     if (conf.log_file.len > 0) {
         const opts:std.fs.Dir.WriteFileOptions = .{
@@ -186,6 +186,7 @@ pub fn init(conf:config) !void {
 }
 
 fn chk_args() bool {
+    var start:bool = true;
     var err_buf:[1024]u8 = undefined;
     var err_wr = std.fs.File.stdout().writer(&err_buf);
     var stderr = &err_wr.interface;
@@ -218,14 +219,14 @@ fn chk_args() bool {
                 };
                 stdout.print("default config written.\n", .{}) catch {};
                 stdout.flush() catch {};
-                return true;
+                start = false;
             },
             .invalid => {
                 stderr.print("invalid arg: {s} ({d})\n", .{arg, i}) catch {};
                 stderr.flush() catch {};
-                return true;
+                start = false;
             },
         }
     }
-    return false;
+    return start;
 }

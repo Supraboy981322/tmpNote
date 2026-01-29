@@ -205,7 +205,7 @@ fn chk_args() bool {
         ) orelse .invalid;
         switch (a) {
             .write_config => {
-                stdout.print("writing default config... (config)", .{}) catch {};
+                stdout.print("writing default config... (config)\n", .{}) catch {};
                 stdout.flush() catch {};
                 _ = std.fs.cwd().writeFile(.{
                     .data = @embedFile("config"),
@@ -216,7 +216,7 @@ fn chk_args() bool {
                     stderr.flush() catch {};
                     return true;
                 };
-                stdout.print("default config written.", .{}) catch {};
+                stdout.print("default config written.\n", .{}) catch {};
                 stdout.flush() catch {};
                 return true;
             },

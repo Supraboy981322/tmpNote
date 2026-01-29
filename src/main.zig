@@ -186,33 +186,46 @@ pub fn init(conf:config) !void {
 }
 
 fn chk_args() bool {
+    var err_buf:[1024]u8 = undefined;
+    var err_wr = std.fs.File.stdout().writer(&err_buf);
+    var stderr = &err_wr.interface;
+    const args = std.process.argsAlloc(globs.alloc) catch |e| {
+        stderr.print("failed to read args: {}", .{e}) catch {};
+        stderr.flush() catch {};
+        return false;
+    }; defer std.process.argsFree(globs.alloc, args);
+
+    const valid_args = enum {
+        write_config, invalid
+    };
+    for (args, 0..) |arg, i| {
+        if (i == 0) continue;
+        const a = std.meta.stringToEnum(
+            valid_args, arg
+        ) orelse .invalid;
+        switch (a) {
+            .write_config => {
+                stdout.print("writing default config... (config)", .{}) catch {};
+                stdout.flush() catch {};
+                _ = std.fs.cwd().writeFile(.{
+                    .data = @embedFile("config"),
+                    .sub_path = "config",
+                    .flags = .{},
+                }) catch |e| {
+                    stderr.print("failed to write default config: {t}\n", .{e}) catch {};
+                    stderr.flush() catch {};
+                    return true;
+                };
+                stdout.print("default config written.", .{}) catch {};
+                stdout.flush() catch {};
+                return true;
+            },
+            .invalid => {
+                stderr.print("invalid arg: {s} ({d})\n", .{arg, i}) catch {};
+                stderr.flush() catch {};
+                return true;
+            },
+        }
+    }
     return false;
-    //var err_buf:[1024]u8 = undefined;
-    //var err_wr = std.fs.File.stdout().writer(&err_buf);
-    //var stderr = &err_wr.interface;
-    //const args = std.process.argsAlloc(globs.alloc) catch |e| {
-    //    stderr.print("failed to read args: {}", .{e}) catch {};
-    //    stderr.flush() catch {};
-    //    return false;
-    //}; defer std.process.argsFree(globs.alloc, args);
-
-    //const valid_args = enum {
-    //    write_config, invalid
-    //};
-    //for (args, 0..) |arg, i| {
-    //    const a = std.meta.stringToEnum(
-    //        valid_args, arg
-    //    ) orelse .invalid;
-    //    switch (a) {
-    //        .write_config => {
-
-    //        },
-    //        .invalid => {
-    //            stderr.print("invalid arg: {s} ({d})\n", .{arg, i}) catch {};
-    //            stderr.flush() catch {};
-    //            return true;
-    //        },
-    //    }
-    //}
-    //return true;
 }

@@ -100,13 +100,16 @@ pub const conf = struct {
                 if (e == error.FileNotFound) {
                     used_default = true;
                     break :b .{
+                        //looks dangerous, I know, but it's some comptime
+                        //  shinanigans to coerce a reader I can use without
+                        //    rewriting this fn (after comptime it's safe)
                         @constCast(
                             &std.io.Reader.fixed(@embedFile("config"))
                         ), null
                     };
                 }
                 try log.errf("failed to read config {t}", .{e});
-                @panic("failed to fail");
+                unreachable;
             };
 
             //create a reader interface for config
@@ -269,7 +272,7 @@ pub const conf = struct {
                                 break :blk globs.log_fmt.txt;
                             } else {
                                 conf_err(err.Invalid_Value, li_N, val, null);
-                                @panic("failed to fail");
+                                unreachable;
                             };
                         },
                         //invalid option
@@ -319,13 +322,16 @@ fn conf_err(
     //format message 
     const msg:[]const u8 = fmt.allocPrint(
         alloc, "(conf err on line {d}) {t} : {s}", .{li_N, e, msgR}
-    ) catch |er| { log.errf("{t}", .{er}) catch {}; return; };
+    ) catch |er| {
+        log.errf("{t}", .{er}) catch unreachable; 
+        unreachable;
+    };
 
     //print msg and exit
     if (thing != null) {
-        log.errf("{s} '{s}'", .{msg, thing.?}) catch @panic(msg);
+        log.errf("{s} '{s}'", .{msg, thing.?}) catch unreachable; 
     } else {
-        log.errf("{s}", .{msg}) catch @panic(msg);
+        log.errf("{s}", .{msg}) catch unreachable; 
     }
 
     //ensure it exited

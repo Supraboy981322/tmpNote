@@ -167,7 +167,7 @@ pub const log = struct {
             globs.conf.log_file, .{ .mode = .read_write }
         ) catch |e| {
             fat_err("failed to open log file: {t}", .{e});
-            @panic("failed to fail");
+            unreachable;
         }; defer log_fi.close();
 
         //append to the log and remove any logs older than
@@ -176,7 +176,7 @@ pub const log = struct {
             //open the temp log file (read mode)
             var fi = cwd.openFile(tmp_name, .{}) catch |e| {
                 fat_err("couldn't read temp log {t}", .{e});
-                @panic("failed to fail");
+                unreachable;
             }; defer fi.close();
 
             //variables to iterate over log file line-by-line
@@ -204,13 +204,13 @@ pub const log = struct {
                         globs.alloc, tag++" "++msg, args
                     ) catch |e| {
                         fat_err("failed to format log message {t}", .{e});
-                        @panic("failed to fail");
+                        unreachable;
                     }; defer globs.alloc.free(li_R);
 
                     //return an allocated string with only ascii bytes
                     break :b strip_ansi(globs.alloc, li_R) catch |e| {
                         fat_err("failed to strip ansi: {t}", .{e});
-                        @panic("failed to fail");
+                        unreachable;
                     };
                 },
                 .json => b: {
@@ -220,7 +220,7 @@ pub const log = struct {
                             globs.alloc, tag
                         ) catch |e| {
                             fat_err("couldn't strip ansi from log json: {t}", .{e});
-                            @panic("failed to fail");
+                            unreachable;
                         }; defer globs.alloc.free(tag_T);
                          //return allocated string without the '[' and ']:'
                         break :bl try globs.alloc.dupe(u8, tag_T[1..tag_T.len-2]); 
@@ -229,13 +229,13 @@ pub const log = struct {
                     //formatted message
                     const m = fmt.allocPrint(globs.alloc, msg, args) catch |e| {
                         fat_err("couldn't format message for json log: {t}", .{e});
-                        @panic("failed to fail");
+                        unreachable;
                     }; defer globs.alloc.free(m);
 
                     //strip non-ascii from formatted message
                     const msg_P = strip_ansi(globs.alloc, m) catch |e| {
                         fat_err("couldn't strip ansi from log json: {t}", .{e});
-                        @panic("failed to fail");
+                        unreachable;
                     }; defer globs.alloc.free(msg_P);
 
                     //json stuff 
@@ -255,13 +255,13 @@ pub const log = struct {
             lines.append(new_li) catch |e| fat_err("{t}", .{e});
             const res = std.mem.join(globs.alloc, "\n", lines.items) catch |e| {
                 fat_err("failed to merge log messages: {t}", .{e});
-                @panic("failed to fail");
+                unreachable;
             };
 
             //return copy in mem so it can be freed here (scoped allocation crap) 
             break :blk globs.alloc.dupe(u8, res) catch |e| {
                 fat_err("failed to allocate new log: {t}", .{e});
-                @panic("failed to fail");
+                unreachable;
             };
         }; defer globs.alloc.free(new_log);
 
@@ -310,6 +310,7 @@ pub const log = struct {
     pub fn errf(comptime msg:[]const u8, args:anytype) !void {
         try log.err(msg, args);
         std.process.exit(1);
+        @panic("failed to fail");
     }
 
     //info logger

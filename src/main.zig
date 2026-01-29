@@ -44,7 +44,7 @@ pub fn main() !void {
     //set the global config
     glob_types.conf = config.read(globAlloc) catch |e| {
         try log.errf("failed to initialize: {t}", .{e});
-        @panic("failed to fail");
+        unreachable;
     };
     const conf = glob_types.conf; //just an alias
     init(conf) catch |e| try log.errf("failed to init {t}", .{e});
@@ -164,7 +164,7 @@ pub fn init(conf:config) !void {
         };
         std.fs.cwd().writeFile(opts) catch |e| {
             try log.errf("failed to create/clear log file: {t}", .{e});
-            @panic("failed to fail");
+            unreachable;
         };
         try log.deb("reset log", .{});
     //shouldn't occur, but if, for some reason it does, then something changed

@@ -324,6 +324,7 @@ fn conf_err(
         alloc, "(conf err on line {d}) {t} : {s}", .{li_N, e, msgR}
     ) catch |er| {
         log.errf("{t}", .{er}) catch unreachable; 
+        unreachable;
     };
 
     //print msg and exit

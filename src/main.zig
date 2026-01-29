@@ -38,7 +38,7 @@ const globAlloc = glob_types.alloc;
 var db = std.StringHashMap(Note).init(globAlloc);
 
 pub fn main() !void {
-    //wipe db on close TODO: graceful shutdown
+    //wipe db on close  TODO: graceful shutdown
     defer db.deinit();
 
     //set the global config
@@ -47,7 +47,7 @@ pub fn main() !void {
         @panic("failed to fail");
     };
     const conf = glob_types.conf; //just an alias
-    init(conf) catch |e| try log.errf("{t}", .{e});
+    init(conf) catch |e| try log.errf("failed to init {t}", .{e});
 
     //get server addr
     const addr = net.Address.resolveIp("::", conf.port) catch |e| {
@@ -146,6 +146,9 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
 }
 
 pub fn init(conf:config) !void {
+    if (@import("conf.zig").used_default) {
+        try log.warn("config file not found, using default", .{});
+    }
     if (conf.log_file.len > 0) {
         const opts:std.fs.Dir.WriteFileOptions = .{
             .sub_path = conf.log_file,
@@ -164,6 +167,7 @@ pub fn init(conf:config) !void {
             @panic("failed to fail");
         };
         try log.deb("reset log", .{});
+    //shouldn't occur, but if, for some reason it does, then something changed
     } else try log.deb("config file not set in config", .{});
 
     if (conf.log_file.len > 0) {

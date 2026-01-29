@@ -142,12 +142,19 @@ pub const log = struct {
             //copy the file
             cwd.copyFile(
                 globs.conf.log_file, cwd, tmp_name, .{}
-            ) catch |e| {
-                globs.alloc.free(tmp_name);
-                break :blk e;
+            ) catch |e| switch (e) {
+                error.FileNotFound => {
+                    //silently create file tmp file and actual log files
+                    _ = cwd.createFile(globs.conf.log_file, .{}) catch |er| return er;
+                    _ = cwd.createFile(tmp_name, .{}) catch |er| return er;
+                },
+                else => {
+                    globs.alloc.free(tmp_name);
+                    break :blk e;
+                },
             };
         //treat any errs as fatal
-        }; if (e) {} else |er| fat_err("{t}", .{er}); }
+        }; if (e) {} else |er| fat_err("failed to log to file {t}", .{er}); }
         defer { //cleanup
             cwd.deleteFile(tmp_name) catch |e| {
                 fat_err("failed to remove temp log file: {t}", .{e});
@@ -313,7 +320,7 @@ pub const log = struct {
     }
 
     //warn logger
-    pub fn warn(comptime msg:[]const u8, args:anytype) !void {
+    pub fn warn(comptime msg:[]const u8, args:anytype) anyerror!void {
         //only log if warn level
         if (globs.conf.log_level > 3) return;
         try Self.generic("\x1b[1;37m[\x1b[1;33mWARN\x1b[1;37m]:\x1b[0m", msg, args);

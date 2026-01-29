@@ -65,8 +65,8 @@ const err = error {
     The_Whole_Damn_Thing,
 };
 
-//default config (TODO: setting default config when none found)
-const def_conf = @embedFile("config");
+//used to determine if the default config was used
+pub var used_default:bool = false;
 
 pub const conf = struct {
     port: u16,
@@ -95,15 +95,25 @@ pub const conf = struct {
         var log_format:globs.log_fmt = globs.log_fmt.txt;
 
         //open the config
-        var fi = fs.cwd().openFile("config", .{}) catch |e| {
-            try log.errf("failed to read config {t}", .{e});
-            @panic("failed to fail");
-        }; defer fi.close();
+        var fi_I, const fil = b: {
+            var fi = fs.cwd().openFile("config", .{}) catch |e| {
+                if (e == error.FileNotFound) {
+                    used_default = true;
+                    break :b .{
+                        @constCast(
+                            &std.io.Reader.fixed(@embedFile("config"))
+                        ), null
+                    };
+                }
+                try log.errf("failed to read config {t}", .{e});
+                @panic("failed to fail");
+            };
 
-        //create a reader interface for config
-        var fi_buf:[1024]u8 = undefined;
-        var fi_R = fi.reader(&fi_buf);
-        const fi_I = &fi_R.interface;
+            //create a reader interface for config
+            var fi_buf:[1024]u8 = undefined;
+            var fi_R = fi.reader(&fi_buf);
+            break :b .{ &fi_R.interface, fi };
+        }; defer if (fil) |f| f.close();
 
         //read it line-by-line
         //  (friends said they prefer the first line being 1)

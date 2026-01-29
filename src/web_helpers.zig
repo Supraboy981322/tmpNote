@@ -454,7 +454,7 @@ fn viewNotePage(
     const req = conn.req;
     const curTime = conn.reqTime;
 
-    //get the note content
+    //get the note content  TODO: config opt for confirmation screen before fetching
     const note_lw:LW_Note = viewNote(conn, alloc, false, db) catch |e| switch (e) {
         note_errs.no_key_found => {
             web.send_err(400, "key not provided", conn); return;

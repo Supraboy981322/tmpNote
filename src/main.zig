@@ -197,7 +197,8 @@ fn chk_args() bool {
     }; defer std.process.argsFree(globs.alloc, args);
 
     const valid_args = enum {
-        write_config, invalid
+        write_config, @"write-config", 
+        invalid
     };
     for (args, 0..) |arg, i| {
         if (i == 0) continue;
@@ -205,7 +206,7 @@ fn chk_args() bool {
             valid_args, arg
         ) orelse .invalid;
         switch (a) {
-            .write_config => {
+            .write_config, .@"write-config" => {
                 stdout.print("writing default config... (config)\n", .{}) catch {};
                 stdout.flush() catch {};
                 _ = std.fs.cwd().writeFile(.{
@@ -222,7 +223,7 @@ fn chk_args() bool {
                 start = false;
             },
             .invalid => {
-                stderr.print("invalid arg: {s} ({d})\n", .{arg, i}) catch {};
+                stderr.print("invalid arg: {s} (# {d})\n", .{arg, i}) catch {};
                 stderr.flush() catch {};
                 start = false;
             },

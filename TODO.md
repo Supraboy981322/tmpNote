@@ -43,3 +43,4 @@
   - [ ] Spec
   - [ ] Go module
 - [ ] mascot(?)
+- [ ] minify web source

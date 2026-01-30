@@ -487,8 +487,7 @@ pub fn mk_json(
     stuff:[N]T,
 ) []const u8 {
     return mk_json_with_opts(alloc, T, N, stuff, .{
-        .pack = false,
-        .delim = ' ',
+        .pack = true,
     });
 }
 

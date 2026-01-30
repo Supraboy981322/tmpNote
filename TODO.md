@@ -44,3 +44,5 @@
   - [ ] Go module
 - [ ] mascot(?)
 - [ ] minify web source
+- [ ] encryption
+- [ ] compression

@@ -5,8 +5,10 @@ const config = @import("conf.zig").conf;
 const glob_types = @import("global_types.zig");
 const globs = glob_types;
 const web_hlp = @import("web_helpers.zig");
+const bind = @cImport(@cInclude("bindings.h"));
 const c = @cImport({
     @cInclude("time.h");
+
 });
 
 //structs from std

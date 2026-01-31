@@ -421,22 +421,48 @@ fn viewNote(
 pub fn encode_page(
     in_R:[]const u8,
     conn:ServerConn,
+    encs:[][]const u8,
     alloc:mem.Allocator
 ) ![]const u8 {
     _ = conn;
+    //duplicate into mutable from immutable
     const in:[]u8 = try alloc.dupe(u8, in_R);
+    defer alloc.free(in);
+
+    //too large to handle currently  TODO: i64
     if (in.len > std.math.maxInt(i32)) return in_R;
+
+    //allocate duplicate with null terminator (C compat) 
     const in_C:[:0]u8 = try alloc.dupeZ(u8, in);
+    defer alloc.free(in_C);
+
+    //get *char 
     const in_C_ptr:[*c]u8 = in_C.ptr;
-    const comp = compress.Gz(in_C_ptr, @intCast(in_C.len)); 
-    return if (comp.cont) |res| b: {
-        const slice = res[0..@intCast(comp.leng)];
-        const compressed:[]const u8 = slice;
-        break :b alloc.dupe(u8, compressed);
-    } else b: {
-        try log.err("failed to compress data", .{});
-        break :b globs.server_errs.FailedToCompress;
-    };
+
+    //compress
+    const comp = for (encs) |enc| {
+        const en = std.meta.stringToEnum(
+            enum { gzip, unknown }, enc
+        ) orelse .unknown;
+        switch (en) {
+            .gzip => break compress.Gz(in_C_ptr, @intCast(in_C.len)),
+            .unknown => continue,
+        }
+    } else null;
+
+    //handle null struct early
+    return if (comp) |com| blk: {
+        break :blk if (com.cont) |res| b: {
+            //convert to a slice
+            const compressed = res[0..@intCast(com.leng)];
+
+            //return as new allocated slice so the C stuff can be freed 
+            break :b alloc.dupe(u8, compressed);
+        } else b: { //err
+            try log.err("failed to compress data", .{});
+            break :b globs.server_errs.FailedToCompress;
+        };
+    } else globs.server_errs.UnknownType;
 }
 
 //web page for new note (not much goes on here)
@@ -462,10 +488,12 @@ fn newNotePage(
         return e;
     };
 
-    const resp_page = if (conn.encoding) |_| encode_page(
-        respPage_R, conn, alloc
+    const resp_page = if (conn.encoding) |enc| encode_page(
+        respPage_R, conn, enc, alloc
     ) catch |e| b: {
-        try log.err("failed to encode page: {t}", .{e});
+        if (e != globs.server_errs.UnknownType) {
+            try log.err("failed to encode page: {t}", .{e});
+        }
         break :b respPage_R;
     } else respPage_R;
 

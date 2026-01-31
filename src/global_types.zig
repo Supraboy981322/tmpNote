@@ -31,6 +31,7 @@ pub const ServerConn = struct {
 };
 
 pub const server_errs = error {
+    UnknownType,
     FailedToCompress, 
 };
 

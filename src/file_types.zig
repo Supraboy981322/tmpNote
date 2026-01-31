@@ -475,11 +475,16 @@ pub const list = [_][3][]const u8 {
     "Runtime Software disk image",
     "Miscellaneous"
   },
-  //.{
-  //  "\x1F\x8B\x08",
-  //  "VLC Player Skin file",
-  //  "Miscellaneous"
-  //},
+  .{
+    "\x1F\x8B\x08",
+    "GZIP archive file",
+    "Compressed archive"
+  },
+  .{
+    "\x1F\x8B\x08",
+    "VLC Player Skin file",
+    "Miscellaneous"
+  },
   .{
     "\x1F\xA0",
     "Compressed tape archive_2",
@@ -1378,11 +1383,6 @@ pub const list = [_][3][]const u8 {
   .{
     "\x1A\x08",
     "LH archive (old vers.-type 4)",
-    "Compressed archive"
-  },
-  .{
-    "\x1F\x8B\x08",
-    "GZIP archive file",
     "Compressed archive"
   },
   .{

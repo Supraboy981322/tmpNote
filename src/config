@@ -21,3 +21,6 @@ log_level : debug
 
 # log format (valid options: 'txt', 'json')
 log_format : json
+
+# note compression
+compression : gzip

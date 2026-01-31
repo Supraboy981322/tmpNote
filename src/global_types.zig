@@ -92,3 +92,9 @@ pub const log_fmt = enum {
     json,
     invalid,
 };
+
+pub const compression = enum {
+    gzip,
+    none,
+    unknown,
+};

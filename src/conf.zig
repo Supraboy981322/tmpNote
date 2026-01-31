@@ -54,6 +54,7 @@ const conf_vals = enum {
     log_level, //log verbosity
     log_file, //log file
     log_format,
+    compression,
     bad, //invalid
 };
 
@@ -78,6 +79,7 @@ pub const conf = struct {
     preview_size:usize,
     log_file:[]const u8,
     log_format:globs.log_fmt,
+    compression:globs.compression,
 
     const Self = @This();
 
@@ -93,6 +95,7 @@ pub const conf = struct {
         var prev_si:usize = 100;
         var log_file:[]const u8 = "";
         var log_format:globs.log_fmt = globs.log_fmt.txt;
+        var compression_type:globs.compression = .none;
 
         //open the config
         var fi_I, const fil = b: {
@@ -265,15 +268,20 @@ pub const conf = struct {
                         .default_page => default_page = try alloc.dupe(u8, val),
                         //size of file preview in web page
                         .preview_size => prev_si = try fmt.parseInt(usize, val, 10),
-                        .log_format => {
-                            log_format = meta.stringToEnum(
-                                globs.log_fmt, val
-                            ) orelse if (mem.eql(u8, val, "text")) blk: {
-                                break :blk globs.log_fmt.txt;
-                            } else {
-                                conf_err(err.Invalid_Value, li_N, val, null);
-                                unreachable;
-                            };
+                        .log_format => log_format = meta.stringToEnum(
+                            globs.log_fmt, val
+                        ) orelse if (mem.eql(u8, val, "text")) blk: {
+                            break :blk globs.log_fmt.txt;
+                        } else {
+                            conf_err(err.Invalid_Value, li_N, val, null);
+                            unreachable;
+                        },
+                        //note compression
+                        .compression => compression_type = meta.stringToEnum(
+                            globs.compression, val
+                        ) orelse {
+                            conf_err(err.Invalid_Value, li_N, val, null);
+                            unreachable;
                         },
                         //invalid option
                         .bad => conf_err(
@@ -303,6 +311,7 @@ pub const conf = struct {
             .preview_size = prev_si,
             .log_file = log_file,
             .log_format = log_format,
+            .compression = compression_type,
         };
     }
 };

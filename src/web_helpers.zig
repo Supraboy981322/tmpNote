@@ -258,7 +258,20 @@ fn api_new(
 
     //note struct
     const n:Note = .{
-        .content = note,
+        .content = if (conf.compression != .none) b: {
+            // BUG: compressed data is corrupt
+            //  TODO: fix it
+            break :b note;
+
+            //defer alloc.free(note);
+            //const n_C = compress_page(
+            //    note, conn, null, conf.compression, alloc
+            //) catch |e| {
+            //    try log.err("failed to compress note: {t}", .{e});
+            //    return e;
+            //};
+            //break :b try alloc.dupe(u8, n_C);
+        } else note,
         .file = file,
         .encrypt = false, //may add encryption later
     };
@@ -348,7 +361,19 @@ fn viewNote(
     //check if note exists 
     if (db.get(id)) |n| {
         //set note and delete from db
-        note = n.content;
+        note = if (conn.conf.compression != .none) b: {
+            //break :b decompress_data(
+            //    n.content, conn, null, conn.conf.compression, alloc
+            //) catch |e| {
+            //    if (e == globs.server_errs.UnknownType) {
+            //        @panic("unknown compression type");
+            //    }
+            //    try log.err("failed to decompress note: {t}", .{e});
+            //    return e;
+            //};
+            // TODO: decompress notes
+            break :b n.content;
+        } else n.content;
         file.magic = n.file.magic; 
         file.typ = if (n.file.is_file) n.file.typ else "text/plain";
         file.is_file = n.file.is_file;
@@ -418,10 +443,11 @@ fn viewNote(
     return lw_note;
 }
 
-pub fn encode_page(
+pub fn decompress_data(
     in_R:[]const u8,
     conn:ServerConn,
-    encs:[][]const u8,
+    encs_R:?[][]const u8,
+    encs_e:?globs.compression,
     alloc:mem.Allocator
 ) ![]const u8 {
     _ = conn;
@@ -440,16 +466,86 @@ pub fn encode_page(
     const in_C_ptr:[*c]u8 = in_C.ptr;
 
     //compress
-    const comp = for (encs) |enc| {
-        //switch on compression type  TODO: more compression types
-        const en = std.meta.stringToEnum(
-            enum { gzip, unknown }, enc
-        ) orelse .unknown;
-        switch (en) {
-            .gzip => break compress.Gz(in_C_ptr, @intCast(in_C.len)),
-            .unknown => continue, //skip unknown types
+    const comp = b: {
+        const enc:globs.compression = if (encs_e) |en| en else if (encs_R) |encs| blk: {
+            break :blk for (encs) |enc| {
+                //switch on compression type  TODO: more compression types
+                const en = std.meta.stringToEnum(
+                    globs.compression, enc
+                ) orelse .unknown;
+                if (en != .unknown) break en;
+            } else .unknown; //handled next
+        } else .unknown; //handled next
+        switch (enc) {
+            .gzip => break :b compress.De_Gz(in_C_ptr, @intCast(in_C.len)),
+            //shouldn't happen, but just in case
+            .none => break :b compress.res{
+                .cont = in_C_ptr,
+                .leng = @intCast(in_C.len),
+            },
+            .unknown => break :b null,
         }
-    } else null; //handled next
+    };
+
+    //handle null struct early
+    return if (comp) |com| blk: {
+        break :blk if (com.cont) |res| b: {
+            //convert to a slice
+            const compressed = res[0..@intCast(com.leng)];
+
+            //return as new allocated slice so the C stuff can be freed 
+            break :b alloc.dupe(u8, compressed);
+        } else b: { //err
+            try log.err("failed to decompress data", .{});
+            break :b globs.server_errs.FailedToCompress;
+        };
+    //likely an unkown type
+    } else globs.server_errs.UnknownType;
+}
+
+pub fn compress_page(
+    in_R:[]const u8,
+    conn:ServerConn,
+    encs_R:?[][]const u8,
+    encs_e:?globs.compression,
+    alloc:mem.Allocator
+) ![]const u8 {
+    _ = conn;
+    //duplicate into mutable from immutable
+    const in:[]u8 = try alloc.dupe(u8, in_R);
+    defer alloc.free(in);
+
+    //too large to handle currently  TODO: i64
+    if (in.len > std.math.maxInt(i32)) return in_R;
+
+    //allocate duplicate with null terminator (C compat) 
+    const in_C:[:0]u8 = try alloc.dupeZ(u8, in);
+    defer alloc.free(in_C);
+
+    //get *char 
+    const in_C_ptr:[*c]u8 = in_C.ptr;
+
+    //compress
+    const comp = b: {
+        const enc:globs.compression = if (encs_e) |en| en else if (encs_R) |encs| blk: {
+            break :blk for (encs) |enc| {
+                //switch on compression type  TODO: more compression types
+                const en = std.meta.stringToEnum(
+                    globs.compression, enc
+                ) orelse .unknown;
+                if (en != .unknown) break en;
+            } else .unknown; //handled next
+        } else .unknown; //handled next
+        switch (enc) {
+            .gzip => break :b compress.Gz(in_C_ptr, @intCast(in_C.len)),
+            //shouldn't happen, but just in case
+            .none => break :b compress.res{
+                .cont = in_C_ptr,
+                .leng = @intCast(in_C.len),
+            },
+            .unknown => break :b null,
+        }
+    };
 
     //handle null struct early
     return if (comp) |com| blk: {
@@ -491,8 +587,8 @@ fn newNotePage(
     };
 
     //either compress or leave uncompressed
-    const resp_page = if (conn.encoding) |enc| encode_page(
-        respPage_R, conn, enc, alloc
+    const resp_page = if (conn.encoding) |enc| compress_page(
+        respPage_R, conn, enc, null, alloc
     ) catch |e| b: {
         if (e != globs.server_errs.UnknownType) {
             try log.err("failed to encode page: {t}", .{e});

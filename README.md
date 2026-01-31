@@ -19,7 +19,7 @@ A basic self-hosted privnote alternative
 ### Server
 - Compile from sources
 
-  Requires Nix
+  Requires `nix` and `git`
 
   - Clone the repo
     ```sh

@@ -24,8 +24,6 @@ extern const char *_GoStringPtr(_GoString_ s);
 #line 3 "compress.go"
 
 #include <stdio.h>
-#include <string.h>
-#include <stdint.h>
 #include <stdlib.h>
 typedef struct {
 	char *cont;
@@ -94,6 +92,8 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
+
+//gzip
 extern res Gz(char* data, int length);
 
 #ifdef __cplusplus

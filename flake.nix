@@ -35,19 +35,33 @@
 
         shellHook = ''
           printf "entering tmpNote nix shell"
+
+          # build cmd
           build_tmpNote() (
+            # strict err exiting
             set -eou pipefail
+
             # golang c header export stuff
+            printf "building headers..."
             for header_src in $(ls include/*.go); do
+              # get name without file extension
               declare name="$(printf "$header_src" | sed 's|.go$||')"
-              printf "building C headers... %s (output: %s.a and %s.h)\n" \
+
+              # print current file
+              printf "\t%s (output: %s.a and %s.h)\n" \
                     "$header_src" \
                     "$name" \
                     "$name"
+
+              # compile C header file
               go build -buildmode=c-archive -o $name.a $header_src
             done
+            printf "headers built.\n"
+
+            # zig server
             printf "building server...\n"
             zig build
+            printf "server built\n"
           )
         '';
       };

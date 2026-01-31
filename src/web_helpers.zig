@@ -500,12 +500,16 @@ pub const compression = struct {
     fn get_current (
         encs_R:?[][]const u8,
         encs_e:?globs.compression
-    ) globs.compression {
+    ) !globs.compression {
         //if already enum, just return it
         if (encs_e) |en| return en;
 
         //get list of compression types
-        const encs = if (encs_R) |encs| encs else .unknown;
+        var l = try std.ArrayList([]const u8).initCapacity(globs.alloc, 1);
+        defer l.deinit(globs.alloc);
+        try l.append(globs.alloc, "");
+
+        const encs = if (encs_R) |encs| encs else l.items;
 
         //iterate through list until hit known compression
         const enc = for (encs) |enc| {
@@ -537,7 +541,7 @@ pub const compression = struct {
         //compress
         const comp = b: {
             //get enum from compression input
-            const enc = Self.get_current(encs_R, encs_e);
+            const enc = try Self.get_current(encs_R, encs_e);
             //switch on compression type  TODO: more compression types
             switch (enc) {
                 .gzip => break :b compress.Gz(in.ptr, @intCast(in.raw.len)),

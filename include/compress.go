@@ -32,7 +32,7 @@ func Gz(data *C.char, length C.int) C.res {
 		return C.res { cont:nil, leng:0 }
 	}
 
-	//close compressor (is that the right term)
+	//close compressor (is that the right term?)
 	if e := gz.Close(); e != nil { 
 		fmt.Printf("cgo err{%v}\n", e)
 		return C.res { cont:nil, leng:0 }
@@ -43,7 +43,7 @@ func Gz(data *C.char, length C.int) C.res {
 
 	//a C pointer to the data
 	cPtr := C.malloc(C.size_t(s_C))
-	cBuf := (*[1 << 30]byte)(cPtr) //create to a C Buffer
+	cBuf := (*[1 << 30]byte)(cPtr) //create a C Buffer
 
 	//copy data to C buffer
 	copy(cBuf[:len(goBytes)], b.Bytes())

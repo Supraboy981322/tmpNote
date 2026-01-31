@@ -47,7 +47,7 @@ func Gz(data *C.char, length C.int) C.res {
 	cBuf := (*[1 << 30]byte)(cPtr) //create a C Buffer
 
 	//copy data to C buffer
-	copy(cBuf[:len(b.Bytes())], b.Bytes())
+	copy(cBuf[:s_C], b.Bytes())
 
 	//return the struct
 	return C.res { cont:(*C.char)(cPtr), leng:C.int(s_C) }
@@ -81,7 +81,7 @@ func De_Gz(data *C.char, length C.int) C.res {
 	cBuf := (*[1 << 30]byte)(cPtr) //create a C Buffer
 
 	//copy data to C buffer
-	copy(cBuf[:len(goBytes)], uncomp)
+	copy(cBuf[:s_C], uncomp)
 
 	//return the struct
 	return C.res { cont:(*C.char)(cPtr), leng:C.int(s_C) }

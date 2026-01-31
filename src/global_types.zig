@@ -96,5 +96,5 @@ pub const compression = enum {
 
 pub const compression_preference = [_]compression {
     .gzip,
-    .none,
+    .none, //shouldn't be grabbed, but here just in case 
 };

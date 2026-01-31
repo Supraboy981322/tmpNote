@@ -510,7 +510,7 @@ pub const compression = struct {
         const encs = if (encs_R) |encs| encs else l.items;
         
         //iterate through list and set the best compression found
-        var best:usize = 0;
+        var best:i128 = -1; //
         for (encs) |enc| {
             //convert to enum
             const en = std.meta.stringToEnum(
@@ -526,9 +526,15 @@ pub const compression = struct {
             }
         }
 
-        //return the best compression type found
-        const enc = if (best >= 0) globs.compression_preference[best] else .unknown;
+        //shouldn't happen, but just in case (funny message)
+        if (std.math.maxInt(usize) < best) {
+            @panic("by golly, that's a lot of compression types");
+        }
 
+        //return the best compression type found
+        const enc = if (best >= 0) b: {
+            break :b globs.compression_preference[@intCast(best)]; 
+        } else .unknown;
         return enc;
     }
 

@@ -60,7 +60,7 @@ pub fn handle_api(
         },
         .view => {
             //get the note
-            const note = viewNote(conn, globAlloc, true, db) catch |e| blk: {
+            const note = api_view(conn, globAlloc, true, db) catch |e| blk: {
                 switch (e) {
                     note_errs.note_not_found => {
                         hlp.send.headersWithType(
@@ -259,18 +259,15 @@ fn api_new(
     //note struct
     const n:Note = .{
         .content = if (conf.compression != .none) b: {
-            // BUG: compressed data is corrupt
-            //  TODO: fix it
-            break :b note;
+            defer alloc.free(note);
+            const n_C = compression.do(
+                note, conn, null, conf.compression, alloc
+            ) catch |e| {
+                try log.err("failed to compress note: {t}", .{e});
+                return e;
+            };
 
-            //defer alloc.free(note);
-            //const n_C = compress_page(
-            //    note, conn, null, conf.compression, alloc
-            //) catch |e| {
-            //    try log.err("failed to compress note: {t}", .{e});
-            //    return e;
-            //};
-            //break :b try alloc.dupe(u8, n_C);
+            break :b try alloc.dupe(u8, n_C);
         } else note,
         .file = file,
         .encrypt = false, //may add encryption later
@@ -302,7 +299,7 @@ fn api_new(
 }
 
 //api for new note
-fn viewNote(
+fn api_view(
     conn:ServerConn,
     alloc:mem.Allocator,
     isReq:bool,
@@ -379,7 +376,7 @@ fn viewNote(
         file.is_file = n.file.is_file;
         file.size = n.file.size;
         if (n.file.size == 0) {
-            log.deb("n.file.size == 0 (viewNote(...))", .{}) catch {};
+            log.deb("n.file.size == 0 (api_view(...))", .{}) catch {};
             return hlp.lazy_lw_note("");
         }
 
@@ -491,7 +488,9 @@ pub const compression = struct {
             return globs.server_errs.FailedToCompress;
         };
 
-        //return converted to Zig string 
+        try log.deb("com.leng == {d}", .{com.leng});
+
+        //return converted to Zig string
         return try Self.c_str_to_const_u8(
             alloc, res, @intCast(com.leng)
         );
@@ -518,7 +517,7 @@ pub const compression = struct {
                 globs.compression, enc
             ) orelse .unknown;
             
-            //break on first
+            //break on first known
             if (en != .unknown) break en;
         } else .unknown;
 
@@ -657,7 +656,7 @@ fn viewNotePage(
     const curTime = conn.reqTime;
 
     //get the note content  TODO: config opt for confirmation screen before fetching
-    const note_lw:LW_Note = viewNote(conn, alloc, false, db) catch |e| switch (e) {
+    const note_lw:LW_Note = api_view(conn, alloc, false, db) catch |e| switch (e) {
         note_errs.no_key_found => {
             web.send_err(400, "key not provided", conn); return;
         },

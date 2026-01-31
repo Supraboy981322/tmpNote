@@ -10,6 +10,7 @@ typedef struct {
 */
 import "C"
 import (
+	"io"
 	"fmt"
 	"bytes"
 	"unsafe"
@@ -47,6 +48,40 @@ func Gz(data *C.char, length C.int) C.res {
 
 	//copy data to C buffer
 	copy(cBuf[:len(goBytes)], b.Bytes())
+
+	//return the struct
+	return C.res { cont:(*C.char)(cPtr), leng:C.int(s_C) }
+}
+
+//export De_Gz
+func De_Gz(data *C.char, length C.int) C.res {
+	//convert *C.char to []byte
+	goBytes := C.GoBytes(unsafe.Pointer(data), length)
+
+	//compress data
+	b := bytes.NewBuffer(goBytes)
+	gz, e := gzip.NewReader(b)
+	if e != nil {
+		fmt.Printf("cgo err{%v}\n", e)
+		return C.res { cont:nil, leng:0 }
+	}
+	defer gz.Close()
+
+	uncomp, e := io.ReadAll(gz)
+	if e != nil && e != io.EOF {
+		fmt.Printf("cgo err{%v}\n", e)
+		return C.res { cont:nil, leng:0 }
+	}
+
+	//size of compressed data
+	s_C := len(uncomp)
+
+	//a C pointer to the data
+	cPtr := C.malloc(C.size_t(s_C))
+	cBuf := (*[1 << 30]byte)(cPtr) //create a C Buffer
+
+	//copy data to C buffer
+	copy(cBuf[:len(goBytes)], uncomp)
 
 	//return the struct
 	return C.res { cont:(*C.char)(cPtr), leng:C.int(s_C) }

@@ -47,7 +47,7 @@ func Gz(data *C.char, length C.int) C.res {
 	cBuf := (*[1 << 30]byte)(cPtr) //create a C Buffer
 
 	//copy data to C buffer
-	copy(cBuf[:len(goBytes)], b.Bytes())
+	copy(cBuf[:len(b.Bytes())], b.Bytes())
 
 	//return the struct
 	return C.res { cont:(*C.char)(cPtr), leng:C.int(s_C) }

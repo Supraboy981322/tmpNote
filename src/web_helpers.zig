@@ -362,7 +362,7 @@ fn viewNote(
     if (db.get(id)) |n| {
         //set note and delete from db
         note = if (conn.conf.compression != .none) b: {
-            //break :b decompress_data(
+            //break :b compression.undo(
             //    n.content, conn, null, conn.conf.compression, alloc
             //) catch |e| {
             //    if (e == globs.server_errs.UnknownType) {
@@ -443,125 +443,134 @@ fn viewNote(
     return lw_note;
 }
 
-pub fn decompress_data(
-    in_R:[]const u8,
-    conn:ServerConn,
-    encs_R:?[][]const u8,
-    encs_e:?globs.compression,
-    alloc:mem.Allocator
-) ![]const u8 {
-    _ = conn;
-    //duplicate into mutable from immutable
-    const in:[]u8 = try alloc.dupe(u8, in_R);
-    defer alloc.free(in);
+pub const compression = struct {
+    
+    const Self = @This();
 
-    //too large to handle currently  TODO: i64
-    if (in.len > std.math.maxInt(i32)) return in_R;
+    fn const_u8_to_c_str(
+        in_R:[]const u8,
+        alloc:mem.Allocator
+    ) !struct { ptr:[*c]u8, raw:[:0]u8 } {
+        //duplicate into mutable from immutable
+        const in:[]u8 = try alloc.dupe(u8, in_R);
+        defer alloc.free(in);
 
-    //allocate duplicate with null terminator (C compat) 
-    const in_C:[:0]u8 = try alloc.dupeZ(u8, in);
-    defer alloc.free(in_C);
+        //allocate duplicate with null terminator (C compat) 
+        const in_C:[:0]u8 = try alloc.dupeZ(u8, in);
 
-    //get *char 
-    const in_C_ptr:[*c]u8 = in_C.ptr;
+        //get *char 
+        const in_C_ptr:[*c]u8 = in_C.ptr;
 
-    //compress
-    const comp = b: {
-        const enc:globs.compression = if (encs_e) |en| en else if (encs_R) |encs| blk: {
+        return .{ .ptr = in_C_ptr, .raw = in_C };
+    }
+
+    fn c_str_to_const_u8(
+        alloc:mem.Allocator,
+        c_str:[*c]u8,
+        len:usize,
+    ) ![]const u8 {
+        //convert to a slice
+        const compressed = c_str[0..len];
+
+        //return as new allocated slice so the C stuff can be freed 
+        return try alloc.dupe(u8, compressed);
+    }
+
+    fn attempt_unwrap(
+        alloc:mem.Allocator,
+        comp:?compress.res
+    ) ![]const u8 {
+        return if (comp) |com| blk: {
+            break :blk if (com.cont) |res| b: { 
+                break :b try Self.c_str_to_const_u8(
+                    alloc, res, @intCast(com.leng)
+                );
+            } else b: { //err
+                try log.err("failed to compress data", .{});
+                break :b globs.server_errs.FailedToCompress;
+            };
+        //likely an unkown type
+        } else globs.server_errs.UnknownType;
+    }
+
+    fn get_current (
+        encs_R:?[][]const u8,
+        encs_e:?globs.compression
+    ) globs.compression {
+        return if (encs_e) |en| en else if (encs_R) |encs| blk: {
             break :blk for (encs) |enc| {
-                //switch on compression type  TODO: more compression types
                 const en = std.meta.stringToEnum(
                     globs.compression, enc
                 ) orelse .unknown;
                 if (en != .unknown) break en;
             } else .unknown; //handled next
         } else .unknown; //handled next
-        switch (enc) {
-            .gzip => break :b compress.De_Gz(in_C_ptr, @intCast(in_C.len)),
-            //shouldn't happen, but just in case
-            .none => break :b compress.res{
-                .cont = in_C_ptr,
-                .leng = @intCast(in_C.len),
-            },
-            .unknown => break :b null,
-        }
-    };
+    }
 
-    //handle null struct early
-    return if (comp) |com| blk: {
-        break :blk if (com.cont) |res| b: {
-            //convert to a slice
-            const compressed = res[0..@intCast(com.leng)];
+    pub fn do(
+        in_R:[]const u8,
+        conn:ServerConn,
+        encs_R:?[][]const u8,
+        encs_e:?globs.compression,
+        alloc:mem.Allocator
+    ) ![]const u8 {
+        _ = conn;
+        //too large to handle currently  TODO: i64
+        if (in_R.len > std.math.maxInt(i32)) return in_R;
 
-            //return as new allocated slice so the C stuff can be freed 
-            break :b alloc.dupe(u8, compressed);
-        } else b: { //err
-            try log.err("failed to decompress data", .{});
-            break :b globs.server_errs.FailedToCompress;
+        const in = try Self.const_u8_to_c_str(in_R, alloc);
+
+        //compress
+        const comp = b: {
+            //get enum from compression input
+            const enc = Self.get_current(encs_R, encs_e);
+            //switch on compression type  TODO: more compression types
+            switch (enc) {
+                .gzip => break :b compress.Gz(in.ptr, @intCast(in.raw.len)),
+                //shouldn't happen, but just in case
+                .none => break :b compress.res{
+                    .cont = in.ptr,
+                    .leng = @intCast(in.raw.len),
+                },
+                .unknown => break :b null,
+            }
         };
-    //likely an unkown type
-    } else globs.server_errs.UnknownType;
-}
 
-pub fn compress_page(
-    in_R:[]const u8,
-    conn:ServerConn,
-    encs_R:?[][]const u8,
-    encs_e:?globs.compression,
-    alloc:mem.Allocator
-) ![]const u8 {
-    _ = conn;
-    //duplicate into mutable from immutable
-    const in:[]u8 = try alloc.dupe(u8, in_R);
-    defer alloc.free(in);
+        return try Self.attempt_unwrap(alloc, comp);
+    }
 
-    //too large to handle currently  TODO: i64
-    if (in.len > std.math.maxInt(i32)) return in_R;
+    pub fn undo(
+        in_R:[]const u8,
+        conn:ServerConn,
+        encs_R:?[][]const u8,
+        encs_e:?globs.compression,
+        alloc:mem.Allocator
+    ) ![]const u8 {
+        _ = conn;
+        //too large to handle currently  TODO: i64
+        if (in_R.len > std.math.maxInt(i32)) return in_R;
 
-    //allocate duplicate with null terminator (C compat) 
-    const in_C:[:0]u8 = try alloc.dupeZ(u8, in);
-    defer alloc.free(in_C);
+        const in = try Self.const_u8_to_c_str(in_R, alloc);
 
-    //get *char 
-    const in_C_ptr:[*c]u8 = in_C.ptr;
-
-    //compress
-    const comp = b: {
-        const enc:globs.compression = if (encs_e) |en| en else if (encs_R) |encs| blk: {
-            break :blk for (encs) |enc| {
-                //switch on compression type  TODO: more compression types
-                const en = std.meta.stringToEnum(
-                    globs.compression, enc
-                ) orelse .unknown;
-                if (en != .unknown) break en;
-            } else .unknown; //handled next
-        } else .unknown; //handled next
-        switch (enc) {
-            .gzip => break :b compress.Gz(in_C_ptr, @intCast(in_C.len)),
-            //shouldn't happen, but just in case
-            .none => break :b compress.res{
-                .cont = in_C_ptr,
-                .leng = @intCast(in_C.len),
-            },
-            .unknown => break :b null,
-        }
-    };
-
-    //handle null struct early
-    return if (comp) |com| blk: {
-        break :blk if (com.cont) |res| b: {
-            //convert to a slice
-            const compressed = res[0..@intCast(com.leng)];
-
-            //return as new allocated slice so the C stuff can be freed 
-            break :b alloc.dupe(u8, compressed);
-        } else b: { //err
-            try log.err("failed to compress data", .{});
-            break :b globs.server_errs.FailedToCompress;
+        //compress
+        const comp = b: {
+            //get enum from compression input
+            const enc = Self.get_current(encs_R, encs_e);
+            //switch on compression type  TODO: more compression types
+            switch (enc) {
+                .gzip => break :b compress.De_Gz(in.ptr, @intCast(in.raw.len)),
+                //shouldn't happen, but just in case
+                .none => break :b compress.res{
+                    .cont = in.ptr,
+                    .leng = @intCast(in.raw.len),
+                },
+                .unknown => break :b null,
+            }
         };
-    //likely an unkown type
-    } else globs.server_errs.UnknownType;
-}
+
+        return try Self.attempt_unwrap(alloc, comp);
+    }
+};
 
 //web page for new note (not much goes on here)
 fn newNotePage(
@@ -587,7 +596,7 @@ fn newNotePage(
     };
 
     //either compress or leave uncompressed
-    const resp_page = if (conn.encoding) |enc| compress_page(
+    const resp_page = if (conn.encoding) |enc| compression.do(
         respPage_R, conn, enc, null, alloc
     ) catch |e| b: {
         if (e != globs.server_errs.UnknownType) {

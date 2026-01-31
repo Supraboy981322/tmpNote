@@ -1,6 +1,7 @@
 //imports
 const std = @import("std");
 const config = @import("conf.zig").conf;
+pub const compress = @cImport(@cInclude("compress.h"));
 
 //config (imported by a few scripts and set at startup)
 pub var conf:config = undefined;
@@ -19,6 +20,7 @@ pub const note_errs = error {
 //struct with various information used as fn params
 pub const ServerConn = struct {
     conn: std.net.Server.Connection,
+    encoding: ?[][]const u8,
     req: std.http.Server.Request,
     reqPage: []const u8,
     reqTime: []u8,
@@ -26,6 +28,15 @@ pub const ServerConn = struct {
     conf: config,
     len_req: u64,
     respond_html: bool,
+};
+
+pub const server_errs = error {
+    FailedToCompress, 
+};
+
+pub const compression_result = struct {
+    content:[]const u8,
+    err:anyerror,
 };
 
 //log level

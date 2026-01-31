@@ -5,7 +5,6 @@ const config = @import("conf.zig").conf;
 const glob_types = @import("global_types.zig");
 const globs = glob_types;
 const web_hlp = @import("web_helpers.zig");
-const bind = @cImport(@cInclude("bindings.h"));
 const c = @cImport({
     @cInclude("time.h");
 
@@ -124,9 +123,27 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     //log the request
     try log.req(curTime, remAddr, reqPage); 
 
+    const encoding = b: {
+        var pItr = req.iterateHeaders();
+        while (pItr.next()) |h| {
+            if (mem.eql(u8, h.name, "Accept-Encoding")) {
+                var stuff = std.array_list.Managed([]const u8).init(globs.alloc);
+                var eItr = mem.tokenizeSequence(u8, h.value, ", ");
+                while (eItr.next()) |enc| stuff.append(enc) catch |e| {
+                    log.err("failed to append to encoding array: {t}", .{e}) catch {};
+                    return e;
+                };
+                break :b stuff.items;
+            }
+        }
+        break :b null;
+    };
+
+
     //struct passed to handler fn
     const serverConn:ServerConn = ServerConn{
         .conn = conn,
+        .encoding = encoding,
         .req = req,
         .reqPage = reqPage,
         .reqTime = curTime,

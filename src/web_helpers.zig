@@ -2,6 +2,7 @@ const std = @import("std");
 const globs = @import("global_types.zig");
 const hlp = @import("helpers.zig");
 const file_types = @import("file_types.zig");
+const compress = globs.compress;
 
 const ServerConn = globs.ServerConn;
 const globAlloc = globs.alloc;
@@ -45,7 +46,7 @@ pub fn handle_api(
                switch (e) {
                     note_errs.note_too_large => {
                         hlp.send.headersWithType(
-                            413, curTime, req, "text/plain" 
+                            413, curTime, req, null, null, "text/plain" 
                         ) catch {};
                         break :blk "note too large";
                     },
@@ -63,7 +64,7 @@ pub fn handle_api(
                 switch (e) {
                     note_errs.note_not_found => {
                         hlp.send.headersWithType(
-                            400, curTime, req, "text/plain"
+                            400, curTime, req, null, null, "text/plain"
                         ) catch {};
                         break :blk lazy_lw_note("note doesn't exist");
                     },
@@ -157,7 +158,7 @@ fn api_new(
                 .note => note = alloc.dupe(u8, h_C.value) catch {
                     if (respond_html) web.send_err(400, "bad note", conn) else {
                         hlp.send.headersWithType(
-                            400, curTime, req, "text/plain"
+                            400, curTime, req, null, null, "text/plain"
                         ) catch {};
                         req.server.out.print("bad note", .{}) catch {};
                     } return "";
@@ -180,7 +181,7 @@ fn api_new(
                 //either send html err page or plain-text 
                 if (respond_html) web.send_err(413, too_large_msg, serverConn) else {
                     hlp.send.headersWithType(
-                        413, curTime, req, "text/plain"
+                        413, curTime, req, null, null, "text/plain"
                     ) catch {};
                     req.server.out.print(too_large_msg, .{}) catch {};
                 } return ""; //return empty string
@@ -193,13 +194,14 @@ fn api_new(
         ); return "";
     } else {
         hlp.send.headersWithType(
-            411, curTime, req, "text/plain"
+            411, curTime, req, null, null, "text/plain"
         ) catch {}; return "need \"Content-Length\" header";
     }
 
     //create new connection struct
     const new_conn = ServerConn{
         .conn = conn.conn,
+        .encoding = conn.encoding,
         .req = conn.req,
         .reqPage = conn.reqPage,
         .reqTime = conn.reqTime,
@@ -229,7 +231,7 @@ fn api_new(
         //either respond with html err page or plain-text
         if (respond_html) web.send_err(500, "server err", new_conn) else {
             hlp.send.headersWithType(
-                500, curTime, req, "text/plain"
+                500, curTime, req, null, null, "text/plain"
             ) catch {}; return "server error";
         } return "";
     };
@@ -270,7 +272,7 @@ fn api_new(
         if (respond_html) web.send_err(500, "failed to store note", new_conn) else {
             //send headers (500 server err)
             hlp.send.headersWithType(
-                500, curTime, req, "text/plain"
+                500, curTime, req, null, null, "text/plain"
             ) catch {}; //ignore err
             //log err and respond with a generic err msg
             try log.err("failed to read store note: {t}", .{e});
@@ -280,7 +282,7 @@ fn api_new(
    
     //send headers (200 OK)
     hlp.send.headersWithType(
-        200, curTime, req, "text/plain"
+        200, curTime, req, null, null, "text/plain"
     ) catch {}; //ignore err
 
     return id;
@@ -321,7 +323,7 @@ fn viewNote(
         //if 'break' not called yet, id not found
         if (isReq) { //if api req respond with plain-text err 
             hlp.send.headersWithType(
-                400, curTime, req, "text/plain"
+                400, curTime, req, null, null, "text/plain"
             ) catch {};
             req.server.out.print("missing note key", .{}) catch {};
             return lazy_lw_note(""); //don't return err (already handled)
@@ -360,7 +362,7 @@ fn viewNote(
         if (isReq or !file.is_file) if (!db.remove(id)) {
             //send headers (500 server err)
             hlp.send.headersWithType(
-                500, conn.reqTime, conn.req, "text/plain"
+                500, conn.reqTime, conn.req, null, null, "text/plain"
             ) catch {}; //ignore err
             try log.err("failed to remove from db", .{});
             return lazy_lw_note("failed to remove from db");
@@ -399,7 +401,7 @@ fn viewNote(
     
     //only send headers if not internal request
     if (isReq) hlp.send.headersWithType(
-        200, conn.reqTime, conn.req, file.typ
+        200, conn.reqTime, conn.req, null, null, file.typ
     ) catch {}; //ignore err
 
     //create light-weight note
@@ -414,6 +416,27 @@ fn viewNote(
     };
 
     return lw_note;
+}
+
+pub fn encode_page(
+    in_R:[]const u8,
+    conn:ServerConn,
+    alloc:mem.Allocator
+) ![]const u8 {
+    _ = conn;
+    const in:[]u8 = try alloc.dupe(u8, in_R);
+    if (in.len > std.math.maxInt(i32)) return in_R;
+    const in_C:[:0]u8 = try alloc.dupeZ(u8, in);
+    const in_C_ptr:[*c]u8 = in_C.ptr;
+    const comp = compress.Gz(in_C_ptr, @intCast(in_C.len)); 
+    return if (comp.cont) |res| b: {
+        const slice = res[0..@intCast(comp.leng)];
+        const compressed:[]const u8 = slice;
+        break :b alloc.dupe(u8, compressed);
+    } else b: {
+        try log.err("failed to compress data", .{});
+        break :b globs.server_errs.FailedToCompress;
+    };
 }
 
 //web page for new note (not much goes on here)
@@ -431,7 +454,7 @@ fn newNotePage(
         "<style>\n" ++ @embedFile("web/style.css") ++ "</style>\n",
         "<script async>\n" ++ @embedFile("web/script.js") ++ "</script>\n",
     };//generate the page
-    const respPage = hlp.gen_page(
+    const respPage_R = hlp.gen_page(
         web.new, &placs, &replacs, alloc
     ) catch |e| {
         web.send_err(500, "server err", conn);
@@ -439,9 +462,25 @@ fn newNotePage(
         return e;
     };
 
+    const resp_page = if (conn.encoding) |_| encode_page(
+        respPage_R, conn, alloc
+    ) catch |e| b: {
+        try log.err("failed to encode page: {t}", .{e});
+        break :b respPage_R;
+    } else respPage_R;
+
+    try log.deb("{s}", .{hlp.chk_magic(@constCast(resp_page)).typ});
+
+    const add_headers = [_][]const u8 {
+        if (conn.encoding) |_| "Content-Encoding: gzip" else "_: ignore me",
+        "Vary: Accept-Encoding",
+    };
     //respond
-    hlp.send.headers(200, conn.reqTime, conn.req) catch {};
-    conn.req.server.out.print("{s}", .{respPage}) catch {};
+    hlp.send.headersWithType(
+        200, conn.reqTime, conn.req,
+        add_headers.len, add_headers, null
+    ) catch {};
+    conn.req.server.out.print("{s}", .{resp_page}) catch {};
     conn.req.server.out.flush() catch {};
 }
 
@@ -652,7 +691,7 @@ fn read_body(
             log.err("failed to read req body: {t}", .{e}) catch {};
             //send headers
             hlp.send.headersWithType(
-                500, conn.reqTime, req, "text/plain"
+                500, conn.reqTime, req, null, null, "text/plain"
             ) catch {};
             //send error
             req.server.out.print("failed to read request body", .{}) catch {};

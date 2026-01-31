@@ -31,13 +31,15 @@ pub const send = struct {
         status:i16,
         curTime: []u8,
         req:http.Server.Request
-    ) !void { try Self.headersWithType(status, curTime, req, null); }
+    ) !void { try Self.headersWithType(status, curTime, req, null, null, null); }
 
     //send headers
     pub fn headersWithType(
         status:i16,
         curTime: []u8,
         req:http.Server.Request,
+        comptime N:?usize,
+        things:?if (N) |n| [n][]const u8 else [][]const u8,
         content_type:?[]const u8 //optional, null for "text/html"
     ) !void {
         //scoped allocator
@@ -69,14 +71,20 @@ pub const send = struct {
                 try log.err("failed to allocate 'date' header: {t}", .{e});
                 break :blk "foo-bar-baz: foo bar baz"; //jargon if err
             },
-            ""
         }; defer for ([_]usize{ 1, 4, }) |i| alloc.free(heads[i]); //only free alloc
-
+        
         //send headers
         for (heads) |h| {
             req.server.out.print("{s}\r\n", .{h}) catch return;
             req.server.out.flush() catch return;
         }
+
+        if (things) |ts| for (ts) |t| {
+            req.server.out.print("{s}\r\n", .{t}) catch return;
+            req.server.out.flush() catch return;
+        };
+
+        req.server.out.print("\r\n", .{}) catch return;
     }
 };
 

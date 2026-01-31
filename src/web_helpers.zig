@@ -480,13 +480,18 @@ pub const compression = struct {
         alloc:mem.Allocator,
         comp:?compress.res
     ) ![]const u8 {
+        //make sure the struct isn't null and get it
         const com = if (comp) |com| com else {
             return globs.server_errs.FailedToCompress;
         };
+
+        //make sure the content isn't null and get it
         const res = if (com.cont) |res| res else {
             try log.err("failed to compress data", .{});
             return globs.server_errs.FailedToCompress;
         };
+
+        //return converted to Zig string 
         return try Self.c_str_to_const_u8(
             alloc, res, @intCast(com.leng)
         );
@@ -496,14 +501,24 @@ pub const compression = struct {
         encs_R:?[][]const u8,
         encs_e:?globs.compression
     ) globs.compression {
-        return if (encs_e) |en| en else if (encs_R) |encs| blk: {
-            break :blk for (encs) |enc| {
-                const en = std.meta.stringToEnum(
-                    globs.compression, enc
-                ) orelse .unknown;
-                if (en != .unknown) break en;
-            } else .unknown; //handled next
-        } else .unknown; //handled next
+        //if already enum, just return it
+        if (encs_e) |en| return en;
+
+        //get list of compression types
+        const encs = if (encs_R) |encs| encs else .unknown;
+
+        //iterate through list until hit known compression
+        const enc = for (encs) |enc| {
+            //convert to enum
+            const en = std.meta.stringToEnum(
+                globs.compression, enc
+            ) orelse .unknown;
+            
+            //break on first
+            if (en != .unknown) break en;
+        } else .unknown;
+
+        return enc;
     }
 
     pub fn do(
@@ -535,6 +550,7 @@ pub const compression = struct {
             }
         };
 
+        //return unwrapped
         return try Self.attempt_unwrap(alloc, comp);
     }
 
@@ -567,6 +583,7 @@ pub const compression = struct {
             }
         };
 
+        //return unwrapped
         return try Self.attempt_unwrap(alloc, comp);
     }
 };

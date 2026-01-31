@@ -359,17 +359,15 @@ fn api_view(
     if (db.get(id)) |n| {
         //set note and delete from db
         note = if (conn.conf.compression != .none) b: {
-            //break :b compression.undo(
-            //    n.content, conn, null, conn.conf.compression, alloc
-            //) catch |e| {
-            //    if (e == globs.server_errs.UnknownType) {
-            //        @panic("unknown compression type");
-            //    }
-            //    try log.err("failed to decompress note: {t}", .{e});
-            //    return e;
-            //};
-            // TODO: decompress notes
-            break :b n.content;
+            break :b compression.undo(
+                n.content, conn, null, conn.conf.compression, alloc
+            ) catch |e| {
+                if (e == globs.server_errs.UnknownType) {
+                    @panic("unknown compression type");
+                }
+                try log.err("failed to decompress note: {t}", .{e});
+                return e;
+            };
         } else n.content;
         file.magic = n.file.magic; 
         file.typ = if (n.file.is_file) n.file.typ else "text/plain";
@@ -573,7 +571,8 @@ pub const compression = struct {
         //compress
         const comp = b: {
             //get enum from compression input
-            const enc = Self.get_current(encs_R, encs_e);
+            const enc = try Self.get_current(encs_R, encs_e);
+
             //switch on compression type  TODO: more compression types
             switch (enc) {
                 .gzip => break :b compress.De_Gz(in.ptr, @intCast(in.raw.len)),

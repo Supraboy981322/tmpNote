@@ -19,7 +19,7 @@ A basic self-hosted privnote alternative
 ### Server
 - Compile from sources
 
-  Requires precisely version 0.15.2 of Zig ((official "getting started" page)[https://ziglang.org/learn/getting-started/])
+  Requires Nix
 
   - Clone the repo
     ```sh
@@ -29,9 +29,17 @@ A basic self-hosted privnote alternative
     ```sh
     cd tmpNote
     ```
+  - enter Nix development shell
+    ```sh
+    nix develop
+    ```
   - Compile
     ```sh
-    zig build
+    build_tmpNote
+    ```
+  - Exit Nix development shell
+    ```sh
+    exit
     ```
     The final binary will be located in `./zig-out/bin/`
 

@@ -480,17 +480,16 @@ pub const compression = struct {
         alloc:mem.Allocator,
         comp:?compress.res
     ) ![]const u8 {
-        return if (comp) |com| blk: {
-            break :blk if (com.cont) |res| b: { 
-                break :b try Self.c_str_to_const_u8(
-                    alloc, res, @intCast(com.leng)
-                );
-            } else b: { //err
-                try log.err("failed to compress data", .{});
-                break :b globs.server_errs.FailedToCompress;
-            };
-        //likely an unkown type
-        } else globs.server_errs.UnknownType;
+        const com = if (comp) |com| com else {
+            return globs.server_errs.FailedToCompress;
+        };
+        const res = if (com.cont) |res| res else {
+            try log.err("failed to compress data", .{});
+            return globs.server_errs.FailedToCompress;
+        };
+        return try Self.c_str_to_const_u8(
+            alloc, res, @intCast(com.leng)
+        );
     }
 
     fn get_current (

@@ -35,11 +35,6 @@ pub const server_errs = error {
     FailedToCompress, 
 };
 
-pub const compression_result = struct {
-    content:[]const u8,
-    err:anyerror,
-};
-
 //log level
 pub const log_lvl = enum {
     @"0", @"1", @"2", @"3", @"4", //so the config can just have a number 

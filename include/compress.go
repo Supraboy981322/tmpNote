@@ -19,11 +19,29 @@ import (
  
 func main() {}
 
+//convert *C.char to []byte
+func c_chars_to_go_bytes(data *C.char, length C.int) []byte {
+	return C.GoBytes(unsafe.Pointer(data), length)
+}
+
+func copy_bytes_to_c_char(b []byte) (*C.char, C.int) {
+	//size of compressed data
+	s_C := len(b)
+
+	//a C pointer to the data
+	cPtr := C.malloc(C.size_t(s_C))
+	cBuf := (*[1 << 30]byte)(cPtr) //create a C Buffer
+
+	//copy data to C buffer
+	copy(cBuf[:s_C], b)
+
+	return (*C.char)(cPtr), C.int(s_C)
+}
+
 //gzip
 //export Gz
 func Gz(data *C.char, length C.int) C.res {
-	//convert *C.char to []byte
-	goBytes := C.GoBytes(unsafe.Pointer(data), length)
+	goBytes := c_chars_to_go_bytes(data, length)
 
 	//compress data
 	var b bytes.Buffer
@@ -39,18 +57,10 @@ func Gz(data *C.char, length C.int) C.res {
 		return C.res { cont:nil, leng:0 }
 	}
 
-	//size of compressed data
-	s_C := len(b.Bytes())
-
-	//a C pointer to the data
-	cPtr := C.malloc(C.size_t(s_C))
-	cBuf := (*[1 << 30]byte)(cPtr) //create a C Buffer
-
-	//copy data to C buffer
-	copy(cBuf[:s_C], b.Bytes())
+	c_chars, c_size :=  copy_bytes_to_c_char(b.Bytes())
 
 	//return the struct
-	return C.res { cont:(*C.char)(cPtr), leng:C.int(s_C) }
+	return C.res { cont:c_chars, leng:c_size }
 }
 
 //export De_Gz

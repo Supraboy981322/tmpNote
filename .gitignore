@@ -6,3 +6,5 @@ hT.conf
 src/web/hT.conf
 log*
 scripts/magic.json
+include/*.a
+include/*.h

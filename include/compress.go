@@ -38,7 +38,7 @@ func copy_bytes_to_c_char(b []byte) (*C.char, C.int) {
 	return (*C.char)(cPtr), C.int(s_C)
 }
 
-//gzip
+//compress gzip
 //export Gz
 func Gz(data *C.char, length C.int) C.res {
 	goBytes := c_chars_to_go_bytes(data, length)
@@ -57,12 +57,14 @@ func Gz(data *C.char, length C.int) C.res {
 		return C.res { cont:nil, leng:0 }
 	}
 
+	//copy []byte byffer to a C allocator *char buffer
 	c_chars, c_size :=  copy_bytes_to_c_char(b.Bytes())
 
 	//return the struct
 	return C.res { cont:c_chars, leng:c_size }
 }
 
+//decompress gzip
 //export De_Gz
 func De_Gz(data *C.char, length C.int) C.res {
 	//convert *C.char to []byte
@@ -77,12 +79,14 @@ func De_Gz(data *C.char, length C.int) C.res {
 	}
 	defer gz.Close()
 
+	//get []byte from result
 	uncomp, e := io.ReadAll(gz)
 	if e != nil && e != io.EOF {
 		fmt.Printf("cgo err{%v}\n", e)
 		return C.res { cont:nil, leng:0 }
 	}
 
+	//copy []byte to a C allocator *char buffer
 	c_chars, c_size := copy_bytes_to_c_char(uncomp)
 
 	//return the struct

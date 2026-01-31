@@ -441,14 +441,15 @@ pub fn encode_page(
 
     //compress
     const comp = for (encs) |enc| {
+        //switch on compression type  TODO: more compression types
         const en = std.meta.stringToEnum(
             enum { gzip, unknown }, enc
         ) orelse .unknown;
         switch (en) {
             .gzip => break compress.Gz(in_C_ptr, @intCast(in_C.len)),
-            .unknown => continue,
+            .unknown => continue, //skip unknown types
         }
-    } else null;
+    } else null; //handled next
 
     //handle null struct early
     return if (comp) |com| blk: {
@@ -462,6 +463,7 @@ pub fn encode_page(
             try log.err("failed to compress data", .{});
             break :b globs.server_errs.FailedToCompress;
         };
+    //likely an unkown type
     } else globs.server_errs.UnknownType;
 }
 
@@ -488,6 +490,7 @@ fn newNotePage(
         return e;
     };
 
+    //either compress or leave uncompressed
     const resp_page = if (conn.encoding) |enc| encode_page(
         respPage_R, conn, enc, alloc
     ) catch |e| b: {
@@ -497,17 +500,23 @@ fn newNotePage(
         break :b respPage_R;
     } else respPage_R;
 
+    //leaving here for now to validate compression later  TODO: more types
     try log.deb("{s}", .{hlp.chk_magic(@constCast(resp_page)).typ});
 
+    //additional headers 
     const add_headers = [_][]const u8 {
+        //only send compression header if applicable
+        //  (sends garbage which'll be filtered-out by stuff like Nginx otherwise)
         if (conn.encoding) |_| "Content-Encoding: gzip" else "_: ignore me",
-        "Vary: Accept-Encoding",
+        "Vary: Accept-Encoding", // TODO: check if should be removed if no compression 
     };
+
     //respond
     hlp.send.headersWithType(
         200, conn.reqTime, conn.req,
         add_headers.len, add_headers, null
     ) catch {};
+
     conn.req.server.out.print("{s}", .{resp_page}) catch {};
     conn.req.server.out.flush() catch {};
 }

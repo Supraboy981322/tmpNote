@@ -12,7 +12,7 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(bin);
     bin.addIncludePath(b.path("include"));
     bin.addLibraryPath(b.path("include"));
-    bin.addObjectFile(b.path("include/bindings.a"));
+    bin.addObjectFile(b.path("include/compress.a"));
     
     const run_bin = b.addRunArtifact(bin);
     if (b.args) |args| {

@@ -501,23 +501,33 @@ pub const compression = struct {
         //if already enum, just return it
         if (encs_e) |en| return en;
 
-        //get list of compression types
+        //create empty list of compression types
         var l = try std.ArrayList([]const u8).initCapacity(globs.alloc, 1);
         defer l.deinit(globs.alloc);
         try l.append(globs.alloc, "");
 
+        //get list of compression types
         const encs = if (encs_R) |encs| encs else l.items;
-
-        //iterate through list until hit known compression
-        const enc = for (encs) |enc| {
+        
+        //iterate through list and set the best compression found
+        var best:usize = 0;
+        for (encs) |enc| {
             //convert to enum
             const en = std.meta.stringToEnum(
                 globs.compression, enc
             ) orelse .unknown;
             
-            //break on first known
-            if (en != .unknown) break en;
-        } else .unknown;
+            //if better than previously matched best, set new best 
+            if (en != .unknown and en != .none) {
+                const co_I = for (0..,globs.compression_preference) |i, co| {
+                    if (co == en) break i;
+                } else @panic("uncaught: invalid compression");
+                if (best < co_I) best = co_I;
+            }
+        }
+
+        //return the best compression type found
+        const enc = if (best >= 0) globs.compression_preference[best] else .unknown;
 
         return enc;
     }
@@ -539,6 +549,7 @@ pub const compression = struct {
         const comp = b: {
             //get enum from compression input
             const enc = try Self.get_current(encs_R, encs_e);
+
             //switch on compression type  TODO: more compression types
             switch (enc) {
                 .gzip => break :b compress.Gz(in.ptr, @intCast(in.raw.len)),

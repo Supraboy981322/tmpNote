@@ -511,12 +511,13 @@ fn newNotePage(
         "Vary: Accept-Encoding", // TODO: check if should be removed if no compression 
     };
 
-    //respond
+    //respond with headers
     hlp.send.headersWithType(
         200, conn.reqTime, conn.req,
         add_headers.len, add_headers, null
     ) catch {};
 
+    //send page
     conn.req.server.out.print("{s}", .{resp_page}) catch {};
     conn.req.server.out.flush() catch {};
 }

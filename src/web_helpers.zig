@@ -607,6 +607,36 @@ pub const compression = struct {
     }
 };
 
+fn page_compressor_handler(
+    resp_page_R:[]const u8,
+    conn:ServerConn,
+    alloc:mem.Allocator,
+) []const u8 {
+    const res = if (conn.encoding) |enc| compression.do(
+        resp_page_R, conn, enc, null, alloc
+    ) catch |e| b: {
+        if (e != globs.server_errs.UnknownType) {
+            log.err("failed to encode page: {t}", .{e}) catch {};
+        }
+        break :b resp_page_R;
+    } else resp_page_R;
+
+    //additional headers 
+    const add_headers = [_][]const u8 {
+        //only send compression header if applicable
+        //  (sends garbage which'll be filtered-out by stuff like Nginx otherwise)
+        if (conn.encoding) |_| "Content-Encoding: gzip" else "_: ignore me",
+        "Vary: Accept-Encoding", // TODO: check if should be removed if no compression 
+    };
+
+    //respond with headers
+    hlp.send.headersWithType(
+        200, conn.reqTime, conn.req,
+        add_headers.len, add_headers, null
+    ) catch {};
+    return res;
+}
+
 //web page for new note (not much goes on here)
 fn newNotePage(
     conn:ServerConn,
@@ -630,32 +660,11 @@ fn newNotePage(
         return e;
     };
 
-    //either compress or leave uncompressed
-    const resp_page = if (conn.encoding) |enc| compression.do(
-        respPage_R, conn, enc, null, alloc
-    ) catch |e| b: {
-        if (e != globs.server_errs.UnknownType) {
-            try log.err("failed to encode page: {t}", .{e});
-        }
-        break :b respPage_R;
-    } else respPage_R;
+    //either compress or leave uncompressed (sends headers)
+    const resp_page = page_compressor_handler(respPage_R, conn, alloc);
 
     //leaving here for now to validate compression later  TODO: more types
     try log.deb("{s}", .{hlp.chk_magic(@constCast(resp_page)).typ});
-
-    //additional headers 
-    const add_headers = [_][]const u8 {
-        //only send compression header if applicable
-        //  (sends garbage which'll be filtered-out by stuff like Nginx otherwise)
-        if (conn.encoding) |_| "Content-Encoding: gzip" else "_: ignore me",
-        "Vary: Accept-Encoding", // TODO: check if should be removed if no compression 
-    };
-
-    //respond with headers
-    hlp.send.headersWithType(
-        200, conn.reqTime, conn.req,
-        add_headers.len, add_headers, null
-    ) catch {};
 
     //send page
     conn.req.server.out.print("{s}", .{resp_page}) catch {};
@@ -669,7 +678,6 @@ fn viewNotePage(
     db:*std.StringHashMap(Note)
 ) !void {
     const req = conn.req;
-    const curTime = conn.reqTime;
 
     //get the note content  TODO: config opt for confirmation screen before fetching
     const note_lw:LW_Note = api_view(conn, alloc, false, db) catch |e| switch (e) {
@@ -722,19 +730,19 @@ fn viewNotePage(
     };
 
     //generate the page
-    const respPage = hlp.gen_page(
+    const respPage_R = hlp.gen_page(
         web.view, &placs, &replacs, alloc
     ) catch |e| {
         web.send_err(500, "server err", conn);
         try log.err("failed to generate page: {t}", .{e});
         return e;
     };
-    
-    //send headers (200 OK)
-    hlp.send.headers(200, curTime, req) catch {}; //continue anyways if err
+
+    //either compress or leave uncompressed (sends headers)
+    const resp_page = page_compressor_handler(respPage_R, conn, alloc);
     
     //send HTML body and return if err
-    req.server.out.print("{s}", .{respPage}) catch return;
+    req.server.out.print("{s}", .{resp_page}) catch return;
     req.server.out.flush() catch return;
 }
 

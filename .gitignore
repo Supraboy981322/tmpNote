@@ -8,3 +8,4 @@ log*
 scripts/magic.json
 include/*.a
 include/*.h
+.go/

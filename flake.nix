@@ -17,6 +17,8 @@
       # system version (you may need to change this)
       system = "x86_64-linux";
 
+      repo_root = builtins.toString ./.;
+
       # the server only compiles on one Zig version 
       zigVersion = "0.15.2";
 
@@ -29,48 +31,100 @@
         overlays = [ zig_overlay.overlays.default ];
       };
     in {
-      # install packages
+      # Nix shell
       devShells.${system}.default = pkgs.mkShell {
-        packages = [
-          zig
-          pkgs.go
+        # environment variables
+        #REPO_ROOT = repo_root;
+        
+        # install packages
+        packages = (with pkgs; [
+          # languages (see end of list for Zig (not in pkgs))
+          go
+
+          # dependencies
+          brotli.dev
 
           # for development scripts
-          pkgs.jq
-          pkgs.curl
-          pkgs.bash
-        ];
+          jq
+          curl
+          bash
+        ]) ++ [ zig ]; # this language too
 
         # setup shell
         shellHook = ''
-          printf "entering tmpNote nix shell"
+          printf "\n\nsetting up shell...\n"
+
+          # get repo root
+          export REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+          # attempt at fixing go failing to build (permissions)
+          export GOMODCACHE=$REPO_ROOT/.go/pkg/mod
+          export GOPATH=$REPO_ROOT/.go
+
+          # print to stderr then exit
+          err_out() {
+            printf "$@" 1>&2
+            exit 1
+          }
+
+          # set dir ownership
+          chmod -R a+rwx "$REPO_ROOT" || \
+              err_out "failed to set dir permissions\n"
+          # create go dir
+          mkdir -p "$REPO_ROOT.go" || \
+              err_out "failed to create go dir\n"
+ 
+          printf "entered nix shell\n"
 
           # build cmd
           build_tmpNote() (
             # strict err exiting
             set -eou pipefail
 
+            # clear go cache
+            go clean -modcache
+
+            # save the current directory
+            declare -r saved_dir="$PWD"
+
+            # move to repo root
+            cd "$REPO_ROOT"
+
+            # tidy go modules
+             for p in $(fd 'go.mod|go.sum' -x echo {//}); do
+               cd "$p"
+               go mod tidy
+               cd "$REPO_ROOT"
+             done
+
             # golang c header export stuff
-            printf "building headers..."
-            for header_src in $(ls include/*.go); do
+            printf "building headers...\n"
+            cd "include" # move to include dir
+            for header_src in $(ls *.go); do
               # get name without file extension
               declare name="$(printf "$header_src" | sed 's|.go$||')"
 
-              # print current file
-              printf "\t%s (output: %s.a and %s.h)\n" \
-                    "$header_src" \
-                    "$name" \
-                    "$name"
+              # create msg for which file
+              declare msg='\t"\033[33m%s\033[0m"'
+              msg+=' (output: "\033[34m%s\033[0m"'
+              msg+=' and "\033[35m%s\033[0m")\n'
+
+              # log current file
+              printf "$msg" "$header_src" "$name.a" "$name.h"
 
               # compile C header file
               go build -buildmode=c-archive -o $name.a $header_src
             done
+            cd "$REPO_ROOT" # go back to repo root 
             printf "headers built.\n"
 
             # zig server
             printf "building server...\n"
             zig build
             printf "server built\n"
+
+            # return to user's dir
+            cd "$saved_dir"
           )
         '';
       };

@@ -68,7 +68,7 @@
           }
 
           # set dir ownership
-          chmod -R a+rwx "$REPO_ROOT" || \
+          chmod -R a+rw "$REPO_ROOT" || \
               err_out "failed to set dir permissions\n"
           # create go dir
           mkdir -p "$REPO_ROOT.go" || \

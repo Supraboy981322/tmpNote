@@ -82,7 +82,12 @@
             set -eou pipefail
 
             # clear go cache
+            printf "clearing go cache...\n"
             go clean -modcache
+
+            # clear Zig cache
+            printf "clearing repo's Zig cache\n"
+            rm -r "$REPO_ROOT/.zig-cache"
 
             # save the current directory
             declare -r saved_dir="$PWD"
@@ -91,11 +96,13 @@
             cd "$REPO_ROOT"
 
             # tidy go modules
-             for p in $(fd 'go.mod|go.sum' -x echo {//}); do
-               cd "$p"
-               go mod tidy
-               cd "$REPO_ROOT"
-             done
+            printf "tidying go modules...\n"
+            for p in $(fd 'go.mod|go.sum' -x echo {//}); do
+              printf '\t"\033[36m%s\033[0m"\n' "$p"
+              cd "$p"
+              go mod tidy
+              cd "$REPO_ROOT"
+            done
 
             # golang c header export stuff
             printf "building headers...\n"

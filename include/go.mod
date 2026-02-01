@@ -1,4 +1,4 @@
-module tmpNote_includes
+module github.com/Supraboy981322/tmpNote/include
 
 go 1.25.5
 

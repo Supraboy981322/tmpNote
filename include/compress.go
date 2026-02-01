@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"unsafe"
 	"compress/gzip"
+	_ "github.com/google/brotli/go/cbrotli"
 );
  
 func main() {}

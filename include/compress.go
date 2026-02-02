@@ -15,7 +15,7 @@ import (
 	"bytes"
 	"unsafe"
 	"compress/gzip"
-	_ "github.com/google/brotli/go/cbrotli"
+	"github.com/google/brotli/go/cbrotli"
 );
  
 func main() {}
@@ -62,6 +62,28 @@ func Gz(data *C.char, length C.int) C.res {
 	c_chars, c_size :=  copy_bytes_to_c_char(b.Bytes())
 
 	//return the struct
+	return C.res { cont:c_chars, leng:c_size }
+}
+
+//compress brotli
+//export Brot
+func Brot(data *C.char, length C.int) C.res {
+	goBytes := c_chars_to_go_bytes(data, length)
+
+	var b bytes.Buffer
+	wr_opts := cbrotli.WriterOptions{ Quality: 1 }
+	wr := cbrotli.NewWriter(&b, wr_opts)
+	re := bytes.NewReader(goBytes)
+	_, e := io.Copy(wr, re)
+	if e != nil {
+		fmt.Printf("cgo brotli err{%v}\n", e)
+		return C.res { cont:nil, leng:0 }
+	}
+	if e := wr.Close(); e != nil {
+		fmt.Printf("cgo brotli err{%v}\n", e)
+		return C.res { cont:nil, leng:0 }
+	}
+	c_chars, c_size := copy_bytes_to_c_char(b.Bytes())
 	return C.res { cont:c_chars, leng:c_size }
 }
 

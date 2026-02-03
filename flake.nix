@@ -46,6 +46,7 @@
 
           # for development scripts
           jq
+          bun
           curl
           bash
           pkg-config

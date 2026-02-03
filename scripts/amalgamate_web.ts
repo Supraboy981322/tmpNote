@@ -2,6 +2,7 @@
 
 //html
 import { minify as minify_html } from "html-minifier-terser";
+//import { lightningcss as minify_css } from '@node-minify/lightningcss';
 export {}; //so I can use async stuff  
 
 //file class
@@ -28,8 +29,10 @@ class Fi {
  
 const new_note = await Fi.read("src/web/new_note.html");
 const script:string = await Fi.get_content("src/web/script.js");
-const css:string = await Fi.get_content("src/web/style.css");
-
+const css_R:string = await Fi.get_content("src/web/style.css");
+//const minified_css = await minify_css({
+//  
+//});
 //insert css and js into the document 
 const re_wr = new HTMLRewriter();var style_done:boolean = false;
 for (const thing of [ "*", "head", "title" ]) re_wr.on(thing, {
@@ -41,7 +44,7 @@ for (const thing of [ "*", "head", "title" ]) re_wr.on(thing, {
      case "style.css":if (style_done) break; //for some reason Bun hallucinates a duplicate comment
       ok = true;style_done = true;
       comment.remove();
-      comment.replace(`<style>${css}</style>`, { html:true });
+      comment.replace(`<style>${css_R}</style>`, { html:true });
       break;
      case "script.js": ok = true;
       comment.remove();

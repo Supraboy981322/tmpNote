@@ -9,3 +9,4 @@ scripts/magic.json
 include/*.a
 include/*.h
 .go/
+web_comp/

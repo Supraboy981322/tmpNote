@@ -86,9 +86,6 @@ for (const thing of [ "*", "head", "title" ]) re_wr.on(thing, {
   }
 })
 
-//log that it's starting
-console.log("[\x1b[34mbuilding web ui...\x1b[0m]");
-
 for (const page of [ //array of web ui html
   await Fi.read("src/web/view_note.html"),
   await Fi.read("src/web/new_note.html"),
@@ -115,6 +112,3 @@ for (const page of [ //array of web ui html
   //write file to disk 
   await Bun.write(p, out);
 }
-
-//log completion
-console.log("[\x1b[32mdone\x1b[0m]");

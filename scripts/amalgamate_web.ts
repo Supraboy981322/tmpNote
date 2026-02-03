@@ -1,21 +1,26 @@
 "use strict";
 
-export {};
+import { mkdir } from "node:fs/promises";
+export {}; 
 
-const script:string = await (async ():Promise<string> => {
-  const fi = Bun.file("src/web/script.js");
-  return await fi.text();
-})();
+class fi {
+  content:string;
+  path:string;
+  constructor(path:string) {
+    this.path = path;
+    const fi = Bun.file(path);
+    this.content = await fi.text();
+  }
+};
 
-const css:string = await (async ():Promise<string> => {
-  const fi = Bun.file("src/web/style.css");
-  return await fi.text();
-})();
+const read_fi = (path:string) => {
+  const c = new fi(path);
+  return c.content;
+};
 
-const cont:string = await (async () => {
-  const fi = Bun.file("src/web/new_note.html");
-  return await fi.text();
-})();
+const new_note = new fi("src/web/new_note.html");
+const script:string = read_fi("src/web/script.js");
+const css:string = read_fi("src/web/style.css");
 
 const re_wr = new HTMLRewriter();
 
@@ -37,5 +42,8 @@ for (const thing of [ "*", "head" ]) re_wr.on(thing, {
   }
 })
 
-const out = re_wr.transform(cont);
-console.log(out); 
+for (const page of [ new_note ]) {
+  const out = re_wr.transform(page.content);
+  const name = page.path.split("/");
+  console.log(name);
+}

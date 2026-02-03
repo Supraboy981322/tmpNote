@@ -1,6 +1,5 @@
 "use strict";
 
-//html
 import { minify as minify_html } from "html-minifier-terser";
 import { transform as transform_css  } from "lightningcss";
 import { Buffer } from "buffer";
@@ -21,53 +20,57 @@ class Fi {
     const content = await fi.text();
     return new Fi(content, path);
   }
-  //mtd to get just the content 
-  static async get_content(path:string) {
-    const fi = await this.read(path);
-    return fi.content;
-  }
 };
  
-const new_note = await Fi.read("src/web/new_note.html");
-const script_R:string = await Fi.get_content("src/web/script.js");
-const css_R:string = await Fi.get_content("src/web/style.css");
-
-const css:string = (() => {
+//minified css file
+const css:string = await (async () => {
+  //read css
+  const css_R = await Fi.read("src/web/style.css");
+  //minify css
   let { code } = transform_css({
     filename: "stupid parser needs a file",
-    code: Buffer.from(css_R),
+    code: Buffer.from(css_R.content),
     minify:true,
   });
-  return code.toString();
+  return code.toString(); //get result
 })();
 
 const script:string = await (async () => {
+  //minify js
   const b = await Bun.build({
     entrypoints: ["src/web/script.js"],
     minify: true,
     target: "browser",
   });
+  //kill on error
   if (!b.success) {
     console.error(`failed to minify js for web: ${b.logs}`);
     process.exit(1);
   }
+  //return result (removing trailing newline because Bun inserts one for some reason)
   var res = await b.outputs[0].text();
   return res.trim();
 })();
 
-//insert css and js into the document 
-const re_wr = new HTMLRewriter();var style_done:boolean = false;
+//insert css and js into the document
+const re_wr = new HTMLRewriter() ; var style_done:boolean = false; 
 for (const thing of [ "*", "head", "title" ]) re_wr.on(thing, {
-  comments(comment) { //comments are used as placeholders
+  //comments are used as placeholders
+  comments(comment) {
+    //comment content
     const txt:string = comment.text.trim();
-    var ok:boolean = false;
-    var new_plac:boolean = false;
+    //for checks
+    var ok:boolean, new_plac:boolean;
+    ok = new_plac = false;
+
     switch (txt) {
-     case "style.css":if (style_done) break; //for some reason Bun hallucinates a duplicate comment
+     //inject CSS
+     case "style.css":if (style_done) break; //Bun hallucinates a duplicate comment
       ok = true;style_done = true;
       comment.remove();
       comment.replace(`<style>${css}</style>`, { html:true });
       break;
+     //inject JS
      case "script.js": ok = true;
       comment.remove();
       comment.replace(`<script async>${script}</script>`, { html:true });
@@ -75,22 +78,43 @@ for (const thing of [ "*", "head", "title" ]) re_wr.on(thing, {
      default: //log anything that doesn't match 
       console.log(`\t\t\x1b[35mskipping comment:\x1b[0m ${JSON.stringify(txt)}`);
     }
-    if (ok) console.log(`\t\t\x1b[36m${(new_plac) ? "temporary_replacement" : "replaced"}:\x1b[0m ${JSON.stringify(txt)}`);
+
+    //if replaced, log replacement 
+    if (ok) console.log(`\t\t\x1b[36m${
+        (new_plac) ? "temporary_replacement" : "replaced"
+      }:\x1b[0m ${ JSON.stringify(txt) }`);
   }
 })
 
-console.log("[\x1b[34mstarting...\x1b[0m]");
-for (const page of [ new_note ]) {
-  console.log(`\t\x1b[33mminifying:\x1b[0m ${JSON.stringify(page.path)}`);
+//log that it's starting
+console.log("[\x1b[34mbuilding web ui...\x1b[0m]");
+
+for (const page of [ //array of web ui html
+  await Fi.read("src/web/view_note.html"),
+  await Fi.read("src/web/new_note.html"),
+]) {
+  //log current filepath
+  console.log(`\t\x1b[33mminifying:\x1b[0m ${ JSON.stringify(page.path) }`);
+  //reset style check
+  style_done = false;
+
+  //minify the html
   const html = await minify_html(page.content, {
     removeComments:false,
     caseSensitive:true,
     collapseWhitespace:true,
   });
+
+  //inject CSS and JS into html placeholders
   const out = re_wr.transform(html);
-  let name_ = page.path.split("/");
-  const name = name_[name_.length-1];
-  const p = `./src/web_comp/${name}`;
-  await Bun.write(p, out); 
+
+  //path of final html file
+  const filename = page.path.split("/").pop();
+  const p = `./src/web_comp/${filename}`;
+
+  //write file to disk 
+  await Bun.write(p, out);
 }
-console.log("\x1b[32mdone\x1b[0m");
+
+//log completion
+console.log("[\x1b[32mdone\x1b[0m]");

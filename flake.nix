@@ -48,6 +48,7 @@
           jq
           curl
           bash
+          pkg-config
         ]) ++ [ zig ]; # this language too
 
         # setup shell

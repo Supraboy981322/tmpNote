@@ -1,7 +1,5 @@
 "use strict";
 
-//used to ensure the output dir exists 
-import { mkdir } from "node:fs/promises";
 //html
 import { minify as minify_html } from "html-minifier-terser";
 export {}; //so I can use async stuff  
@@ -40,7 +38,7 @@ for (const thing of [ "*", "head", "title" ]) re_wr.on(thing, {
     var ok:boolean = false;
     var new_plac:boolean = false;
     switch (txt) {
-     case "style.css":if (style_done) break;
+     case "style.css":if (style_done) break; //for some reason Bun hallucinates a duplicate comment
       ok = true;style_done = true;
       comment.remove();
       comment.replace(`<style>${css}</style>`, { html:true });

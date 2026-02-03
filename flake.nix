@@ -68,6 +68,12 @@
             printf "$@" 1>&2
             exit 1
           }
+          success() {
+            printf "[\033[32m$1\033[0m]\n\n"
+          }
+          action() {
+            printf "[\033[34m$1\033[0m]\n"
+          }
 
           # set dir ownership
           chmod -R a+rw "$REPO_ROOT" || \
@@ -76,7 +82,7 @@
           mkdir -p "$REPO_ROOT.go" || \
               err_out "failed to create go dir\n"
  
-          printf "entered nix shell\n"
+          success "entered nix shell"
 
           # build cmd
           build_tmpNote() (
@@ -84,11 +90,11 @@
             set -eou pipefail
 
             # clear go cache
-            printf "clearing go cache...\n"
+            action "clearing go cache..."
             go clean -modcache
 
             # clear Zig cache
-            printf "clearing repo's Zig cache\n"
+            action "clearing repo's Zig cache"
             rm -r "$REPO_ROOT/.zig-cache"
 
             # save the current directory
@@ -98,7 +104,7 @@
             cd "$REPO_ROOT"
 
             # tidy go modules
-            printf "tidying go modules...\n"
+            action "tidying go modules..."
             for p in $(fd 'go.mod|go.sum' -x echo {//}); do
               printf '\t"\033[36m%s\033[0m"\n' "$p"
               cd "$p"
@@ -107,7 +113,7 @@
             done
 
             # golang c header export stuff
-            printf "building headers...\n"
+            action "building headers..."
             cd "include" # move to include dir
             for header_src in $(ls *.go); do
               # get name without file extension
@@ -123,14 +129,23 @@
 
               # compile C header file
               go build -buildmode=c-archive -o $name.a $header_src
-            done
+            done \
+              && success "headers built." \
+              || err_out "failed to build headers."
             cd "$REPO_ROOT" # go back to repo root 
-            printf "headers built.\n"
+            
+
+            # web ui
+            action "building web-ui..."
+            bun run scripts/amalgamate_web.ts \
+                && success "web-ui built" \
+                || err_out "failed to build web-ui\n"
 
             # zig server
-            printf "building server...\n"
-            zig build
-            printf "server built\n"
+            action "building server..."
+            zig build \
+                && success "server built" \
+                || err_out "failed to build server"
 
             # return to user's dir
             cd "$saved_dir"

@@ -645,10 +645,12 @@ fn newNotePage(
     //define placeholder replacements
     const placs = [_][]const u8 {
         "<!-- server name -->",
+        // TODO: remove (included in minified pages from comptime)
         "<!-- style.css -->",
         "<!-- script.js -->",
     }; const replacs = [_][]const u8 {
         conn.conf.name,
+        // TODO: replace with comptime generated pages
         "<style>\n" ++ @embedFile("web/style.css") ++ "</style>\n",
         "<script async>\n" ++ @embedFile("web/script.js") ++ "</script>\n",
     };//generate the page
@@ -710,6 +712,7 @@ fn viewNotePage(
         "<!-- file or plain-text -->",
         "<!-- note content -->",
         "<!-- is deleted -->",
+        // TODO: remove (included in minified pages from comptime)
         "<!-- style.css -->",
         "<!-- script.js -->",
     }; const replacs = [_][]const u8 {
@@ -725,6 +728,7 @@ fn viewNotePage(
         note,
         //only show "note deleted" if it's not a file 
         if (note_lw.is_file) "" else "<p><i>note deleted</i></p>",
+        // TODO: replace with comptime generated pages
         //inline CSS stylesheet
         "<style>\n" ++ @embedFile("web/style.css") ++ "</style>\n",
         //inline JS
@@ -750,6 +754,7 @@ fn viewNotePage(
 
 //embeded web-ui files
 pub const web = struct {
+    // TODO: replace with comptime generated pages
     var new:[]const u8 = @embedFile("web/new_note.html");
     var view:[]const u8 = @embedFile("web/view_note.html");
 
@@ -786,6 +791,7 @@ pub const web = struct {
             "<!-- error code -->",
             "<!-- error status -->",
             "<!-- err data -->",
+            // TODO: remove (included in minified pages from comptime)
             "<!-- err.css -->",
             "<!-- err.js -->",
         }; const replacs = [_][]const u8 {
@@ -793,11 +799,12 @@ pub const web = struct {
             code_str,
             stat, //the err msg
             err_json,
+            // TODO: replace with comptime generated pages
             "<style>\n" ++ @embedFile("web/err.css") ++ "    </style>",
             "<script async>\n" ++ @embedFile("web/err.js") ++ "  </script>",
         }; defer globAlloc.free(err_json);
 
-        //generate response page
+        //generate response page  TODO: replace with comptime generated page
         const err_html:[]const u8 = @embedFile("web/err.html");
         const respPage = hlp.gen_page(
             err_html, &placs, &replacs, globAlloc

@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
 
     for ([_][]const u8 {
         "libbrotlicommon", "libbrotlidec", "libbrotlienc"
-    }) |header| { bin.root_module.linkSystemLibrary(header, .{}); }
+    }) |header| bin.root_module.linkSystemLibrary(header, .{});
 
     const run_bin = b.addRunArtifact(bin);
     if (b.args) |args| {

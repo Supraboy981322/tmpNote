@@ -664,7 +664,7 @@ fn newNotePage(
     const resp_page = page_compressor_handler(respPage_R, conn, alloc);
 
     //leaving here for now to validate compression later  TODO: more types
-    try log.deb("{s}", .{hlp.chk_magic(@constCast(resp_page)).typ});
+    try log.deb("{s}", .{ hlp.chk_magic(@constCast(resp_page)).typ });
 
     //send page
     conn.req.server.out.print("{s}", .{resp_page}) catch {};
@@ -725,7 +725,9 @@ fn viewNotePage(
         note,
         //only show "note deleted" if it's not a file 
         if (note_lw.is_file) "" else "<p><i>note deleted</i></p>",
+        //inline CSS stylesheet
         "<style>\n" ++ @embedFile("web/style.css") ++ "</style>\n",
+        //inline JS
         "<script async>\n" ++ @embedFile("web/script.js") ++ "</script>\n",
     };
 

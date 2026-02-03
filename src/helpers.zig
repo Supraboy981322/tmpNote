@@ -60,7 +60,7 @@ pub const send = struct {
             },
             fmt.allocPrint(
                 alloc, "Content-Type: {s}",
-                .{content_type orelse "text/html"}
+                .{ content_type orelse "text/html" }
             ) catch |e| blk: { //just use text/html if alloc fails
                 try log.err("failed to allocate 'Content-Type' header: {t}", .{e});
                 break :blk "Content-Type: text/html";

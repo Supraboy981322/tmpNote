@@ -34,25 +34,21 @@ const script:string = await Fi.get_content("src/web/script.js");
 const css:string = await Fi.get_content("src/web/style.css");
 
 //insert css and js into the document 
-const re_wr = new HTMLRewriter();
+const re_wr = new HTMLRewriter();var style_done:boolean = false;
 for (const thing of [ "*", "head", "title" ]) re_wr.on(thing, {
   comments(comment) { //comments are used as placeholders
     const txt:string = comment.text.trim();
     var ok:boolean = false;
     var new_plac:boolean = false;
     switch (txt) {
-//     BUG: duplicate '<style>' element 
-//     case "style.css"://ok = true
-//     comment.remove();
-//      comment.replace(`<style>${css}</style>`, { html:true });
-//      break;
+     case "style.css":if (style_done) break;
+      ok = true;style_done = true;
+      comment.remove();
+      comment.replace(`<style>${css}</style>`, { html:true });
+      break;
      case "script.js": ok = true;
       comment.remove();
       comment.replace(`<script async>${script}</script>`, { html:true });
-      break;
-     case "server name": ok = true; new_plac = true;
-      comment.remove();
-      comment.replace("<server-name hidden></server-name>", { html:true });
       break;
      default: //log anything that doesn't match 
       console.log(`\t\t\x1b[35mskipping comment:\x1b[0m ${JSON.stringify(txt)}`);

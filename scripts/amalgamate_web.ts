@@ -1,7 +1,7 @@
 "use strict";
 
 import { mkdir } from "node:fs/promises";
-const { minify } = require("html-minifier-terser");
+import { minify } from "html-minifier-terser";
 export {}; 
 
 class Fi {
@@ -51,17 +51,18 @@ for (const thing of [ "*", "head", "title" ]) re_wr.on(thing, {
   }
 })
 
+console.log("[\x1b[34mstarting...\x1b[0m]");
 for (const page of [ new_note ]) {
+  console.log(`\t\x1b[33mminifying:\x1b[0m ${JSON.stringify(page.path)}`);
   const html = await minify(page.content, {
     removeComments:false,
     caseSensitive:true,
     collapseWhitespace:true,
   });
-  console.log(html);
   const out = re_wr.transform(html);
   let name_ = page.path.split("/");
   const name = name_[name_.length-1];
   const p = `./src/web_comp/${name}`;
   await Bun.write(p, out); 
-  console.log(p);
 }
+console.log("[\x1b[32mdone\x1b[0m]");

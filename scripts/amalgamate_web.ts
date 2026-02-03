@@ -2,7 +2,6 @@
 
 //used to ensure the output dir exists 
 import { mkdir } from "node:fs/promises";
-import { log } from "./logr.ts";
 //html
 import { minify as minify_html } from "html-minifier-terser";
 export {}; //so I can use async stuff  
@@ -71,4 +70,4 @@ for (const page of [ new_note ]) {
   const p = `./src/web_comp/${name}`;
   await Bun.write(p, out); 
 }
-log.msg(32, 0, "done", null);
+console.log("\x1b[32mdone\x1b[0m");

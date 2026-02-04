@@ -12,8 +12,27 @@ var note_info = undefined; //may use for more than rendering the page
   }, -1);
   
   {
-    let btn = document.querySelector('.note_page_btn[onclick="newNote();]');
-    if (btn != null || btn != undefined) {
+    for (const selector of [
+      '[onclick="newNote();"]',
+      '[onclick="view_from_new(this);"]',
+      '[onclick="new_from_view();"]',
+      '[onclick="new_note()"]',
+    ]) {
+      //when minifying the JS, the fn names change
+      let btn = document.querySelector(selector);
+      if (btn != null || btn != undefined) {
+        btn.onclick = (()=>{
+          let fn = selector.split('"')[1].split('"')[0];
+          switch (fn) {
+           case "newNote();": return newNote;
+           case "view_from_new(this);": return ()=>{return view_from_new(btn)};
+           case "new_from_view();": return new_from_view;
+           default:
+            console.error(`you forgot to add ${fn} to a switch statement`);
+            return undefined;
+          }
+        })();
+      }
     }
   }
 
@@ -47,7 +66,7 @@ var note_info = undefined; //may use for more than rendering the page
         //continue button
         let continue_btn = document.createElement("div");
         continue_btn.setAttribute("class", "continue");
-        continue_btn.setAttribute("onclick", "view_image");
+        continue_btn.onclick = view_image;
         continue_btn.innerText = "continue";
         warning.appendChild(continue_btn);
         
@@ -59,7 +78,7 @@ var note_info = undefined; //may use for more than rendering the page
         {
           //download button
           var dl_btn = document.createElement("button");
-          dl_btn.setAttribute("onclick", "dl_file(this);");
+          dl_btn.onclick = () => { return dl_file(dl_btn) };
           dl_btn.setAttribute("class", "dl_btn");
           dl_btn.innerText = "download";
           left.appendChild(dl_btn);
@@ -178,7 +197,7 @@ async function newNote() {
   //change the class so css treats it as a different element
   idElm.setAttribute("class", "id");
   //make it copy to clipboard instead of executing this fn again 
-  idElm.setAttribute("onclick", "copy_id(this);");
+  idElm.onclick = () => { return copy_id(idElm) };
   //remove the note '<textarea>' element
   document.getElementById("note").remove();
   //unhide all the id view elements

@@ -8,7 +8,7 @@ window.onload = async () => {
     case 400 | 404:
       var btn = document.createElement("button");
       btn.setAttribute("id", "new_note_btn");
-      btn.setAttribute("onclick", "new_note()");
+      btn.onclick = new_note;
       btn.setAttribute("class", "tiny");
       btn.innerText = "new note";
       btn.setAttribute("hidden", "");

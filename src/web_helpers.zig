@@ -212,7 +212,9 @@ fn api_new(
     };
 
     //combine possible err types into one
-    const combined_err_typ = mem.Allocator.Error || std.io.Reader.ReadAllocError;
+    const combined_err_typ = mem.Allocator.Error
+                    || std.io.Reader.ReadAllocError
+                    || note_errs;
 
     //array of fns that chk places for note 
     const fns = [2]*const fn(
@@ -221,9 +223,11 @@ fn api_new(
     //iterate through array of fns (passes new connection struct)
     for (fns) |f| {
         if (note.len == 0) note = f(alloc, new_conn, "note") catch |e| {
+            if (e == note_errs.zero_len) continue; 
             try log.err("{t}", .{e}); continue;
         } else break;
     }
+    try log.deb("{d}", .{note.len}); 
 
     //generate note id (random string generator helper)
     const id:[]u8 = hlp.ranStr(16, alloc) catch |e| {
@@ -324,6 +328,7 @@ fn api_view(
         //iterate over the list of fns
         for (fns) |f| for ([_][]const u8{"note-id", "id"}) |p| {
             const res = f(alloc, new_conn, p) catch |e| {
+                if (e == note_errs.zero_len) continue;
                 try log.err("failed to get id: {t}", .{e});
                 return e;
             }; //break with value if found 
@@ -875,6 +880,7 @@ fn read_body(
 
     //get req body reader
     const bod_buf:[]u8 = ""; //body buffer
+    if (len_req == 0) return note_errs.zero_len;
     const bod_r = conn_r.bodyReader(bod_buf, http.TransferEncoding.none, len_req);
     
     //read the body

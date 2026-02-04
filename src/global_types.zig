@@ -11,6 +11,7 @@ pub const alloc = std.heap.page_allocator;
 
 //used by more than one file
 pub const note_errs = error {
+    zero_len,
     no_key_found,
     note_not_found,
     note_too_large,

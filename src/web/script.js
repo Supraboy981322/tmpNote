@@ -11,30 +11,30 @@ var note_info = undefined; //may use for more than rendering the page
     document.querySelector(".collapsed").removeAttribute("class");
   }, -1);
   
-  {
-    for (const selector of [
-      '[onclick="newNote();"]',
-      '[onclick="view_from_new(this);"]',
-      '[onclick="new_from_view();"]',
-      '[onclick="new_note()"]',
-    ]) {
-      //when minifying the JS, the fn names change
-      let btn = document.querySelector(selector);
-      if (btn != null || btn != undefined) {
-        btn.onclick = (()=>{
-          let fn = selector.split('"')[1].split('"')[0];
-          switch (fn) {
-           case "newNote();": return newNote;
-           case "view_from_new(this);": return ()=>{return view_from_new(btn)};
-           case "new_from_view();": return new_from_view;
-           default:
-            console.error(`you forgot to add ${fn} to a switch statement`);
-            return undefined;
-          }
-        })();
-      }
+  //when minifying the JS, the fn names change
+  {for (const selector of [
+    '[onclick="newNote();"]',
+    '[onclick="view_from_new(this);"]',
+    '[onclick="new_from_view();"]',
+    '[onclick="new_note()"]',
+  ]) { //get element
+    let btn = document.querySelector(selector);
+    //if the element exists (JS is shared between pages)
+    if (btn != null || btn != undefined) {
+      //correct the onclick attr 
+      btn.onclick = (() => { //switch on og fn name
+        let fn = selector.split('"')[1].split('"')[0];
+        switch (fn) {
+         case "newNote();": return newNote;
+         case "view_from_new(this);": return ()=>{return view_from_new(btn)};
+         case "new_from_view();": return new_from_view;
+         default: //in case I add to array but forget the switch statement
+          console.error(`you forgot to add ${fn} to a switch statement`);
+          return undefined;
+        }
+      })();
     }
-  }
+  }}
 
   //if the '#note_info' element exists, it's a file 
   const note_info_elm = document.getElementById("note_info");

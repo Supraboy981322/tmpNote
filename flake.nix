@@ -143,7 +143,8 @@
 
             # zig server
             action "building server..."
-            zig build \
+            [ "$#" -gt 0 ] && cd "$saved_dir"
+            zig build $@ \
                 && success "server built" \
                 || err_out "failed to build server"
 

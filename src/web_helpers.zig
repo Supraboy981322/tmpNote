@@ -223,11 +223,11 @@ fn api_new(
     //iterate through array of fns (passes new connection struct)
     for (fns) |f| {
         if (note.len == 0) note = f(alloc, new_conn, "note") catch |e| {
-            if (e == note_errs.zero_len) continue; 
-            try log.err("{t}", .{e}); continue;
-        } else break;
+            //just print err if err isn't no length
+            if (e != note_errs.zero_len) try log.err("{t}", .{e});
+            continue; //continue either way
+        } else break; //stop on first non-empty found
     }
-    try log.deb("{d}", .{note.len}); 
 
     //generate note id (random string generator helper)
     const id:[]u8 = hlp.ranStr(16, alloc) catch |e| {
@@ -328,7 +328,9 @@ fn api_view(
         //iterate over the list of fns
         for (fns) |f| for ([_][]const u8{"note-id", "id"}) |p| {
             const res = f(alloc, new_conn, p) catch |e| {
+                //ignore zero length err (assumes no note later) 
                 if (e == note_errs.zero_len) continue;
+                //log and return all other errs
                 try log.err("failed to get id: {t}", .{e});
                 return e;
             }; //break with value if found 

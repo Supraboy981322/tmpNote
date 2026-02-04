@@ -755,8 +755,8 @@ fn viewNotePage(
 //embeded web-ui files
 pub const web = struct {
     // TODO: replace with comptime generated pages
-    var new:[]const u8 = @embedFile("web/new_note.html");
-    var view:[]const u8 = @embedFile("web/view_note.html");
+    var new:[]const u8 = @embedFile("web_comp/new_note.html");
+    var view:[]const u8 = @embedFile("web_comp/view_note.html");
 
     //helper to send error page
     pub fn send_err(code:i16, stat:[]const u8, conn:ServerConn) void {
@@ -805,7 +805,7 @@ pub const web = struct {
         }; defer globAlloc.free(err_json);
 
         //generate response page  TODO: replace with comptime generated page
-        const err_html:[]const u8 = @embedFile("web/err.html");
+        const err_html:[]const u8 = @embedFile("web_comp/err.html");
         const respPage = hlp.gen_page(
             err_html, &placs, &replacs, globAlloc
         ) catch |e| blk: {

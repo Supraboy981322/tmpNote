@@ -10,6 +10,12 @@ var note_info = undefined; //may use for more than rendering the page
   setTimeout(() => {
     document.querySelector(".collapsed").removeAttribute("class");
   }, -1);
+  
+  {
+    let btn = document.querySelector('.note_page_btn[onclick="newNote();]');
+    if (btn != null || btn != undefined) {
+    }
+  }
 
   //if the '#note_info' element exists, it's a file 
   const note_info_elm = document.getElementById("note_info");

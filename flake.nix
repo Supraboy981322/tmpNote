@@ -95,7 +95,8 @@
 
             # clear Zig cache
             action "clearing repo's Zig cache"
-            rm -r "$REPO_ROOT/.zig-cache"
+            rm -r "$REPO_ROOT/.zig-cache" 2>/dev/null \
+                || printf "\tcouldn't clear cache (likely already cleared)\n"
 
             # save the current directory
             declare -r saved_dir="$PWD"

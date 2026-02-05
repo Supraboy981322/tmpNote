@@ -279,7 +279,7 @@ fn api_new(
     };
 
     //log the file type (debug)
-    log.deb("{s}", .{file_type.typ}) catch {};
+    log.deb("put: {s}", .{file_type.typ}) catch {};
 
     //add the note to db
     db.put(id, n) catch |e| { //on err

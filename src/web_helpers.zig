@@ -605,16 +605,17 @@ pub const compression = struct {
             //switch on compression type  TODO: more compression types
             switch (enc) {
                 .gzip => break :b compress.De_Gz(in.ptr, @intCast(in.raw.len)),
+                .br, .brotli => break :b compress.De_Br(in.ptr, @intCast(in.raw.len)),
                 //shouldn't happen, but just in case
                 .none => break :b compress.res{
                     .cont = in.ptr,
                     .leng = @intCast(in.raw.len),
                 },
                 .unknown => break :b null,
-                else => {
-                    try log.deb("TODO: decoding {s}", .{@tagName(enc)});
-                    break :b null;
-                }
+                //else => {
+                //    try log.deb("TODO: decoding {s}", .{@tagName(enc)});
+                //    break :b null;
+                //}
             }
         };
 

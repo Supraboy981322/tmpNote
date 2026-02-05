@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"bytes"
 	"unsafe"
+	"compress/zlib"
 	"compress/gzip"
 	"github.com/google/brotli/go/cbrotli"
 );
@@ -95,6 +96,14 @@ func Gz(data *C.char, length C.int) C.res {
 	})
 }
 
+//compress zlib
+//export Zlib
+func Zlib(data *C.char, length C.int) C.res {
+	return generic_comp(data, length, func(w io.Writer) io.WriteCloser {
+		return zlib.NewWriter(w)
+	})
+}
+
 //compress brotli
 //export Br
 func Br(data *C.char, length C.int) C.res {
@@ -117,5 +126,13 @@ func De_Br(data *C.char, length C.int) C.res {
 func De_Gz(data *C.char, length C.int) C.res {
 	return generic_de_comp(data, length, func(w io.Reader) (io.Reader, error) {
 		return gzip.NewReader(w)
+	})
+}
+
+//decompress zlib
+//export De_Zlib
+func De_Zlib(data *C.char, length C.int) C.res {
+	return generic_de_comp(data, length, func(w io.Reader) (io.Reader, error) {
+		return zlib.NewReader(w)
 	})
 }

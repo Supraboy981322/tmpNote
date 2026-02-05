@@ -270,6 +270,7 @@ fn api_new(
                 try log.err("failed to compress note: {t}", .{e});
                 return e;
             };
+            try log.deb("{s}", .{hlp.chk_magic(@constCast(n_C)).typ});
 
             break :b try alloc.dupe(u8, n_C);
         } else note,
@@ -279,7 +280,14 @@ fn api_new(
     };
 
     //log the file type (debug)
-    log.deb("put: {s}", .{file_type.typ}) catch {};
+    log.deb(
+        "put: configured{{{s}}} found{{{s}}} length{{{d}}}",
+        .{
+            @tagName(n.compression),
+            hlp.chk_magic(@constCast(n.content)).typ, 
+            n.content.len
+        }
+    ) catch {};
 
     //add the note to db
     db.put(id, n) catch |e| { //on err

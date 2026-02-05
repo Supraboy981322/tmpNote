@@ -66,8 +66,8 @@ func Gz(data *C.char, length C.int) C.res {
 }
 
 //compress brotli
-//export Brot
-func Brot(data *C.char, length C.int) C.res {
+//export Br
+func Br(data *C.char, length C.int) C.res {
 	goBytes := c_chars_to_go_bytes(data, length)
 
 	var b bytes.Buffer

@@ -64,27 +64,6 @@ func generic_compressor[T io.WriteCloser](data *C.char, length C.int, newCompres
 //compress gzip
 //export Gz
 func Gz(data *C.char, length C.int) C.res {
-	//goBytes := c_chars_to_go_bytes(data, length)
-
-	////compress data
-	//var b bytes.Buffer
-	//gz := gzip.NewWriter(&b)
-	//if _, e := gz.Write(goBytes); e != nil {
-	//	fmt.Printf("cgo err{%v}\n", e)
-	//	return C.res { cont:nil, leng:0 }
-	//}
-
-	////close compressor (is that the right term?)
-	//if e := gz.Close(); e != nil { 
-	//	fmt.Printf("cgo err{%v}\n", e)
-	//	return C.res { cont:nil, leng:0 }
-	//}
-
-	////copy []byte byffer to a C allocator *char buffer
-	//c_chars, c_size :=  copy_bytes_to_c_char(b.Bytes())
-
-	////return the struct
-	//return C.res { cont:c_chars, leng:c_size }
 	return generic_compressor(data, length, func(w io.Writer) io.WriteCloser {
 		return gzip.NewWriter(w)
 	})
@@ -93,23 +72,10 @@ func Gz(data *C.char, length C.int) C.res {
 //compress brotli
 //export Br
 func Br(data *C.char, length C.int) C.res {
-	goBytes := c_chars_to_go_bytes(data, length)
-
-	var b bytes.Buffer
-	wr_opts := cbrotli.WriterOptions{ Quality: 1 }
-	wr := cbrotli.NewWriter(&b, wr_opts)
-	re := bytes.NewReader(goBytes)
-	_, e := io.Copy(wr, re)
-	if e != nil {
-		fmt.Printf("cgo brotli err{%v}\n", e)
-		return C.res { cont:nil, leng:0 }
-	}
-	if e := wr.Close(); e != nil {
-		fmt.Printf("cgo brotli err{%v}\n", e)
-		return C.res { cont:nil, leng:0 }
-	}
-	c_chars, c_size := copy_bytes_to_c_char(b.Bytes())
-	return C.res { cont:c_chars, leng:c_size }
+	return generic_compressor(data, length, func(w io.Writer) io.WriteCloser {
+		wr_opts := cbrotli.WriterOptions{ Quality: 1 }
+		return cbrotli.NewWriter(w, wr_opts)
+	})
 }
 
 //decompress brotli

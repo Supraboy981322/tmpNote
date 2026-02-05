@@ -17,6 +17,8 @@ import (
 	"compress/gzip"
 	"github.com/google/brotli/go/cbrotli"
 );
+
+type compressor[T io.Writer] func(io.Writer) T
  
 func main() {}
 
@@ -39,30 +41,53 @@ func copy_bytes_to_c_char(b []byte) (*C.char, C.int) {
 	return (*C.char)(cPtr), C.int(s_C)
 }
 
+func generic_compressor[T io.WriteCloser](data *C.char, length C.int, newCompressor compressor[T]) C.res {
+	var buf bytes.Buffer
+	wr := newCompressor(&buf)
+
+	go_bytes := c_chars_to_go_bytes(data, length)
+
+	if _, e := wr.Write(go_bytes); e != nil {
+		fmt.Printf("cgo generic compressor failed to write: %v", e)
+		return C.res { cont:nil, leng:0 }
+	}
+
+	if e := wr.Close(); e != nil {
+		fmt.Printf("failed to close genereic compressor: %v", e)
+		return C.res { cont:nil, leng:0 }
+	}
+
+	c_chars, c_int := copy_bytes_to_c_char(buf.Bytes())
+	return C.res { cont:c_chars, leng:c_int }
+}
+
 //compress gzip
 //export Gz
 func Gz(data *C.char, length C.int) C.res {
-	goBytes := c_chars_to_go_bytes(data, length)
+	//goBytes := c_chars_to_go_bytes(data, length)
 
-	//compress data
-	var b bytes.Buffer
-	gz := gzip.NewWriter(&b)
-	if _, e := gz.Write(goBytes); e != nil {
-		fmt.Printf("cgo err{%v}\n", e)
-		return C.res { cont:nil, leng:0 }
-	}
+	////compress data
+	//var b bytes.Buffer
+	//gz := gzip.NewWriter(&b)
+	//if _, e := gz.Write(goBytes); e != nil {
+	//	fmt.Printf("cgo err{%v}\n", e)
+	//	return C.res { cont:nil, leng:0 }
+	//}
 
-	//close compressor (is that the right term?)
-	if e := gz.Close(); e != nil { 
-		fmt.Printf("cgo err{%v}\n", e)
-		return C.res { cont:nil, leng:0 }
-	}
+	////close compressor (is that the right term?)
+	//if e := gz.Close(); e != nil { 
+	//	fmt.Printf("cgo err{%v}\n", e)
+	//	return C.res { cont:nil, leng:0 }
+	//}
 
-	//copy []byte byffer to a C allocator *char buffer
-	c_chars, c_size :=  copy_bytes_to_c_char(b.Bytes())
+	////copy []byte byffer to a C allocator *char buffer
+	//c_chars, c_size :=  copy_bytes_to_c_char(b.Bytes())
 
-	//return the struct
-	return C.res { cont:c_chars, leng:c_size }
+	////return the struct
+	//return C.res { cont:c_chars, leng:c_size }
+	return generic_compressor(data, length, func(w io.Writer) io.WriteCloser {
+		return gzip.NewWriter(w)
+	})
 }
 
 //compress brotli

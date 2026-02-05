@@ -87,6 +87,22 @@ func Br(data *C.char, length C.int) C.res {
 	return C.res { cont:c_chars, leng:c_size }
 }
 
+//decompress brotli
+//export De_Br
+func De_Br(data *C.char, length C.int) C.res {
+	goBytes := c_chars_to_go_bytes(data, length)
+	b := bytes.NewBuffer(goBytes)
+	br := cbrotli.NewReader(b)
+	defer br.Close(); 
+	uncomp, e := io.ReadAll(br)
+	if e != nil && e != io.EOF {
+		fmt.Printf("cgo brotli err{%v}", e)
+		return C.res { cont:nil, leng:0 }
+	}	
+	c_chars, c_size := copy_bytes_to_c_char(uncomp)
+	return C.res { cont:c_chars, leng:c_size }
+}
+
 //decompress gzip
 //export De_Gz
 func De_Gz(data *C.char, length C.int) C.res {

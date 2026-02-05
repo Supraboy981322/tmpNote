@@ -570,6 +570,7 @@ pub const compression = struct {
             switch (enc) {
                 .gzip => break :b compress.Gz(in.ptr, @intCast(in.raw.len)),
                 .br, .brotli => break :b compress.Br(in.ptr, @intCast(in.raw.len)),
+                .zlib => break :b compress.Zlib(in.ptr, @intCast(in.raw.len)),
                 //shouldn't happen, but just in case
                 .none => break :b compress.res{
                     .cont = in.ptr,
@@ -606,6 +607,7 @@ pub const compression = struct {
             switch (enc) {
                 .gzip => break :b compress.De_Gz(in.ptr, @intCast(in.raw.len)),
                 .br, .brotli => break :b compress.De_Br(in.ptr, @intCast(in.raw.len)),
+                .zlib => break :b compress.De_Zlib(in.ptr, @intCast(in.raw.len)),
                 //shouldn't happen, but just in case
                 .none => break :b compress.res{
                     .cont = in.ptr,

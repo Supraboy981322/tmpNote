@@ -98,11 +98,13 @@ pub const log_fmt = enum {
 pub const compression = enum {
     br, brotli,
     gzip,
+    zlib,
     none,
     unknown,
 };
 
 pub const compression_preference = [_]compression {
+    .zlib,
     .gzip,
     .br, .brotli,
     .none, //shouldn't be grabbed, but here just in case 

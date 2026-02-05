@@ -19,7 +19,7 @@ import (
 );
 
 type comp[T io.Writer] func(io.Writer) T
-type de_comp[T io.Reader] func(io.Reader) T
+type de_comp[T io.Reader] func(io.Reader) (T, error)
  
 func main() {}
 
@@ -66,6 +66,27 @@ func generic_comp[T io.WriteCloser](
 	return C.res { cont:c_chars, leng:c_int }
 }
 
+func generic_de_comp[T io.Reader](
+	data *C.char,
+	length C.int,
+	de_comp de_comp[T],
+) C.res {
+	go_bytes := c_chars_to_go_bytes(data, length)
+	b := bytes.NewBuffer(go_bytes)
+	re, e := de_comp(b)
+	if e != nil {
+		fmt.Printf("failed to create de compressor: %v", e)
+		return C.res{cont:nil,leng:0}
+	}
+	uncomp, e := io.ReadAll(re)
+	if e != nil && e != io.EOF {
+		fmt.Printf("cgo failed to decompress: %v", e)
+		return C.res{cont:nil,leng:0}
+	}
+	c_chars, c_int := copy_bytes_to_c_char(uncomp)
+	return C.res{cont:c_chars,leng:c_int}
+}
+
 //compress gzip
 //export Gz
 func Gz(data *C.char, length C.int) C.res {
@@ -86,64 +107,15 @@ func Br(data *C.char, length C.int) C.res {
 //decompress brotli
 //export De_Br
 func De_Br(data *C.char, length C.int) C.res {
-	//goBytes := c_chars_to_go_bytes(data, length)
-	//b := bytes.NewBuffer(goBytes)
-	//br := cbrotli.NewReader(b)
-	//defer br.Close(); 
-	//uncomp, e := io.ReadAll(br)
-	//if e != nil && e != io.EOF {
-	//	fmt.Printf("cgo brotli err{%v}", e)
-	//	return C.res { cont:nil, leng:0 }
-	//}	
-	//c_chars, c_size := copy_bytes_to_c_char(uncomp)
-	//return C.res { cont:c_chars, leng:c_size }
-	return generic_de_comp(data, length, func(w io.Reader) io.Reader {
-		return cbrotli.NewReader(w)
+	return generic_de_comp(data, length, func(w io.Reader) (io.Reader, error) {
+		return cbrotli.NewReader(w), nil
 	})
-}
-
-func generic_de_comp[T io.Reader](
-	data *C.char,
-	length C.int,
-	de_comp de_comp[T],
-) C.res {
-	go_bytes := c_chars_to_go_bytes(data, length)
-	b := bytes.NewBuffer(go_bytes)
-	re := de_comp(b)
-	uncomp, e := io.ReadAll(re)
-	if e != nil && e != io.EOF {
-		fmt.Printf("cgo failed to decompress: %v", e)
-		return C.res{cont:nil,leng:0}
-	}
-	c_chars, c_int := copy_bytes_to_c_char(uncomp)
-	return C.res{cont:c_chars,leng:c_int}
 }
 
 //decompress gzip
 //export De_Gz
 func De_Gz(data *C.char, length C.int) C.res {
-	//convert *C.char to []byte
-	goBytes := c_chars_to_go_bytes(data, length)
-
-	//compress data
-	b := bytes.NewBuffer(goBytes)
-	gz, e := gzip.NewReader(b)
-	if e != nil {
-		fmt.Printf("cgo err{%v}\n", e)
-		return C.res { cont:nil, leng:0 }
-	}
-	defer gz.Close()
-
-	//get []byte from result
-	uncomp, e := io.ReadAll(gz)
-	if e != nil && e != io.EOF {
-		fmt.Printf("cgo err{%v}\n", e)
-		return C.res { cont:nil, leng:0 }
-	}
-
-	//copy []byte to a C allocator *char buffer
-	c_chars, c_size := copy_bytes_to_c_char(uncomp)
-
-	//return the struct
-	return C.res { cont:c_chars, leng:c_size }
+	return generic_de_comp(data, length, func(w io.Reader) (io.Reader, error) {
+		return gzip.NewReader(w)
+	})
 }

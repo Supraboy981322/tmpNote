@@ -123,7 +123,8 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     //log the request
     try log.req(curTime, remAddr, reqPage); 
 
-    const encoding = b: {
+    var encoding:globs.Encoding = undefined;
+    encoding = b: {
         var pItr = req.iterateHeaders();
         while (pItr.next()) |h| {
             if (mem.eql(u8, h.name, "Accept-Encoding")) {
@@ -133,17 +134,17 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
                     log.err("failed to append to encoding array: {t}", .{e}) catch {};
                     return e;
                 };
-                break :b stuff.items;
+                break :b .{ .accepts = stuff.items, .picked = .unknown };
             }
         }
-        break :b null;
+        break :b .{ .accepts = null, .picked = .none };
     };
 
 
     //struct passed to handler fn
-    const serverConn:ServerConn = ServerConn{
+    var serverConn:ServerConn = ServerConn{
         .conn = conn,
-        .encoding = encoding,
+        .encoding = @constCast(&encoding),
         .req = req,
         .reqPage = reqPage,
         .reqTime = curTime,
@@ -156,10 +157,10 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     //determine if api call or web req 
     var target = mem.tokenizeSequence(u8, reqPage, "/");
     if (target.next()) |t| if (mem.eql(u8, t, "api")) { 
-        if (target.next()) |t2| web_hlp.handle_api(serverConn, t2, &db) else {
-            web.send_err(404, "Not Found", serverConn);
+        if (target.next()) |t2| web_hlp.handle_api(&serverConn, t2, &db) else {
+            web.send_err(404, "Not Found", &serverConn);
         }
-    } else web_hlp.handle_web(serverConn, &db) catch |e| return e;
+    } else web_hlp.handle_web(&serverConn, &db) catch |e| return e;
 
     //make sure the buffer was flushed
     req.server.out.flush() catch {};

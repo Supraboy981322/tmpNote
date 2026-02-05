@@ -27,7 +27,7 @@ const File_Type = globs.File_Type;
 
 //handles api requests
 pub fn handle_api(
-    conn:ServerConn,
+    conn:*ServerConn,
     t2:[]const u8,
     db:*std.StringHashMap(Note)
 ) void {
@@ -83,7 +83,7 @@ pub fn handle_api(
 
 //determines what file to send and handles it
 pub fn handle_web(
-    serverConn:ServerConn,
+    serverConn:*ServerConn,
     db:*std.StringHashMap(Note)
 ) !void {
     //alias for requested page
@@ -112,7 +112,7 @@ pub fn handle_web(
 
 //generic helper to serve byte slice
 fn generic_serve(
-    conn:ServerConn,
+    conn:*ServerConn,
     typ:[]const u8,
     content:[]const u8,
 ) !void {
@@ -123,7 +123,7 @@ fn generic_serve(
 
 //api for new note
 fn api_new(
-    serverConn:ServerConn,
+    serverConn:*ServerConn,
     alloc:mem.Allocator,
     isReq:bool,
     db:*std.StringHashMap(Note)
@@ -199,7 +199,7 @@ fn api_new(
     }
 
     //create new connection struct
-    const new_conn = ServerConn{
+    var new_conn = ServerConn{
         .conn = conn.conn,
         .encoding = conn.encoding,
         .req = conn.req,
@@ -218,11 +218,11 @@ fn api_new(
 
     //array of fns that chk places for note 
     const fns = [2]*const fn(
-        mem.Allocator, ServerConn, []const u8
+        mem.Allocator, *ServerConn, []const u8
     ) combined_err_typ![]u8{ get_params, read_body, };
     //iterate through array of fns (passes new connection struct)
     for (fns) |f| {
-        if (note.len == 0) note = f(alloc, new_conn, "note") catch |e| {
+        if (note.len == 0) note = f(alloc, &new_conn, "note") catch |e| {
             //just print err if err isn't no length
             if (e != note_errs.zero_len) try log.err("{t}", .{e});
             continue; //continue either way
@@ -233,7 +233,7 @@ fn api_new(
     const id:[]u8 = hlp.ranStr(16, alloc) catch |e| {
         try log.err("failed to generate random string (hlp.ranStr()) {t}", .{e});
         //either respond with html err page or plain-text
-        if (respond_html) web.send_err(500, "server err", new_conn) else {
+        if (respond_html) web.send_err(500, "server err", &new_conn) else {
             hlp.send.headersWithType(
                 500, curTime, req, null, null, "text/plain"
             ) catch {}; return "server error";
@@ -274,6 +274,7 @@ fn api_new(
             break :b try alloc.dupe(u8, n_C);
         } else note,
         .file = file,
+        .compression = conf.compression,
         .encrypt = false, //may add encryption later
     };
 
@@ -283,7 +284,7 @@ fn api_new(
     //add the note to db
     db.put(id, n) catch |e| { //on err
         //either respond html err page or plain-text
-        if (respond_html) web.send_err(500, "failed to store note", new_conn) else {
+        if (respond_html) web.send_err(500, "failed to store note", &new_conn) else {
             //send headers (500 server err)
             hlp.send.headersWithType(
                 500, curTime, req, null, null, "text/plain"
@@ -304,7 +305,7 @@ fn api_new(
 
 //api for new note
 fn api_view(
-    conn:ServerConn,
+    conn:*ServerConn,
     alloc:mem.Allocator,
     isReq:bool,
     db:*std.StringHashMap(Note)
@@ -322,7 +323,7 @@ fn api_view(
 
         //create a list of fns to check for id
         const fns = [_]*const fn(
-            mem.Allocator, ServerConn, []const u8
+            mem.Allocator, *ServerConn, []const u8
         ) anyerror![]u8 { get_params, get_header, read_body };
 
         //iterate over the list of fns
@@ -528,7 +529,10 @@ pub const compression = struct {
             if (en != .unknown and en != .none) {
                 const co_I = for (0..,globs.compression_preference) |i, co| {
                     if (co == en) break i;
-                } else @panic("uncaught: invalid compression");
+                } else {
+                    try log.errf("uncaught: invalid compression ({s})", .{@tagName(en)});
+                    unreachable;
+                };
                 if (best < co_I) best = co_I;
             }
         }
@@ -547,25 +551,25 @@ pub const compression = struct {
 
     pub fn do(
         in_R:[]const u8,
-        conn:ServerConn,
+        conn:*ServerConn,
         encs_R:?[][]const u8,
         encs_e:?globs.compression,
         alloc:mem.Allocator
     ) ![]const u8 {
-        _ = conn;
         //too large to handle currently  TODO: i64
         if (in_R.len > std.math.maxInt(i32)) return in_R;
 
         const in = try Self.const_u8_to_c_str(in_R, alloc);
 
+        //get enum from compression input
+        const enc = try Self.get_current(encs_R, encs_e);
+
         //compress
         const comp = b: {
-            //get enum from compression input
-            const enc = try Self.get_current(encs_R, encs_e);
-
             //switch on compression type  TODO: more compression types
             switch (enc) {
                 .gzip => break :b compress.Gz(in.ptr, @intCast(in.raw.len)),
+                .br, .brotli => break :b compress.Br(in.ptr, @intCast(in.raw.len)),
                 //shouldn't happen, but just in case
                 .none => break :b compress.res{
                     .cont = in.ptr,
@@ -574,6 +578,7 @@ pub const compression = struct {
                 .unknown => break :b null,
             }
         };
+        conn.encoding.picked = if (enc == .unknown) .none else enc;
 
         //return unwrapped
         return try Self.attempt_unwrap(alloc, comp);
@@ -581,7 +586,7 @@ pub const compression = struct {
 
     pub fn undo(
         in_R:[]const u8,
-        conn:ServerConn,
+        conn:*ServerConn,
         encs_R:?[][]const u8,
         encs_e:?globs.compression,
         alloc:mem.Allocator
@@ -606,6 +611,10 @@ pub const compression = struct {
                     .leng = @intCast(in.raw.len),
                 },
                 .unknown => break :b null,
+                else => {
+                    try log.deb("TODO: decoding {s}", .{@tagName(enc)});
+                    break :b null;
+                }
             }
         };
 
@@ -616,10 +625,10 @@ pub const compression = struct {
 
 fn page_compressor_handler(
     resp_page_R:[]const u8,
-    conn:ServerConn,
+    conn:*ServerConn,
     alloc:mem.Allocator,
 ) []const u8 {
-    const res = if (conn.encoding) |enc| compression.do(
+    const res = if (conn.encoding.accepts) |enc| compression.do(
         resp_page_R, conn, enc, null, alloc
     ) catch |e| b: {
         if (e != globs.server_errs.UnknownType) {
@@ -632,9 +641,22 @@ fn page_compressor_handler(
     const add_headers = [_][]const u8 {
         //only send compression header if applicable
         //  (sends garbage which'll be filtered-out by stuff like Nginx otherwise)
-        if (conn.encoding) |_| "Content-Encoding: gzip" else "_: ignore me",
+        if (conn.encoding.accepts) |_| b: {
+            break :b fmt.allocPrint(
+                alloc, "Content-Encoding: {s}", .{@tagName(conn.encoding.picked)}
+            ) catch |e| {
+                log.err("failed to alloc print \"Content-Encoding\" header: {t}", .{e}) catch {};
+                break :b "_: ignore me";
+            };
+        } else alloc.dupe(u8, "_: ignore me") catch |e| {
+            log.err("failed to alloc.dupe: {t}", .{e}) catch {};
+            hlp.send.headersWithType(
+                200, conn.reqTime, conn.req, null, null, null
+            ) catch {};
+            return resp_page_R;
+        },
         "Vary: Accept-Encoding", // TODO: check if should be removed if no compression 
-    };
+    }; defer alloc.free(add_headers[0]);
 
     //respond with headers
     hlp.send.headersWithType(
@@ -646,7 +668,7 @@ fn page_compressor_handler(
 
 //web page for new note (not much goes on here)
 fn newNotePage(
-    conn:ServerConn,
+    conn:*ServerConn,
     alloc:mem.Allocator,
 ) !void {
     //define placeholder replacements
@@ -682,7 +704,7 @@ fn newNotePage(
 
 //web page for view note 
 fn viewNotePage(
-    conn:ServerConn,
+    conn:*ServerConn,
     alloc:mem.Allocator,
     db:*std.StringHashMap(Note)
 ) !void {
@@ -766,7 +788,7 @@ pub const web = struct {
     var view:[]const u8 = @embedFile("web_comp/view_note.html");
 
     //helper to send error page
-    pub fn send_err(code:i16, stat:[]const u8, conn:ServerConn) void {
+    pub fn send_err(code:i16, stat:[]const u8, conn:*ServerConn) void {
         const curTime = conn.reqTime;
         const req = conn.req;
 
@@ -829,7 +851,7 @@ pub const web = struct {
 
 fn get_header(
     alloc:mem.Allocator,
-    conn:ServerConn,
+    conn:*ServerConn,
     which:[]const u8,
 ) ![]u8 {
     //iterate over headers
@@ -844,7 +866,7 @@ fn get_header(
 //helper to get the query params
 fn get_params(
     alloc: mem.Allocator,
-    serverConn:ServerConn,
+    serverConn:*ServerConn,
     which:[]const u8
 ) mem.Allocator.Error![]u8 {
     //alias for params
@@ -870,7 +892,7 @@ fn get_params(
 //helper to read request body
 fn read_body(
     alloc: mem.Allocator,
-    conn: ServerConn,
+    conn:*ServerConn,
     which:[]const u8
 ) ![]u8 {
     _ = which;
@@ -907,7 +929,7 @@ fn read_body(
 
 fn generate_note_info(
     alloc:mem.Allocator,
-    conn:ServerConn,
+    conn:*ServerConn,
     lw_note:LW_Note
 ) []const u8 {
     _ = conn; //might need this at some point

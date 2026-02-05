@@ -18,10 +18,15 @@ pub const note_errs = error {
     invalid_escape,
 };
 
+pub const Encoding = struct {
+    accepts: ?[][]const u8,
+    picked: compression,
+};
+
 //struct with various information used as fn params
 pub const ServerConn = struct {
     conn: std.net.Server.Connection,
-    encoding: ?[][]const u8,
+    encoding: *Encoding,
     req: std.http.Server.Request,
     reqPage: []const u8,
     reqTime: []u8,
@@ -57,6 +62,7 @@ pub const File = struct {
 pub const Note = struct {
     content: []u8,
     file: File,
+    compression: compression,
     encrypt: bool, //might do this at some point
 };
 
@@ -90,6 +96,7 @@ pub const log_fmt = enum {
 };
 
 pub const compression = enum {
+    br, brotli,
     gzip,
     none,
     unknown,
@@ -97,5 +104,6 @@ pub const compression = enum {
 
 pub const compression_preference = [_]compression {
     .gzip,
+    .br, .brotli,
     .none, //shouldn't be grabbed, but here just in case 
 };

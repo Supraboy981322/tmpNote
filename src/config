@@ -23,4 +23,4 @@ log_level : debug
 log_format : json
 
 # note compression
-compression : gzip
+compression : br

@@ -27,8 +27,12 @@
     overflow: hidden;
   }
   &> div {
-    &:not(&:has(#file)) {
+    &:not(&:has(#file)):not(&:has(.resText:not([hidden]))) {
       margin-top: 9em;
+      &:has(.note_page_btn) { margin-top: 12em; }
+    }
+    &:has(.resText:not([hidden])) {
+      &>h1 { margin: 0; }
     }
     &.collapsed * {
       opacity: 0;

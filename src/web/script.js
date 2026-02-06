@@ -68,12 +68,12 @@ var note_info = undefined; //may use for more than rendering the page
         //continue button
         let continue_btn = document.createElement("div");
         continue_btn.setAttribute("class", "continue");
-        continue_btn.onclick = view_img;
+        continue_btn.onclick = () => view_img(note_info, file_elm);
         continue_btn.innerText = "continue";
         warning.appendChild(continue_btn);
         
         file_elm.appendChild(warning_container);
-      } else { file_page(note_info, file_elm) }
+      } else file_page(note_info, file_elm);
     }
   }
 })(); 
@@ -201,9 +201,12 @@ function dl_file(caller) {
 }
 
 function view_img(note_info, file_elm) {
+  let img_url = `${window.location.origin}/api/view?id=${note_info.note_id}`;
+  file_elm.innerHTML = '';
+  file_page(note_info, file_elm, img_url);
 }
 
-function file_page(note_info, file_elm) {
+function file_page(note_info, file_elm, img) {
   //left pane
   var left = document.createElement("div");
   left.setAttribute("class", "left_pane");
@@ -235,6 +238,18 @@ function file_page(note_info, file_elm) {
     file_type_elm.innerText = note_info.file_type;
     fi_typ.appendChild(file_type_elm);
     left.appendChild(fi_typ);
+    
+    if (note_info.comment != null) {
+      let comment_title = document.createElement("p");
+      comment_title.class = "comment_title";
+      comment_title.innerText = "note comment";
+      left.appendChild(comment_title);
+
+      let comment = document.createElement("pre");
+      comment.class = "note_comment";
+      comment.innerText = note_info.comment;
+      left.appendChild(comment);
+    }
   }
 
   //right pane
@@ -247,11 +262,15 @@ function file_page(note_info, file_elm) {
     right.appendChild(preview_title);
 
     //file preview
-    var preview_text = document.createElement("pre");
-    preview_text.setAttribute("class", "preview");
-    const p_R = note_info.prev;
-    preview_text.innerText = (p_R == null) ? "couldn't generate preview" : p_R;
-    right.appendChild(preview_text);
+    let pre_elm_type = (note_info.class == "Picture") ? "img" : "pre";
+    var preview_elm = document.createElement(pre_elm_type);
+    preview_elm.setAttribute("class", "preview");
+    if (pre_elm_type == "img") preview_elm.src = img; else {
+      const p_R = note_info.prev;
+      preview_elm.innerText = (p_R == null) ? "couldn't generate preview" : p_R;
+    }
+      
+    right.appendChild(preview_elm);
   }
 
   //add the panes to the document

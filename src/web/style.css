@@ -153,10 +153,9 @@ pre#note { border: solid #697da3 0.25em; }
     background-color: #697da3 !important;
   }
   &:hover {
-    padding: 0.005;
     background-color: #88c0d0;
-    font-size: 1.05em;
-    margin: -0.25em auto;
+    font-size: calc(2ch * 1.05);
+    margin-top: calc(2ch * -0.05);
     &::selection {
       background-color: #d8dee9 !important;
     }

@@ -177,10 +177,21 @@ async function newNote() {
 
 //download a file from a note
 function dl_file(caller) {
+  const link = (note_info.class == "Picture") ? (() => {
+    const img = document.querySelector(".preview");
+
+    const can = document.createElement("canvas");
+    can.width = img.naturalWidth;
+    can.height = img.naturalHeight;
+
+    const ctx = can.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+
+    return can.toDataURL();
+  })() : `${window.location.origin}/api/view?id=${note_info.note_id}`;
   //the stupid "dance" (as they say) that must be done
   //  to download a file programmatically in JS
   const elm = document.createElement("a");
-  const link = `${window.location.origin}/api/view?id=${note_info.note_id}`;
   elm.href = link;
   elm.setAttribute("download", "TODO_download_with_filename");
   elm.style.display = "none";
@@ -241,12 +252,12 @@ function file_page(note_info, file_elm, img) {
     
     if (note_info.comment != null) {
       let comment_title = document.createElement("p");
-      comment_title.class = "comment_title";
+      comment_title.setAttribute("class", "comment_title");
       comment_title.innerText = "note comment";
       left.appendChild(comment_title);
 
       let comment = document.createElement("pre");
-      comment.class = "note_comment";
+      comment.setAttribute("class", "note_comment");
       comment.innerText = note_info.comment;
       left.appendChild(comment);
     }

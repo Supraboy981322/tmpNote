@@ -4,7 +4,6 @@
 }
 
 :root {
-  height: 100%;
   background-color: #2e3440;
   transition: background-color 0ms !important;
 }
@@ -18,12 +17,19 @@
 :root, body {
   margin: 0;
   padding: 0;
+  display: flex;
+  height: 100vh;
   color: #d8dee9;
+  align-items: center;
   font-family: monospace;
+  justify-content: space-around;
   &:has(.collapsed) {
     overflow: hidden;
   }
   &> div {
+    &:not(&:has(#file)) {
+      margin-top: 9em;
+    }
     &.collapsed * {
       opacity: 0;
       width: 0 !important;
@@ -183,27 +189,48 @@ pre#note { border: solid #697da3 0.25em; }
     border-radius: 1em;
     text-align: center;
     background-color: #4c566a;
+    box-sizing: border-box;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    width: calc(50vw - 5em);
   }
   &>.left_pane {
     .dl_btn {
       border-radius: 0.3em;
       padding: 0.2em 0.5em;
       outline: none;
+      margin-bottom: 0.25em;
       border: none;
+    }
+    &>p {
+      padding: 0.4em;
+      margin:0;
     }
     &>.fi_typ > code, &>.fi_size > code {
       margin-left: 0.5em;
-      padding: 0.25em;
+      padding: 0.2em;
+      margin: 0;
       border-radius: 0.25em;
       background-color: #2e3440;
       border: solid 0.1em #8b93a3;
+    }
+    &>.note_comment {
+      flex: 1;
+      margin: 0;
+      padding: 1em;
+      overflow: auto;
+      text-align: left;
+      border-radius: 0.7em;
+      box-sizing: border-box;
+      background-color: #2e3440;
     }
   }
   &>.right_pane {
     h3 {
       height: 10%;
       margin: 0;
-      padding: 0;
+      padding: 0 0 1em 0;
     }
     .preview {
       margin: 0;
@@ -213,8 +240,13 @@ pre#note { border: solid #697da3 0.25em; }
       display: block;
       background-color: #2e3440;
       width: 100%;
-      height: 90%;
+      height: 100%;
       border-radius: 0.7em;
+      &.img {
+        padding: 0;
+        width: auto;
+        object-fit: contain;
+      }
     }
   }
 }

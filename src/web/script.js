@@ -267,16 +267,18 @@ function file_page(note_info, file_elm, img) {
   var right = document.createElement("div");
   right.setAttribute("class", "right_pane");
   {
+    let is_img = note_info.class == "Picture";
+
     //preview pane title
     var preview_title = document.createElement("h3");
     preview_title.innerText = "preview";
     right.appendChild(preview_title);
 
     //file preview
-    let pre_elm_type = (note_info.class == "Picture") ? "img" : "pre";
+    let pre_elm_type = (is_img) ? "img" : "pre";
     var preview_elm = document.createElement(pre_elm_type);
-    preview_elm.setAttribute("class", "preview");
-    if (pre_elm_type == "img") preview_elm.src = img; else {
+    preview_elm.setAttribute("class", "preview " + ((is_img) ? "img" : ""));
+    if (is_img) preview_elm.src = img; else {
       const p_R = note_info.prev;
       preview_elm.innerText = (p_R == null) ? "couldn't generate preview" : p_R;
     }

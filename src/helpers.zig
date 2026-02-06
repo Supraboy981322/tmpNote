@@ -459,7 +459,11 @@ pub fn chk_magic(b_s:[]u8) File_Type {
     const is_text = chk_is_ascii(b_s);
     var typ:[]const u8 = if (is_text) "text/plain" else "unknown";
     
-    var m:globs.Magic = undefined;
+    var m:globs.Magic = .{
+        .raw = "",
+        .desc = "couldn't match",
+        .class = "unknown",
+    };
 
     if (!is_text) for (file_types.list) |p| {
         const t = p[1]; //type description
@@ -482,7 +486,7 @@ pub fn chk_magic(b_s:[]u8) File_Type {
 //helper for plain-text
 pub fn text_magic() globs.Magic {
     return globs.Magic {
-        .raw = "",
+        .raw = "foo",
         .desc = "plain text",
         .class = "text",
     };

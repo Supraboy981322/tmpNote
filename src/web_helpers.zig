@@ -282,7 +282,6 @@ fn api_new(
                 try log.err("failed to compress note: {t}", .{e});
                 return e;
             };
-            try log.deb("{s}", .{hlp.chk_magic(@constCast(n_C)).typ});
 
             break :b try alloc.dupe(u8, n_C);
         } else note,
@@ -292,14 +291,14 @@ fn api_new(
     };
 
     //log the file type (debug)
-    log.deb(
-        "put: configured{{{s}}} found{{{s}}} length{{{d}}}",
-        .{
-            @tagName(n.compression),
-            hlp.chk_magic(@constCast(n.content)).typ, 
-            n.content.len
-        }
-    ) catch {};
+    //log.deb(
+    //    "put: configured{{{s}}} found{{{s}}} length{{{d}}}",
+    //    .{
+    //        @tagName(n.compression),
+    //        hlp.chk_magic(@constCast(n.content)).typ, 
+    //        n.content.len
+    //    }
+    //) catch {};
 
     //add the note to db
     db.put(id, n) catch |e| { //on err
@@ -451,6 +450,7 @@ fn api_view(
 
     //only send headers if not internal request
     if (isReq) {
+        //additional headers with note info
         const add_head = [_][]const u8{
             try fmt.allocPrint(alloc, "comment: {s}", .{file.comment}),
         };
@@ -689,7 +689,6 @@ fn page_compressor_handler(
         },
         if (info) |i| b: {
             const c = i.comment;
-            log.deb("{s}", .{c}) catch {};
             break :b fmt.allocPrint(alloc, "comment: {s}", .{ c }) catch |e| bl: {
                 log.err("Failed to format comment header: {t}", .{e}) catch {};
                 break :bl alloc.dupe(u8, "_: ignore me") catch return resp_page_R;
@@ -736,9 +735,6 @@ fn newNotePage(
         respPage_R, conn, alloc, null//.{ .comment = undefined } 
     );
 
-    //leaving here for now to validate compression later  TODO: more types
-    try log.deb("{s}", .{ hlp.chk_magic(@constCast(resp_page)).typ });
-
     //send page
     conn.req.server.out.print("{s}", .{resp_page}) catch {};
     conn.req.server.out.flush() catch {};
@@ -784,8 +780,8 @@ fn viewNotePage(
         "<!-- note content -->",
         "<!-- is deleted -->",
         // TODO: remove (included in minified pages from comptime)
-        "<!-- style.css -->",
-        "<!-- script.js -->",
+        //"<!-- style.css -->",
+        //"<!-- script.js -->",
     }; const replacs = [_][]const u8 {
         //server name
         conn.conf.name,
@@ -799,11 +795,11 @@ fn viewNotePage(
         note,
         //only show "note deleted" if it's not a file 
         if (note_lw.is_file) "" else "<p><i>note deleted</i></p>",
-        // TODO: replace with comptime generated pages
-        //inline CSS stylesheet
-        "<style>\n" ++ @embedFile("web/style.css") ++ "</style>\n",
-        //inline JS
-        "<script async>\n" ++ @embedFile("web/script.js") ++ "</script>\n",
+        //// TODO: replace with comptime generated pages
+        ////inline CSS stylesheet
+        //"<style>\n" ++ @embedFile("web/style.css") ++ "</style>\n",
+        ////inline JS
+        //"<script async>\n" ++ @embedFile("web/script.js") ++ "</script>\n",
     };
 
     //generate the page
@@ -977,23 +973,30 @@ fn generate_note_info(
     lw_note:LW_Note
 ) []const u8 {
     _ = conn; //might need this at some point
-    
+
     //convert non-string values to a string (makes the function easier to read)
     const str_is_file = fmt.allocPrint(alloc, "{}", .{lw_note.is_file}) catch "false";
     const str_size = fmt.allocPrint(alloc, "{d}", .{lw_note.size}) catch "null";
     
     //"true" and "false" (used for flagging a string or non-string)
     const T, const F = .{ "_", "" };
+
+    const has_comment = lw_note.comment.len > 0;
+
+    const comment = if (has_comment) lw_note.comment else "null";
+
     //fields:
     //  .{ [key], [value], [is_string] }
     const stuff = [_][3][]const u8 {
-        .{ "note_size", str_size,     F },
-        .{ "is_file",   str_is_file,  F },
-        .{ "file_type", lw_note.typ,  T },
-        .{ "prev",      lw_note.prev, T },
-        .{ "note_id",   lw_note.id,   T },
-        .{ "class",     lw_note.magic.class,T },
+        .{ "note_size", str_size,            F },
+        .{ "is_file",   str_is_file,         F },
+        .{ "file_type", lw_note.typ,         T },
+        .{ "prev",      lw_note.prev,        T },
+        .{ "note_id",   lw_note.id,          T },
+        .{ "class",     lw_note.magic.class, T },
+        .{ "comment",   comment,             if (has_comment) T else F },
     };
+    
     
     return hlp.mk_json(
         alloc, @TypeOf(stuff[0]),  stuff.len, stuff

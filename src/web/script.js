@@ -68,66 +68,12 @@ var note_info = undefined; //may use for more than rendering the page
         //continue button
         let continue_btn = document.createElement("div");
         continue_btn.setAttribute("class", "continue");
-        continue_btn.onclick = view_image;
+        continue_btn.onclick = view_img;
         continue_btn.innerText = "continue";
         warning.appendChild(continue_btn);
         
         file_elm.appendChild(warning_container);
-      } else {
-        //left pane
-        var left = document.createElement("div");
-        left.setAttribute("class", "left_pane");
-        {
-          //download button
-          var dl_btn = document.createElement("button");
-          dl_btn.onclick = () => { return dl_file(dl_btn) };
-          dl_btn.setAttribute("class", "dl_btn");
-          dl_btn.innerText = "download";
-          left.appendChild(dl_btn);
-
-          //note file size element
-          var fi_size_cont = document.createElement("p");
-          fi_size_cont.setAttribute("class", "fi_size");
-          fi_size_cont.innerText = "note size:";
-          //nest value in '<code>' element 
-          var fi_size = document.createElement("code");
-          fi_size.innerText = `${note_info.note_size} bytes`;
-          fi_size_cont.appendChild(fi_size);
-          left.appendChild(fi_size_cont);
-          
-          //note file type 
-          var fi_typ = document.createElement("p");
-          fi_typ.setAttribute("class", "fi_typ");
-          fi_typ.innerText = "file type:";
-          //nest value in '<code>' element 
-          var file_type_elm = document.createElement("code");
-          file_type_elm.setAttribute("class", "file_type");
-          file_type_elm.innerText = note_info.file_type;
-          fi_typ.appendChild(file_type_elm);
-          left.appendChild(fi_typ);
-        }
-
-        //right pane
-        var right = document.createElement("div");
-        right.setAttribute("class", "right_pane");
-        {
-          //preview pane title
-          var preview_title = document.createElement("h3");
-          preview_title.innerText = "preview";
-          right.appendChild(preview_title);
-
-          //file preview
-          var preview_text = document.createElement("pre");
-          preview_text.setAttribute("class", "preview");
-          const p_R = note_info.prev;
-          preview_text.innerText = (p_R == null) ? "couldn't generate preview" : p_R;
-          right.appendChild(preview_text);
-        }
-
-        //add the panes to the document
-        file_elm.appendChild(left);
-        file_elm.appendChild(right);
-      }
+      } else { file_page(note_info, file_elm) }
     }
   }
 })(); 
@@ -252,4 +198,63 @@ function dl_file(caller) {
 
   //disable the download button
   caller.setAttribute("disabled", "");
+}
+
+function view_img(note_info, file_elm) {
+}
+
+function file_page(note_info, file_elm) {
+  //left pane
+  var left = document.createElement("div");
+  left.setAttribute("class", "left_pane");
+  {
+    //download button
+    var dl_btn = document.createElement("button");
+    dl_btn.onclick = () => { return dl_file(dl_btn) };
+    dl_btn.setAttribute("class", "dl_btn");
+    dl_btn.innerText = "download";
+    left.appendChild(dl_btn);
+
+    //note file size element
+    var fi_size_cont = document.createElement("p");
+    fi_size_cont.setAttribute("class", "fi_size");
+    fi_size_cont.innerText = "note size:";
+    //nest value in '<code>' element 
+    var fi_size = document.createElement("code");
+    fi_size.innerText = `${note_info.note_size} bytes`;
+    fi_size_cont.appendChild(fi_size);
+    left.appendChild(fi_size_cont);
+    
+    //note file type 
+    var fi_typ = document.createElement("p");
+    fi_typ.setAttribute("class", "fi_typ");
+    fi_typ.innerText = "file type:";
+    //nest value in '<code>' element 
+    var file_type_elm = document.createElement("code");
+    file_type_elm.setAttribute("class", "file_type");
+    file_type_elm.innerText = note_info.file_type;
+    fi_typ.appendChild(file_type_elm);
+    left.appendChild(fi_typ);
+  }
+
+  //right pane
+  var right = document.createElement("div");
+  right.setAttribute("class", "right_pane");
+  {
+    //preview pane title
+    var preview_title = document.createElement("h3");
+    preview_title.innerText = "preview";
+    right.appendChild(preview_title);
+
+    //file preview
+    var preview_text = document.createElement("pre");
+    preview_text.setAttribute("class", "preview");
+    const p_R = note_info.prev;
+    preview_text.innerText = (p_R == null) ? "couldn't generate preview" : p_R;
+    right.appendChild(preview_text);
+  }
+
+  //add the panes to the document
+  file_elm.appendChild(left);
+  file_elm.appendChild(right);
 }

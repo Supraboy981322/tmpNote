@@ -448,11 +448,16 @@ fn api_view(
             alloc, "{s}", .{prev_wr.buffer[0..prev_wr.end]}
         ) catch "failed to generate preview"; 
     };
-    
+
     //only send headers if not internal request
-    if (isReq) hlp.send.headersWithType(
-        200, conn.reqTime, conn.req, null, null, file.typ
-    ) catch {}; //ignore err
+    if (isReq) {
+        const add_head = [_][]const u8{
+            try fmt.allocPrint(alloc, "comment: {s}", .{file.comment}),
+        };
+        hlp.send.headersWithType(
+            200, conn.reqTime, conn.req, add_head.len, add_head, file.typ
+        ) catch {}; //ignore err
+    }
 
     //create light-weight note
     const lw_note:LW_Note = .{
@@ -684,6 +689,7 @@ fn page_compressor_handler(
         },
         if (info) |i| b: {
             const c = i.comment;
+            log.deb("{s}", .{c}) catch {};
             break :b fmt.allocPrint(alloc, "comment: {s}", .{ c }) catch |e| bl: {
                 log.err("Failed to format comment header: {t}", .{e}) catch {};
                 break :bl alloc.dupe(u8, "_: ignore me") catch return resp_page_R;

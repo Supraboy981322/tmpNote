@@ -140,13 +140,14 @@ fn api_new(
     };
     //may be set in a few places, so create as empty early
     var note:[]u8 = "";
+    var comment:[]u8 = "";
     {   //scoped so I don't have to worry about var names clobbering 
         var hItr = req.iterateHeaders();
         //iterate over headers
         while (hItr.next()) |h_C| {
             //create enum from header so I can 'switch'
             const h = meta.stringToEnum(enum {
-                @"is-file", @"err-html", note, skip
+                @"is-file", @"err-html", note, skip, comment,
             }, h_C.name) orelse .skip; //if not wanted, set to skip 
             //switch on header enum 
             switch (h) {
@@ -162,6 +163,16 @@ fn api_new(
                         ) catch {};
                         req.server.out.print("bad note", .{}) catch {};
                     } return "";
+                },
+                .comment => comment = alloc.dupe(u8, h_C.value) catch |e| {
+                    if (respond_html) web.send_err(500, "server err", conn) else {
+                        hlp.send.headersWithType(
+                            500, curTime, req, null, null, "text/plain"
+                        ) catch {};
+                        req.server.out.print("server err", .{}) catch {};
+                    }
+                    log.err("alloc note comment failed: {t}", .{e}) catch {};
+                    return "";
                 },
                 //otherwise skip header
                 .skip => continue,
@@ -258,6 +269,7 @@ fn api_new(
         .is_file = is_file,
         .typ = file_type.typ,
         .size = note.len,
+        .comment = comment,
     };
 
     //note struct
@@ -366,6 +378,7 @@ fn api_view(
             .desc = "",
         },
         .size = 0,
+        .comment = "",
     };
 
     //default to invalid
@@ -389,6 +402,7 @@ fn api_view(
         file.typ = if (n.file.is_file) n.file.typ else "text/plain";
         file.is_file = n.file.is_file;
         file.size = n.file.size;
+        file.comment = n.file.comment;
         if (n.file.size == 0) {
             log.deb("n.file.size == 0 (api_view(...))", .{}) catch {};
             return hlp.lazy_lw_note("");
@@ -448,6 +462,7 @@ fn api_view(
         .is_file = file.is_file,
         .typ = file.typ,
         .id = id,
+        .comment = file.comment,
         .prev = if (is_text) prev else "can't generate preview",
     };
 
@@ -638,6 +653,7 @@ fn page_compressor_handler(
     resp_page_R:[]const u8,
     conn:*ServerConn,
     alloc:mem.Allocator,
+    info: ?*const struct { comment:[]u8 },
 ) []const u8 {
     const res = if (conn.encoding.accepts) |enc| compression.do(
         resp_page_R, conn, enc, null, alloc
@@ -666,8 +682,15 @@ fn page_compressor_handler(
             ) catch {};
             return resp_page_R;
         },
+        if (info) |i| b: {
+            const c = i.comment;
+            break :b fmt.allocPrint(alloc, "comment: {s}", .{ c }) catch |e| bl: {
+                log.err("Failed to format comment header: {t}", .{e}) catch {};
+                break :bl alloc.dupe(u8, "_: ignore me") catch return resp_page_R;
+            };
+        } else alloc.dupe(u8, "_: ignore me") catch return resp_page_R,
         "Vary: Accept-Encoding", // TODO: check if should be removed if no compression 
-    }; defer alloc.free(add_headers[0]);
+    }; defer for ([_]usize{ 0, 1 }) |i| alloc.free(add_headers[i]);
 
     //respond with headers
     hlp.send.headersWithType(
@@ -703,7 +726,9 @@ fn newNotePage(
     };
 
     //either compress or leave uncompressed (sends headers)
-    const resp_page = page_compressor_handler(respPage_R, conn, alloc);
+    const resp_page = page_compressor_handler(
+        respPage_R, conn, alloc, null//.{ .comment = undefined } 
+    );
 
     //leaving here for now to validate compression later  TODO: more types
     try log.deb("{s}", .{ hlp.chk_magic(@constCast(resp_page)).typ });
@@ -785,7 +810,9 @@ fn viewNotePage(
     };
 
     //either compress or leave uncompressed (sends headers)
-    const resp_page = page_compressor_handler(respPage_R, conn, alloc);
+    const resp_page = page_compressor_handler(
+        respPage_R, conn, alloc, &.{ .comment = note_lw.comment }
+    );
     
     //send HTML body and return if err
     req.server.out.print("{s}", .{resp_page}) catch return;
@@ -966,4 +993,3 @@ fn generate_note_info(
         alloc, @TypeOf(stuff[0]),  stuff.len, stuff
     );
 }
-

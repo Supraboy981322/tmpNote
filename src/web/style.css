@@ -54,6 +54,21 @@
       min-height: min-content;
     }
     p { text-align: center; }
+    .tab {
+      background-color: #2e3440;
+      outline: none;
+      border: 0.25em solid #d8dee9;
+      width: calc(1ch + 3em);
+      height: calc(1ch + 3em);
+      position: absolute;
+      box-sizing: border-box;
+      border-radius: 0em 1em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      right: 10vw;
+    }
   }
 }
 

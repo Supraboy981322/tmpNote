@@ -28,7 +28,7 @@ var note_info = undefined; //may use for more than rendering the page
         let fn = selector.split('"')[1].split('"')[0];
         switch (fn) {
          case "newNote();": return newNote;
-         case "view_from_new(this);": return ()=>{return view_from_new(btn)};
+         case "view_from_new(this);": return () => { return view_from_new(btn) };
          case "new_from_view();": return new_from_view;
          default: //in case I add to array but forget the switch statement
           console.error(`you forgot to add ${fn} to a switch statement`);
@@ -37,6 +37,14 @@ var note_info = undefined; //may use for more than rendering the page
       })();
     }
   }}
+  
+  if (document.querySelector("body>div>h1>.page").innerText == "new") {
+    //create tab element
+    let tab = document.createElement("div");
+    tab.setAttribute("class", "tab");
+    tab.onclick = () => { return tab_btn(tab) };
+    document.querySelector("#note").before(tab);
+  }
 
   //if the '#note_info' element exists, it's a file 
   const note_info_elm = document.getElementById("note_info");
@@ -289,4 +297,8 @@ function file_page(note_info, file_elm, img) {
   //add the panes to the document
   file_elm.appendChild(left);
   file_elm.appendChild(right);
+}
+
+function tab_btn(btn) {
+  console.log(btn);
 }

@@ -104,7 +104,7 @@ async function copy_id(elm) {
 
   try { //copy to clipboard
     await navigator.clipboard.writeText(id);
-  } catch (e) { alert(`couldn't copy to clipboard\n\t${e}`); }
+  } catch (e) { alert(`couldn't copy to clipboard: ${e}`); }
 
   //wait 100ms then revert to the old styling by switching class back
   setTimeout(() => {
@@ -138,7 +138,7 @@ async function newNote() {
     document.close();
 
     //throw err once done
-    throw new Error(`err, stat: ${resp.status}\n`);
+    throw new Error(`err, stat: ${resp.status}`);
   }
   //get the id
   let id = await resp.text();

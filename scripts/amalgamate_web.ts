@@ -68,9 +68,9 @@ let web = {
 
 //insert css and js into the document
 const re_wr = new HTMLRewriter() ; var style_done:boolean = false; 
-for (const thing of [ "*", "head", "title" ]) re_wr.on(thing, {
+for (const thing of [ "*", "head", "title" ]) {
   //comments are used as placeholders
-  comments(c) {
+  re_wr.on(thing, { comments(c) {
     //comment content
     const txt:string = c.text.trim();
 
@@ -97,8 +97,8 @@ for (const thing of [ "*", "head", "title" ]) re_wr.on(thing, {
 
     //if replaced, log replacement 
     if (ok) console.log(`\t\t\x1b[36mreplaced:\x1b[0m ${ JSON.stringify(txt) }`);
-  }
-})
+  }})
+}
 
 for (const page of [ //array of web ui pages
   await Fi.read("./src/web/view_note.html"),

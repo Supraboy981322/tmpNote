@@ -90,6 +90,7 @@ h1, .resText {
   width: 80vw;
   padding: 2em;
   cursor: text;
+  resize: none;
   outline: none;
   color: #d8dee9;
   display: block;

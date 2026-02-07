@@ -428,6 +428,7 @@ fn api_view(
 
     //check if type is plain-text 
     const is_text = mem.eql(u8, file.typ, "text/plain");
+    try log.deb("{any}", .{is_text});
 
     //only generate preview if it's plain-text
     const prev = if (!is_text) "" else blk: {
@@ -713,17 +714,11 @@ fn newNotePage(
     //define placeholder replacements
     const placs = [_][]const u8 {
         "<!-- server name -->",
-        // TODO: remove (included in minified pages from comptime)
-        "<!-- style.css -->",
-        "<!-- script.js -->",
     }; const replacs = [_][]const u8 {
         conn.conf.name,
-        // TODO: replace with comptime generated pages
-        "<style>\n" ++ @embedFile("web/style.css") ++ "</style>\n",
-        "<script async>\n" ++ @embedFile("web/script.js") ++ "</script>\n",
     };//generate the page
     const respPage_R = hlp.gen_page(
-        web.new, &placs, &replacs, alloc
+        @embedFile("web_comp/new_note.html"), &placs, &replacs, alloc
     ) catch |e| {
         web.send_err(500, "server err", conn);
         try log.err("failed to generate page {t}", .{e});
@@ -766,11 +761,13 @@ fn viewNotePage(
     const esc_html_amper = conn.conf.escape_html_ampersand;
 
     //escape html in note
-    const note = hlp.sanitizeHTML(noteR, alloc, esc_html_amper) catch |e| {
-        try log.err("failed to sanitize html: {t}", .{e});
-        web.send_err(500, "failed to sanitize html", conn);
-        return e;
-    }; defer alloc.free(note); //free the escaped note
+    const note = if (note_lw.is_file) null else b: {
+        break :b hlp.sanitizeHTML(noteR, alloc, esc_html_amper) catch |e| {
+            try log.err("failed to sanitize html: {t}", .{e});
+            web.send_err(500, "failed to sanitize html", conn);
+            return e;
+        };
+    }; defer if (note) |n| { log.deb("freeing note", .{})catch{}; alloc.free(n);}; //free the escaped note
 
     //define placeholder replacements
     const placs = [_][]const u8 {
@@ -779,9 +776,6 @@ fn viewNotePage(
         "<!-- file or plain-text -->",
         "<!-- note content -->",
         "<!-- is deleted -->",
-        // TODO: remove (included in minified pages from comptime)
-        //"<!-- style.css -->",
-        //"<!-- script.js -->",
     }; const replacs = [_][]const u8 {
         //server name
         conn.conf.name,
@@ -792,19 +786,14 @@ fn viewNotePage(
             break :blk "<pre id=\"note\"><!-- note content --></pre>";
         },
         //note content (discarded if file)
-        note,
+        if (note_lw.is_file) "" else note.?,
         //only show "note deleted" if it's not a file 
         if (note_lw.is_file) "" else "<p><i>note deleted</i></p>",
-        //// TODO: replace with comptime generated pages
-        ////inline CSS stylesheet
-        //"<style>\n" ++ @embedFile("web/style.css") ++ "</style>\n",
-        ////inline JS
-        //"<script async>\n" ++ @embedFile("web/script.js") ++ "</script>\n",
     };
 
     //generate the page
     const respPage_R = hlp.gen_page(
-        web.view, &placs, &replacs, alloc
+        @embedFile("web_comp/view_note.html"), &placs, &replacs, alloc
     ) catch |e| {
         web.send_err(500, "server err", conn);
         try log.err("failed to generate page: {t}", .{e});
@@ -823,10 +812,6 @@ fn viewNotePage(
 
 //embeded web-ui files
 pub const web = struct {
-    // TODO: replace with comptime generated pages
-    var new:[]const u8 = @embedFile("web_comp/new_note.html");
-    var view:[]const u8 = @embedFile("web_comp/view_note.html");
-
     //helper to send error page
     pub fn send_err(code:i16, stat:[]const u8, conn:*ServerConn) void {
         const curTime = conn.reqTime;
@@ -860,20 +845,14 @@ pub const web = struct {
             "<!-- error code -->",
             "<!-- error status -->",
             "<!-- err data -->",
-            // TODO: remove (included in minified pages from comptime)
-            "<!-- err.css -->",
-            "<!-- err.js -->",
         }; const replacs = [_][]const u8 {
             conn.conf.name, //server name
             code_str,
             stat, //the err msg
             err_json,
-            // TODO: replace with comptime generated pages
-            "<style>\n" ++ @embedFile("web/err.css") ++ "    </style>",
-            "<script async>\n" ++ @embedFile("web/err.js") ++ "  </script>",
         }; defer globAlloc.free(err_json);
 
-        //generate response page  TODO: replace with comptime generated page
+        //generate response page
         const err_html:[]const u8 = @embedFile("web_comp/err.html");
         const respPage = hlp.gen_page(
             err_html, &placs, &replacs, globAlloc

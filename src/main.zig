@@ -147,7 +147,8 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
             },
             .@"User-Agent" => {
                 try log.deb("{s}", .{h.value}); 
-                // TODO: switch to new async http when Zig 0.16.0 releases
+                // BUG: Zig std.http hangs after mobile request finishes
+                //   TODO: switch to new async http when Zig 0.16.0 releases
                 is_mobile = if (mem.count(u8, h.value, "Mobile") > 0) {
                     hlp.send.headersWithType(
                         400, curTime, req, null, null, "text/plain"
@@ -164,8 +165,6 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     }{  //anything that could be null needs a value 
         if (encoding) |_| {} else encoding = .{ .accepts = null, .picked = .none };
     }}
-
-    {is_mobile = true;}
 
     try log.deb("server conn", .{});
 

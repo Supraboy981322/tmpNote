@@ -59,7 +59,6 @@ const minify_js = async (path:string) => {
   return `<script async>${ res.trim() }</script>`; //return as element string
 };
 
-//fucking shitty ass language. Can't even wait for an async fn syncronously
 let web = {
   css: await minify_css("src/web/style.css"),
   js: await minify_js("src/web/script.js"),

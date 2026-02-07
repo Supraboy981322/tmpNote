@@ -86,8 +86,13 @@ pub fn handle_web(
     serverConn:*ServerConn,
     db:*std.StringHashMap(Note)
 ) !void {
+
+    try log.deb("reqPage web han", .{});
+
     //alias for requested page
     const reqPage = serverConn.reqPage;
+
+    try log.deb("switch web han", .{});
 
     const page = std.meta.stringToEnum(
         enum { 
@@ -108,6 +113,8 @@ pub fn handle_web(
 
         else => web.send_err(404, "not found", serverConn),
     }
+
+    try log.deb("web_han", .{});
 }
 
 //generic helper to serve byte slice

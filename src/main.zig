@@ -71,6 +71,8 @@ pub fn main() !void {
         hanConn(acc, conf) catch |e| {
             log.err("failed to handle connection {t}", .{e}) catch {};
         };
+
+        try log.deb("end_conn", .{});
     }
 }
 
@@ -112,7 +114,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     var req = http_server.receiveHead() catch |e| {
         try log.err("failed to receive html head {t}", .{e});
         return; //return on err (a netcat cmd could cause problems otherwise)
-    };
+    }; defer req.server.out.flush() catch {};
     var itr = mem.splitAny(u8, req.head.target[1..], "?"); //remove query params
     //check the request page, uses default from conf if none
     const reqPage:[]const u8 = if (itr.first().len < 1) conf.default_page else blk: {
@@ -123,28 +125,54 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     //log the request
     try log.req(curTime, remAddr, reqPage); 
 
-    var encoding:globs.Encoding = undefined;
-    encoding = b: {
-        var pItr = req.iterateHeaders();
-        while (pItr.next()) |h| {
-            if (mem.eql(u8, h.name, "Accept-Encoding")) {
+    var encoding:?globs.Encoding = null;
+    var is_mobile:bool = false;
+    {var pItr = req.iterateHeaders();
+    while (pItr.next()) |h| {
+        try log.deb("foo", .{});
+
+        const h_e = std.meta.stringToEnum(enum{
+            @"Accept-Encoding", @"User-Agent", skip,
+        }, h.name ) orelse .skip;
+
+        switch (h_e) {
+            .@"Accept-Encoding" => {
                 var stuff = std.array_list.Managed([]const u8).init(globs.alloc);
                 var eItr = mem.tokenizeSequence(u8, h.value, ", ");
                 while (eItr.next()) |enc| stuff.append(enc) catch |e| {
                     log.err("failed to append to encoding array: {t}", .{e}) catch {};
                     return e;
                 };
-                break :b .{ .accepts = stuff.items, .picked = .unknown };
-            }
+                encoding = .{ .accepts = stuff.items, .picked = .unknown };
+            },
+            .@"User-Agent" => {
+                try log.deb("{s}", .{h.value}); 
+                // TODO: switch to new async http when Zig 0.16.0 releases
+                is_mobile = if (mem.count(u8, h.value, "Mobile") > 0) {
+                    hlp.send.headersWithType(
+                        400, curTime, req, null, null, "text/plain"
+                    ) catch { return; };
+                    req.server.out.print(
+                        "sorry, mobile currently overloads server, " ++ 
+                        "waiting for async Zig http update", .{}
+                    ) catch { return; };
+                    return; 
+                } else false;
+            },
+            else => try log.deb("forgot to add {s} header switch prong", .{@tagName(h_e)}),
         }
-        break :b .{ .accepts = null, .picked = .none };
-    };
+    }{  //anything that could be null needs a value 
+        if (encoding) |_| {} else encoding = .{ .accepts = null, .picked = .none };
+    }}
 
+    {is_mobile = true;}
+
+    try log.deb("server conn", .{});
 
     //struct passed to handler fn
     var serverConn:ServerConn = ServerConn{
         .conn = conn,
-        .encoding = @constCast(&encoding),
+        .encoding = @constCast(&encoding.?),
         .req = req,
         .reqPage = reqPage,
         .reqTime = curTime,
@@ -153,6 +181,8 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
         .len_req = 0, //set later by individual endpoint
         .respond_html = false, //set later by individual endpoint
     };
+    
+    try log.deb("get target", .{});
 
     //determine if api call or web req 
     var target = mem.tokenizeSequence(u8, reqPage, "/");

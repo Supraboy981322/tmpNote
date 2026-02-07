@@ -17,9 +17,10 @@
 :root, body {
   margin: 0;
   padding: 0;
+  width: 100vw;
   display: flex;
-  height: 100vh;
   color: #d8dee9;
+  min-height: 100vh;
   align-items: center;
   font-family: monospace;
   justify-content: space-around;
@@ -27,10 +28,6 @@
     overflow: hidden;
   }
   &> div {
-    &:not(&:has(#file)):not(&:has(.resText:not([hidden]))) {
-      margin-top: 9em;
-      &:has(.note_page_btn) { margin-top: 12em; }
-    }
     &:has(.resText:not([hidden])) {
       &>h1 { margin: 0; }
     }
@@ -52,6 +49,9 @@
     width: fit-content;
     &:not(.collapsed){
       height: fit-content;
+      max-height: 100vh;
+      overflow-y: auto;
+      min-height: min-content;
     }
     p { text-align: center; }
   }
@@ -88,19 +88,20 @@ h1, .resText {
 
 #note {
   width: 80vw;
-  height: 50vw;
   padding: 2em;
+  cursor: text;
   outline: none;
   color: #d8dee9;
   display: block;
+  overflow: scroll;
   font-size: 1.25em;
   border-radius: 1em;
   margin-bottom: 1em;
-  overflow: scroll;
   font-family: monospace;
   box-sizing: border-box;
   background-color: #2e3440;
-  cursor: text;
+  @media (orientation: portrait) { height: 50vw }
+  @media (orientation: landscape) { height: 50vh }
 }
 
 textarea#note { border: solid #d8dee9 0.25em; }

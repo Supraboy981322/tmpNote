@@ -94,6 +94,7 @@
       box-sizing: border-box;
       border-radius: 0em 1em;
       display: flex;
+      flex-direction: rows;
       align-items: center;
       justify-content: center;
       padding: 0;
@@ -130,6 +131,24 @@
             &>p {
               font-size: 1.15em;
               margin: 0 0 0.25em 0;
+            }
+            .clear_file {
+              all: unset;
+              color: #d8dee9;
+              display: block;
+              margin: 0 auto;
+              font-weight: bold;
+              padding: 0.25em 1em;
+              border-radius: 0.5em;
+              transition: all 250ms;
+              margin-top: 0.5em;
+              background-color: #2e3440;
+              border: 0.25em solid #d8dee9;
+              &:hover {
+                color: #2e3440;
+                background-color: #d8dee9;
+                border: 0.25em solid #2e3440;
+              }
             }
             #file_input{
               text-align: center;

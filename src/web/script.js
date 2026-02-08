@@ -253,7 +253,7 @@ function dl_file(caller) {
   const elm = document.createElement("a");
   elm.href = link;
   elm.setAttribute(
-    "download",
+    "download", //use filename from original file if available
     (note_info.file_name !== null) ? note_info.file_name : "untitled_tmpNote"
   );
   elm.style.display = "none";
@@ -401,6 +401,14 @@ function tab_btn(btn) {
         input.id = "file_input";
         input.addEventListener("change", file_input);
         container.appendChild(input);
+
+        let clear_btn = document.createElement("button");
+        clear_btn.className = "clear_file";
+        clear_btn.onclick = () => {
+          input.value = '';
+        };
+        clear_btn.innerText = "remove file";
+        container.appendChild(clear_btn);
 
         btn.appendChild(container);
 

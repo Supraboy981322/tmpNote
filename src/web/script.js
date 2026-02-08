@@ -56,6 +56,8 @@ var note_file = null;
     //(it's JSON')
     note_info = JSON.parse(note_info_elm.innerText);
     if (note_info.is_file) {
+      //use a default name if none given by server
+      if (note_info.file_name === null) note_info = "untitled_tmpNote";
       //setup for file page
       const file_elm = document.getElementById("file");
 
@@ -252,10 +254,7 @@ function dl_file(caller) {
   //  to download a file programmatically in JS
   const elm = document.createElement("a");
   elm.href = link;
-  elm.setAttribute(
-    "download", //use filename from original file if available
-    (note_info.file_name !== null) ? note_info.file_name : "untitled_tmpNote"
-  );
+  elm.setAttribute("download", note_info.file_name);
   elm.style.display = "none";
   document.body.appendChild(elm);
   elm.click();
@@ -291,6 +290,7 @@ function file_page(note_info, file_elm, img) {
     dl_btn.innerText = "download";
     left.appendChild(dl_btn);
 
+    //local helper to create an element containing note attributes
     const new_attr = (classname, text, content_class, content) => {
       //note file size element
       var cont = document.createElement("p");
@@ -306,6 +306,7 @@ function file_page(note_info, file_elm, img) {
 
     new_attr("fi_size", "file size", null, `${note_info.note_size} bytes`);
     new_attr("fi_typ", "file type", "file_type", note_info.file_type);
+    new_attr("file_name", "filename", "name", note_info.file_name);
     
     if (note_info.comment != null) {
       let comment_title = document.createElement("p");

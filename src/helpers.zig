@@ -59,7 +59,7 @@ pub const send = struct {
                 else => "HTTP/1.1 500 Internal Server Error",
             },
             fmt.allocPrint(
-                alloc, "Content-Type: {s}",
+                alloc, "Content-Type: {s}; charset=UTF-8",
                 .{ content_type orelse "text/html" }
             ) catch |e| blk: { //just use text/html if alloc fails
                 try log.err("failed to allocate 'Content-Type' header: {t}", .{e});

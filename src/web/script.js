@@ -2,6 +2,7 @@
 
 //set later
 var note_info = undefined; //may use for more than rendering the page 
+var note_file = null;
 
 //setup the page
 (async function() {
@@ -127,15 +128,28 @@ async function newNote() {
   //api url 
   let url = `${window.location.origin}/api/new`;
 
+  let note_txt = document.getElementById("note").value;
+  var note_comment = "no comment given";
+  
   //note content
-  let n = document.getElementById("note").value;
+  let n = (note_file === null) ? note_txt : (() => {
+    note_comment = note_txt;
+    return note_file.bytes;
+  })();
+
+  const req_headers = new Headers();
+  //ask for errs in HTML
+  req_headers.append("err-html", "true");
+  if (note_file !== null) {
+    req_headers.append("comment", note_comment);
+    req_headers.append("is-file", "true");
+  }
+
   
   //make a POST request to server
   let resp = await fetch(url, {
     method: 'POST',
-    headers: {//ask for errs in HTML 
-      'err-html': 'true',
-    },
+    headers: req_headers,
     body: n //use note as body
   });
   if (!resp.ok) {
@@ -304,8 +318,38 @@ function file_page(note_info, file_elm, img) {
 function tab_btn(btn) {
   let is_open = JSON.parse(btn.getAttribute("is_open") || "false");
   btn.innerHtml = "";
+  btn.innerText = "";
   btn.setAttribute("is_open", !is_open);
   if (is_open) { btn.innerText = "\u2630" } else {
-  }
+    {
+      let title = document.createElement("p");
+      title.innerText = "upload file";
+      btn.appendChild(title);
 
+      let input = document.createElement("input");
+      input.setAttribute("type", "file");
+      input.id = "file_input";
+      input.addEventListener("change", file_input);
+      btn.appendChild(input);
+    }
+  }
+}
+
+function file_input(event) {
+  const file = event.target.files[0];
+  if (file) {
+    const re = new FileReader();
+    re.onload = (ev) => {
+      const arr_buf = ev.target.result;
+      const bytes = new Uint8Array(arr_buf);
+      note_file = { bytes:bytes, type:file.type };
+    };
+    re.onerror = (e) => {
+      alert(`failed to read file: ${e}`);
+      console.error("file reader error: ", e);
+    }
+    re.readAsArrayBuffer(file);
+  } else {
+    alert("no file selected\nTODO:change alert to something not annoying");
+  }
 }

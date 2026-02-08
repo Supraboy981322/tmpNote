@@ -122,6 +122,11 @@
               background-color: #2e3440;
               border: 0.1em solid #d8dee9;
             }
+            &[click] {
+              color: #2e3440;
+              background-color: #d8dee9;
+              border: 0.1em solid #2e3440;
+            }
           }
           &>button.close {
             color: #d8dee9;
@@ -132,6 +137,11 @@
               color: #2e3440;
               background-color: #d8dee9;
               border: 0.1em solid #2e3440;
+            }
+            &[click] {
+              color: #d8dee9;
+              background-color: #2e3440;
+              border: 0.1em solid #d8dee9;
             }
           }
         }

@@ -130,6 +130,13 @@ async function copy_id(elm) {
 
 //only executed on new_note page
 async function newNote() {
+  { //make sure tab menu is closed 
+    const tab = document.querySelector('.tab[is_open="true"');
+    if (tab !== null) {
+      tab.parentElement.querySelector("&> .close").click();
+    }
+  }
+
   //api url 
   let url = `${window.location.origin}/api/new`;
 
@@ -221,10 +228,7 @@ async function newNote() {
     resView[i].removeAttribute("hidden");
   }
 
-  const tab = document.querySelector(".tab");
-  if (JSON.parse(tab.getAttribute("is_open"))) {
-    tab.click();
-  }
+  const tab = document.querySelector("body > div > .tab");
   tab.setAttribute("class", "tab");
   tab.setAttribute("is_open", "false");
   tab.setAttribute("which", "res_text");

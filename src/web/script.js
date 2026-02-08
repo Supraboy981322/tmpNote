@@ -368,7 +368,8 @@ function tab_btn(btn) {
       let id_btn = document.createElement("button");
       id_btn.setAttribute("class", "copy_id");
       id_btn.onclick = () => {
-        copy_to_clipboard(document.getElementById("id").innerText);
+        let url = new URL(document.getElementById("id").innerText);
+        copy_to_clipboard(url.searchParams.get("id"));
       };
       id_btn.innerText = "copy id";
       btn.appendChild(id_btn);

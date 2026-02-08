@@ -44,6 +44,7 @@ var note_file = null;
     let tab = document.createElement("div");
     tab.setAttribute("class", "tab");
     tab.setAttribute("is_open", "false");
+    tab.setAttribute("which", "new_note");
     tab.innerText = "\u2630";
     tab.onclick = () => { return tab_btn(tab) };
     document.querySelector("#note").before(tab);
@@ -104,6 +105,12 @@ function view_from_new(elm) {
   window.location.replace(url);
 }
 
+async function copy_to_clipboard(txt) {
+  try { //copy to clipboard
+    await navigator.clipboard.writeText(txt);
+  } catch (e) { alert(`couldn't copy to clipboard: ${e}`); }
+}
+
 //copy the note's url to clipboard when id element is clicked 
 async function copy_id(elm) {
   //save the current class
@@ -112,10 +119,8 @@ async function copy_id(elm) {
   //add 'clipboard_copy' to the id element class for new styling
   elm.setAttribute("class", `${old_class}, clipboard_copy`);
   let id = elm.innerText; //get the id
-
-  try { //copy to clipboard
-    await navigator.clipboard.writeText(id);
-  } catch (e) { alert(`couldn't copy to clipboard: ${e}`); }
+  
+  copy_to_clipboard(id);
 
   //wait 100ms then revert to the old styling by switching class back
   setTimeout(() => {
@@ -174,7 +179,7 @@ async function newNote() {
   idElm.setAttribute("id", "id");
 
   //put the id in the element
-  idElm.innerText = `${id}`;
+  idElm.innerText = `${window.location.origin}/view?id=${id}`;
 
   //change the class so css treats it as a different element
   idElm.setAttribute("class", "id");
@@ -197,6 +202,14 @@ async function newNote() {
     //unhide element
     resView[i].removeAttribute("hidden");
   }
+
+  const tab = document.querySelector(".tab");
+  if (JSON.parse(tab.getAttribute("is_open"))) {
+    tab.click();
+  }
+  tab.setAttribute("class", "tab");
+  tab.setAttribute("is_open", "false");
+  tab.setAttribute("which", "res_text");
 }
 
 //download a file from a note
@@ -317,20 +330,54 @@ function file_page(note_info, file_elm, img) {
 
 function tab_btn(btn) {
   let is_open = JSON.parse(btn.getAttribute("is_open") || "false");
+  btn.setAttribute("is_open", !is_open);
+  let which = btn.getAttribute("which");
   btn.innerHtml = "";
   btn.innerText = "";
-  btn.setAttribute("is_open", !is_open);
   if (is_open) { btn.innerText = "\u2630" } else {
-    {
-      let title = document.createElement("p");
-      title.innerText = "upload file";
-      btn.appendChild(title);
+    switch (which) {
+     case "new_note": {
+        let title = document.createElement("p");
+        title.innerText = "upload file";
+        btn.appendChild(title);
 
-      let input = document.createElement("input");
-      input.setAttribute("type", "file");
-      input.id = "file_input";
-      input.addEventListener("change", file_input);
-      btn.appendChild(input);
+        let input = document.createElement("input");
+        input.setAttribute("type", "file");
+        input.id = "file_input";
+        input.addEventListener("change", file_input);
+        btn.appendChild(input);
+      } break;
+     case "res_text": {
+      let close_btn = document.createElement("button");
+      close_btn.setAttribute("class", "close");
+
+      //lambda in a lambda in a lambda in a lambda
+      close_btn.onclick = () => {
+        //for timing purposes, this has to be run after returning
+        //  when the event is pressed 
+        (async () => {
+          setTimeout(() => { //set the onclick event back to what it was 
+              btn.onclick = () => { return tab_btn(btn) };
+          }, 100); //100ms
+        })();
+        return tab_btn(btn);
+      }
+      close_btn.innerText = "\u2794";
+      btn.appendChild(close_btn);
+
+      let id_btn = document.createElement("button");
+      id_btn.setAttribute("class", "copy_id");
+      id_btn.onclick = () => {
+        copy_to_clipboard(document.getElementById("id").innerText);
+      };
+      id_btn.innerText = "copy id";
+      btn.appendChild(id_btn);
+
+      //remove onclick so clicking background of element doesn't close it 
+      btn.onclick = null;
+     } break;
+     default:
+      console.debug(`forgot ${which} in tab switch case`);
     }
   }
 }

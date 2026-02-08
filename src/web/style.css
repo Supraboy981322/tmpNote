@@ -69,23 +69,45 @@
       cursor: pointer;
       &[is_open="false"] {
         font-size: 1.5em;
-        width: 2.5em;
-        height: 2.5em;
-        &:hover {
+        &[which="new_note"] {
+          width: 2.5em;
+          height: 2.5em;
+          &:hover {
+            color: #2e3440;
+            background-color: #d8dee9;
+          }
+        }
+        &[which="res_text"] {
+          border-radius: 0.5em;
+          width: 2.675em;
+          height: 2.675em;
           color: #2e3440;
+          border: 0.25em solid #2e3440;
           background-color: #d8dee9;
+          &:hover {
+            color: #d8dee9;
+            border: 0.25em solid #d8dee9;
+            background-color: #2e3440;
+          }
         }
       }
       &[is_open="true"] {
-        @media (orientation: landscape) {
-          width: 25vw;
-          height: 50vh;
-          border-radius: 0 1em 1em 0;
+        &:hover { cursor: default }
+        &[which="new_note"] {
+          @media (orientation: landscape) {
+            width: 25vw;
+            height: 50vh;
+            border-radius: 0 1em 1em 0;
+          }
+          @media (orientation: portrait) {
+            width: 70vw;
+            height: 50vw;
+            border-radius: 0 1em 1em 0;
+          }
         }
-        @media (orientation: portrait) {
-          width: 70vw;
-          height: 50vw;
-          border-radius: 0 1em 1em 0;
+        &[which="res_text"] {
+          padding: 0.75em;
+          border-radius: 0.75em;
         }
       }
     }

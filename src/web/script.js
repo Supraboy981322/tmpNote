@@ -352,7 +352,7 @@ function tab_btn(btn) {
       close_btn.setAttribute("class", "close");
 
       //lambda in a lambda in a lambda in a lambda
-      close_btn.onclick = () => {
+      close_btn.onclick = async () => {
         //for timing purposes, this has to be run after returning
         //  when the event is pressed 
         (async () => {
@@ -367,9 +367,11 @@ function tab_btn(btn) {
 
       let id_btn = document.createElement("button");
       id_btn.setAttribute("class", "copy_id");
-      id_btn.onclick = () => {
+      id_btn.onclick = async () => {
+        id_btn.setAttribute("click", "");
         let url = new URL(document.getElementById("id").innerText);
         copy_to_clipboard(url.searchParams.get("id"));
+        setTimeout(() => id_btn.removeAttribute("click"), 100);
       };
       id_btn.innerText = "copy id";
       btn.appendChild(id_btn);

@@ -106,8 +106,23 @@
           }
         }
         &[which="res_text"] {
-          padding: 0.75em;
+          padding: 0.5em;
           border-radius: 0.75em;
+          &>button.close {
+            color: #d8dee9;
+            margin-right: 0.75em;
+            background-color: #2e3440;
+            border: 0.1em solid #d8dee9;
+          }
+          &>button {
+            all: unset;
+            color: #2e3440;
+            font-size: 1.75em;
+            padding: 0em 0.5em;
+            border-radius: 0.15em;
+            background-color: #d8dee9;
+            border: 0.1em solid #d8dee9;
+          }
         }
       }
     }

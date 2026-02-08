@@ -154,7 +154,7 @@ async function newNote() {
   req_headers.append("err-html", "true");
   if (note_file !== null) {
     req_headers.append("comment", note_comment);
-    req_headers.append("is-file", "true");
+    req_headers.append("is-file", note_file.name);
   }
 
   
@@ -252,7 +252,10 @@ function dl_file(caller) {
   //  to download a file programmatically in JS
   const elm = document.createElement("a");
   elm.href = link;
-  elm.setAttribute("download", "TODO_download_with_filename");
+  elm.setAttribute(
+    "download",
+    (note_info.file_name !== null) ? note_info.file_name : "untitled_tmpNote"
+  );
   elm.style.display = "none";
   document.body.appendChild(elm);
   elm.click();
@@ -440,7 +443,7 @@ function file_input(event) {
     re.onload = (ev) => {
       const arr_buf = ev.target.result;
       const bytes = new Uint8Array(arr_buf);
-      note_file = { bytes:bytes, type:file.type };
+      note_file = { bytes:bytes, type:file.type, name:file.name };
     };
     re.onerror = (e) => {
       alert(`failed to read file: ${e}`);

@@ -148,6 +148,7 @@ fn api_new(
     //may be set in a few places, so create as empty early
     var note:[]u8 = "";
     var comment:[]u8 = "";
+    var file_name:[]u8 = "";
     {   //scoped so I don't have to worry about var names clobbering 
         var hItr = req.iterateHeaders();
         //iterate over headers
@@ -161,7 +162,19 @@ fn api_new(
                 //request wants any errors as html page
                 .@"err-html" => respond_html = true,
                 //request contains file
-                .@"is-file" => is_file = true,
+                .@"is-file" => {
+                    is_file = true;
+                    file_name = alloc.dupe(u8, h_C.value) catch |e| {
+                        if (respond_html) web.send_err(400, "bad filename", conn) else {
+                            hlp.send.headersWithType(
+                                400, curTime, req, null, null, "text/plain"
+                            ) catch {};
+                            req.server.out.print("bad filename", .{}) catch {};
+                        }
+                        log.err("failed to alloc.dupe filename {t}", .{e}) catch {};
+                        return "";
+                    };
+                },
                 //request contains note in header (could be in body or url params)
                 .note => note = alloc.dupe(u8, h_C.value) catch {
                     if (respond_html) web.send_err(400, "bad note", conn) else {
@@ -277,6 +290,7 @@ fn api_new(
         .typ = file_type.typ,
         .size = note.len,
         .comment = comment,
+        .name = file_name,
     };
 
     //note struct
@@ -385,6 +399,7 @@ fn api_view(
         },
         .size = 0,
         .comment = "",
+        .name = "",
     };
 
     //default to invalid
@@ -408,6 +423,7 @@ fn api_view(
         file.typ = if (n.file.is_file) n.file.typ else "text/plain";
         file.is_file = n.file.is_file;
         file.size = n.file.size;
+        file.name = n.file.name;
         file.comment = n.file.comment;
         if (n.file.size == 0) {
             log.deb("n.file.size == 0 (api_view(...))", .{}) catch {};
@@ -475,6 +491,7 @@ fn api_view(
         .is_file = file.is_file,
         .typ = file.typ,
         .id = id,
+        .file_name = file.name,
         .comment = file.comment,
         .prev = if (is_text) prev else "can't generate preview",
     };
@@ -977,6 +994,7 @@ fn generate_note_info(
         .{ "note_size", str_size,            F },
         .{ "is_file",   str_is_file,         F },
         .{ "file_type", lw_note.typ,         T },
+        .{ "file_name", lw_note.file_name,   T },
         .{ "prev",      lw_note.prev,        T },
         .{ "note_id",   lw_note.id,          T },
         .{ "class",     lw_note.magic.class, T },

@@ -432,6 +432,7 @@ pub fn lazy_lw_note(msg:[]const u8) LW_Note {
         .id = "",
         .magic = text_magic(),
         .comment = "",
+        .file_name = "",
     };
 }
 

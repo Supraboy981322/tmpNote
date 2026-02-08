@@ -57,6 +57,7 @@ pub const File = struct {
     is_file: bool,
     magic: Magic,
     size: usize,
+    name: []u8,
     comment: []u8,
 };
 
@@ -76,6 +77,7 @@ pub const LW_Note = struct {
     prev: []const u8,
     magic: Magic,
     comment: []u8,
+    file_name: []u8,
 };
 
 pub const Magic = struct {

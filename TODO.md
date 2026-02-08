@@ -47,3 +47,4 @@
 - [x] minify web source
 - [ ] encryption
 - [x] compression
+- [ ] comprehensive memory behavior testing

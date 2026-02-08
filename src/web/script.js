@@ -152,23 +152,41 @@ async function newNote() {
 
   
   //make a POST request to server
-  let resp = await fetch(url, {
-    method: 'POST',
-    headers: req_headers,
-    body: n //use note as body
-  });
-  if (!resp.ok) {
-    //the response will contain an HTML err page
-    const bod = await resp.text();
+  let resp = await (async () => {
+    var r ; try {
+      r = await fetch(url, {
+        method: 'POST',
+        headers: req_headers,
+        body: n //use note as body
+      });
+    } catch (e) {
+      //alert user
+      if (e.request) {
+        alert(`server didn't appear to respond:\n${e.request}`);
+        return null; //don't don't go any further
+      } else if (!e.response) {
+        //alert user
+        alert(`couldn't setup request: ${e.message}`); 
+        return null; //don't go any further
+      }
+    }
+    if (!r.ok) {
+      //the response will contain an HTML err page
+      const bod = await r.text();
 
-    //replace the entire DOM with the err HTML page
-    document.open("text/html", "replace");
-    document.write(bod); //still 100% supported, and perfectly suits this use-case
-    document.close();
+      //replace the entire DOM with the err HTML page
+      document.open("text/html", "replace");
+      document.write(bod); //still 100% supported, and perfectly suits this use-case
+      document.close();
 
-    //throw err once done
-    throw new Error(`err, stat: ${resp.status}`);
-  }
+      //throw err once done
+      throw new Error(`err, stat: ${r.status}`);
+    }
+    return r;
+  })();
+  //don't attempt to do anything else
+  if (resp === null) return;
+
   //get the id
   let id = await resp.text();
 
@@ -397,6 +415,7 @@ function file_input(event) {
     re.onerror = (e) => {
       alert(`failed to read file: ${e}`);
       console.error("file reader error: ", e);
+      return
     }
     re.readAsArrayBuffer(file);
   } else {

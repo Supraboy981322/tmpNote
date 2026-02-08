@@ -151,6 +151,7 @@
               }
             }
             #file_input{
+              overflow-x: hidden;
               text-align: center;
               font-family: monospace;
               &::file-selector-button {
@@ -170,6 +171,12 @@
                 color: #d8dee9;
                 background-color: #2e3440;
                 border: 0.25em solid #d8dee9;
+              }
+              @media (orientation: landscape) {
+                max-width: 25vw;
+              }
+              @media (orientation: portrait) {
+                max-width: 70vw;
               }
             }
           }

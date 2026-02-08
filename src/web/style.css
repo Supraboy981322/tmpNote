@@ -94,6 +94,34 @@
       &[is_open="true"] {
         &:hover { cursor: default }
         &[which="new_note"] {
+          .container {
+            &>p {
+              font-size: 1.15em;
+              margin: 0 0 0.25em 0;
+            }
+            #file_input{
+              text-align: center;
+              font-family: monospace;
+              &::file-selector-button {
+                all: unset;
+                color: #2e3440;
+                display: block;
+                margin: 0 auto;
+                font-weight: bold;
+                padding: 0.25em 1em;
+                border-radius: 0.5em;
+                transition: all 250ms;
+                margin-bottom: 0.25em;
+                background-color: #d8dee9;
+                border: 0.25em solid #2e3440;
+              }
+              &:hover::file-selector-button {
+                color: #d8dee9;
+                background-color: #2e3440;
+                border: 0.25em solid #d8dee9;
+              }
+            }
+          }
           @media (orientation: landscape) {
             width: 25vw;
             height: 50vh;

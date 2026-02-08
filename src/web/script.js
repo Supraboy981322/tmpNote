@@ -355,15 +355,20 @@ function tab_btn(btn) {
   if (is_open) { btn.innerText = "\u2630" } else {
     switch (which) {
      case "new_note": {
+        let container = document.createElement("div");
+        container.className = "container";
+
         let title = document.createElement("p");
         title.innerText = "upload file";
-        btn.appendChild(title);
+        container.appendChild(title);
 
         let input = document.createElement("input");
         input.setAttribute("type", "file");
         input.id = "file_input";
         input.addEventListener("change", file_input);
-        btn.appendChild(input);
+        container.appendChild(input);
+
+        btn.appendChild(container);
       } break;
      case "res_text": {
       let close_btn = document.createElement("button");

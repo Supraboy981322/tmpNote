@@ -291,26 +291,21 @@ function file_page(note_info, file_elm, img) {
     dl_btn.innerText = "download";
     left.appendChild(dl_btn);
 
-    //note file size element
-    var fi_size_cont = document.createElement("p");
-    fi_size_cont.setAttribute("class", "fi_size");
-    fi_size_cont.innerText = "note size:";
-    //nest value in '<code>' element 
-    var fi_size = document.createElement("code");
-    fi_size.innerText = `${note_info.note_size} bytes`;
-    fi_size_cont.appendChild(fi_size);
-    left.appendChild(fi_size_cont);
-    
-    //note file type 
-    var fi_typ = document.createElement("p");
-    fi_typ.setAttribute("class", "fi_typ");
-    fi_typ.innerText = "file type:";
-    //nest value in '<code>' element 
-    var file_type_elm = document.createElement("code");
-    file_type_elm.setAttribute("class", "file_type");
-    file_type_elm.innerText = note_info.file_type;
-    fi_typ.appendChild(file_type_elm);
-    left.appendChild(fi_typ);
+    const new_attr = (classname, text, content_class, content) => {
+      //note file size element
+      var cont = document.createElement("p");
+      cont.setAttribute("class", classname);
+      cont.innerText = `${text}: `;
+      //nest value in '<code>' element 
+      var val = document.createElement("code");
+      val.innerText = content;
+      if (content_class !== null) val.className = content_class;
+      cont.appendChild(val);
+      left.appendChild(cont);
+    };
+
+    new_attr("fi_size", "file size", null, `${note_info.note_size} bytes`);
+    new_attr("fi_typ", "file type", "file_type", note_info.file_type);
     
     if (note_info.comment != null) {
       let comment_title = document.createElement("p");

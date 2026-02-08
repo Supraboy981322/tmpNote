@@ -20,8 +20,8 @@
     - [x] replying with the note ID when creating a new note
     - [x] determine api vs webui requests
     - [x] dedicated api http handlers
-    - [ ] determining if something is a file client-side
-    - [ ] some way to handle files on web-ui
+    - [x] determining if something is a file client-side
+    - [x] some way to handle files on web-ui
     - [ ] Better web ui
     - [ ] Switch to Zig 0.16 when it releases for async http (mobile broken until then)
   - [x] Catch-up to Go proto
@@ -29,11 +29,11 @@
   - [x] sniffing for file type
   - [x] plain-text
   - [x] binary
-  - [ ] uploading from webui
+  - [x] uploading from webui
   - [x] downloading from webui
-  - [ ] previewing files
+  - [x] previewing files
     - [x] plain-text
-    - [ ] images
+    - [x] images
     - [ ] videos (?)
 - [ ] set an expiration date/time for a note
 - [ ] an admin dashboard (?)
@@ -44,6 +44,6 @@
   - [ ] Spec
   - [ ] Go module
 - [ ] mascot(?)
-- [ ] minify web source
+- [x] minify web source
 - [ ] encryption
-- [ ] compression
+- [x] compression

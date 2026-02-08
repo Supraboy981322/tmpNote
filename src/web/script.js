@@ -347,16 +347,43 @@ function file_page(note_info, file_elm, img) {
 }
 
 function tab_btn(btn) {
+  //lambda in a lambda in a lambda in a lambda
+  const close_fn =  async () => {
+    //for timing purposes, this has to be run after returning
+    //  when the event is pressed 
+    (async () => {
+      setTimeout(() => { //set the onclick event back to what it was 
+          btn.onclick = () => { return tab_btn(btn) };
+      }, 100); //100ms
+    })();
+    return tab_btn(btn);
+  }
   let is_open = JSON.parse(btn.getAttribute("is_open") || "false");
   btn.setAttribute("is_open", !is_open);
   let which = btn.getAttribute("which");
   btn.innerHtml = "";
   btn.innerText = "";
+  if (is_open) {
+    let close_btn = document.querySelector("div:has(.tab) > .close");
+    if (close_btn !== null) close_btn.remove();
+  }
   if (is_open) { btn.innerText = "\u2630" } else {
     switch (which) {
      case "new_note": {
         let container = document.createElement("div");
         container.className = "container";
+
+        let close_btn = document.createElement("button");
+        close_btn.className = "collapsed_close";
+        btn.before(close_btn);
+        (async () => {
+          setTimeout(() => {
+            close_btn.className = "close";
+            close_btn.onclick = close_fn;
+            close_btn.innerText = "\u2716";
+            close_btn.removeAttribute("style");
+          }, 1);
+        })();
 
         let title = document.createElement("p");
         title.innerText = "upload file";
@@ -369,22 +396,16 @@ function tab_btn(btn) {
         container.appendChild(input);
 
         btn.appendChild(container);
+
+        //remove onclick so clicking background of element doesn't close it 
+        btn.onclick = null;
       } break;
      case "res_text": {
       let close_btn = document.createElement("button");
       close_btn.setAttribute("class", "close");
 
       //lambda in a lambda in a lambda in a lambda
-      close_btn.onclick = async () => {
-        //for timing purposes, this has to be run after returning
-        //  when the event is pressed 
-        (async () => {
-          setTimeout(() => { //set the onclick event back to what it was 
-              btn.onclick = () => { return tab_btn(btn) };
-          }, 100); //100ms
-        })();
-        return tab_btn(btn);
-      }
+      close_btn.onclick = close_fn;
       close_btn.innerText = "\u2794";
       btn.appendChild(close_btn);
 

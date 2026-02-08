@@ -42,6 +42,8 @@ var note_info = undefined; //may use for more than rendering the page
     //create tab element
     let tab = document.createElement("div");
     tab.setAttribute("class", "tab");
+    tab.setAttribute("is_open", "false");
+    tab.innerText = "\u2630";
     tab.onclick = () => { return tab_btn(tab) };
     document.querySelector("#note").before(tab);
   }
@@ -300,5 +302,10 @@ function file_page(note_info, file_elm, img) {
 }
 
 function tab_btn(btn) {
-  console.log(btn);
+  let is_open = JSON.parse(btn.getAttribute("is_open") || "false");
+  btn.innerHtml = "";
+  btn.setAttribute("is_open", !is_open);
+  if (is_open) { btn.innerText = "\u2630" } else {
+  }
+
 }

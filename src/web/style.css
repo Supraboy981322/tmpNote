@@ -329,6 +329,8 @@ pre#note { border: solid #697da3 0.25em; }
   border-radius: 1em;
   width: 80vw;
   cursor: pointer;
+  margin-left: auto;
+  margin-right: auto;
   &::selection {
     color: #2e3440 !important;
     background-color: #697da3 !important;
@@ -381,17 +383,30 @@ pre#note { border: solid #697da3 0.25em; }
   }
   &>.left_pane {
     .dl_btn {
+      all: unset;
+      border:none;
+      outline:none;
+      color:#2e3440;
+      font: var(--font);
+      font-weight: bold;
       border-radius: 0.3em;
+      margin-right: 0.75em;
       padding: 0.2em 0.5em;
-      outline: none;
       margin-bottom: 0.25em;
-      border: none;
+      transition: all 250ms;
+      background-color:#d8dee9;
+      border: 0.1em solid #d8dee9;
+      &:hover {
+        color:#d8dee9;
+        background-color:#2e3440;
+        border: 0.1em solid #d8dee9;
+      }
     }
     &>p {
       padding: 0.4em;
       margin:0;
     }
-    &>.fi_typ > code, &>.fi_size > code {
+    &>p > code, &>p > code {
       margin-left: 0.5em;
       padding: 0.2em;
       margin: 0;

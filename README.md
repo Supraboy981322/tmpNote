@@ -52,7 +52,8 @@ If a feature is not checked off, it is not yet implemented, but is planned.
 - [x] auto delete notes
 - [x] link to a note
 - [ ] set an expiration date/time for a note
-- [ ] files
+- [x] note compression
+- [x] files
 - [x] db is non-persistent (wiped when restarted)
 - [x] webui
   - [ ] dashboard

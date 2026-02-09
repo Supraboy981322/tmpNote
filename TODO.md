@@ -22,7 +22,7 @@
     - [x] dedicated api http handlers
     - [x] determining if something is a file client-side
     - [x] some way to handle files on web-ui
-    - [ ] Better web ui
+    - [x] Better web ui
     - [ ] Switch to Zig 0.16 when it releases for async http (mobile broken until then)
   - [x] Catch-up to Go proto
 - [x] files

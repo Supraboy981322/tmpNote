@@ -73,6 +73,7 @@
       height: 1.25em;
       color: #2e3440;
       display: block;
+      cursor: pointer;
       position: fixed;
       padding-left: 0.35em;
       transition: all 250ms;

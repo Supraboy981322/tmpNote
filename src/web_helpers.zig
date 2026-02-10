@@ -859,7 +859,7 @@ pub const web = struct {
                 .{ "status",  stat,      "_" },
             };
             break :blk hlp.mk_json(
-                globAlloc, @TypeOf(stuff[0]),  stuff.len, stuff
+                globAlloc, stuff.len, stuff
             );
         };
         
@@ -1000,10 +1000,11 @@ fn generate_note_info(
         .{ "class",     lw_note.magic.class, T },
         .{ "comment",   comment,             if (has_comment) T else F },
     };
-    
+
+    std.debug.print("{any}", .{@TypeOf(stuff[0])});
     
     return hlp.mk_json(
-        alloc, @TypeOf(stuff[0]),  stuff.len, stuff
+        alloc, stuff.len, stuff
     );
 }
 

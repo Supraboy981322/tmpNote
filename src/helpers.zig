@@ -252,7 +252,7 @@ pub const log = struct {
                         .{ "msg", msg_P, "_", },
                     }; //reture allocated string of json
                     break :b mk_json_inline(
-                        globs.alloc, @TypeOf(stuff[0]), stuff.len, stuff
+                        globs.alloc, stuff.len, stuff
                     );
                 },
                 //shouldn't happen
@@ -496,11 +496,10 @@ pub fn text_magic() globs.Magic {
 //helper to adapt mk_json old to new mk_json_with_opts
 pub fn mk_json(
     alloc:mem.Allocator,
-    comptime T:type,
     comptime N:usize,
-    stuff:[N]T,
+    stuff:[N][3][]const u8
 ) []const u8 {
-    return mk_json_with_opts(alloc, T, N, stuff, .{
+    return mk_json_with_opts(alloc, N, stuff, .{
         .pack = true,
     });
 }
@@ -508,11 +507,10 @@ pub fn mk_json(
 //single-line json (eg: '{ "foo":"bar", "baz":"qux" }')
 pub fn mk_json_inline(
     alloc:mem.Allocator,
-    comptime T:type,
     comptime N:usize,
-    stuff:[N]T,
+    stuff:[N][3][]const u8
 ) []const u8 {
-    return mk_json_with_opts(alloc, T, N, stuff, .{
+    return mk_json_with_opts(alloc, N, stuff, .{
         .pack = true,
         .delim = ' ',
     });
@@ -522,9 +520,8 @@ pub fn mk_json_inline(
 //  .{ [key], [value], [is_string (empty for false)] }
 pub fn mk_json_with_opts(
     alloc:mem.Allocator,
-    comptime T:type,
     comptime N: usize,
-    stuff:[N]T,
+    stuff:[N][3][]const u8,
     comptime opts:struct{
         pack:bool = false,
         delim:?u8 = null,

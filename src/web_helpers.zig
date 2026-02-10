@@ -1008,6 +1008,7 @@ fn generate_note_info(
     );
 }
 
+//returns true if handled
 pub fn chk_user_agent(
     agent_R:[]const u8,
     req:ServerConn,
@@ -1023,7 +1024,16 @@ pub fn chk_user_agent(
         if (mem.count(u8, agent, bot) > 0) {
             hlp.send.headers(200, req.reqTime, req.req) catch return true;
             req.req.server.out.print(
-                "<h1>note protected from bot ({s})</h1>", .{bot}
+                \\<!DOCTYPE html>
+                \\<html lang="en">
+                \\  <head>
+                \\    <!-- TODO: preview information --> 
+                \\  </head> 
+                \\  <body>
+                \\    <h1>note protected from bot ({s})</h1>
+                \\  </body>
+                \\</html>
+                , .{bot}
             ) catch return true; 
             return true;
         }

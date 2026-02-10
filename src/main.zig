@@ -130,8 +130,6 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     var agent:[]const u8 = "";
     {var pItr = req.iterateHeaders();
     while (pItr.next()) |h| {
-        try log.deb("foo", .{});
-
         const h_e = std.meta.stringToEnum(enum{
             @"Accept-Encoding", @"User-Agent", skip,
         }, h.name ) orelse .skip;
@@ -163,7 +161,8 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
                     return; 
                 } else false;
             },
-            else => try log.deb("forgot to add {s} header switch prong", .{@tagName(h_e)}),
+            .skip => {},
+            //else => try log.deb("forgot to add {s} header switch prong", .{@tagName(h_e)}),
         }
     }{  //anything that could be null needs a value 
         if (encoding) |_| {} else encoding = .{ .accepts = null, .picked = .none };

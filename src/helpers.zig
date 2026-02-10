@@ -642,3 +642,16 @@ pub fn strip_ansi(
     //return allocated string (so array list can be deinit())
     return try alloc.dupe(u8, out);
 }
+
+//make str lowercase 
+pub fn to_lower(
+    alloc:mem.Allocator,
+    str:[]const u8
+) ![]const u8 {
+    var res = try std.ArrayList(u8).initCapacity(alloc, str.len);
+    defer res.deinit(alloc);
+    for (str) |b| {
+        try res.append(alloc, if (b >= 'A' and b <= 'Z') b+32 else b);
+    }
+    return alloc.dupe(u8, res.items);
+}

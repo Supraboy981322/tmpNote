@@ -1006,3 +1006,26 @@ fn generate_note_info(
         alloc, @TypeOf(stuff[0]),  stuff.len, stuff
     );
 }
+
+pub fn chk_user_agent(
+    agent_R:[]const u8,
+    req:ServerConn,
+) !bool {
+    const agent:[]const u8 = try hlp.to_lower(globs.alloc, agent_R);
+    defer globs.alloc.free(agent);
+
+    const bots:[]const []const u8 = &.{
+        "whatsapp", "twitterbot", "slackbot", "applebot", "bingpreview",
+        "telegrambot", "linkedinbot", "facebookexternalhit",
+    };
+    for (bots) |bot| {
+        if (mem.count(u8, agent, bot) > 0) {
+            hlp.send.headers(200, req.reqTime, req.req) catch return true;
+            req.req.server.out.print(
+                "<h1>note protected from bot ({s})</h1>", .{bot}
+            ) catch return true; 
+            return true;
+        }
+    }
+    return false;
+}

@@ -127,6 +127,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
 
     var encoding:?globs.Encoding = null;
     var is_mobile:bool = false;
+    var agent:[]const u8 = "";
     {var pItr = req.iterateHeaders();
     while (pItr.next()) |h| {
         try log.deb("foo", .{});
@@ -147,6 +148,8 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
             },
             .@"User-Agent" => {
                 try log.deb("{s}", .{h.value}); 
+                agent = h.value;
+
                 // BUG: Zig std.http hangs after mobile request finishes
                 //   TODO: switch to new async http when Zig 0.16.0 releases
                 is_mobile = if (mem.count(u8, h.value, "Mobile") > 0) {
@@ -180,6 +183,16 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
         .len_req = 0, //set later by individual endpoint
         .respond_html = false, //set later by individual endpoint
     };
+
+    //check and possibly handle requests that aren't users
+    const handled:bool = web_hlp.chk_user_agent(agent, serverConn) catch {
+        hlp.send.headersWithType(
+            500, curTime, req, null, null, "text/plain"
+        ) catch {};
+        req.server.out.print("failed to check user agent", .{}) catch {};
+        return;
+    }; if (handled) return;
+
     
     try log.deb("get target", .{});
 

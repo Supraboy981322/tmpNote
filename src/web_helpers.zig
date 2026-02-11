@@ -1027,7 +1027,10 @@ pub fn chk_user_agent(
                 \\<!DOCTYPE html>
                 \\<html lang="en">
                 \\  <head>
-                \\    <!-- TODO: preview information --> 
+                \\    <meta property="og:title" content="tmpNote">
+                \\    <meta property="og:description" content="a temporary, self deleting note">
+                \\    <!-- TODO: <meta property="og:image" content="some_image_url"> -->
+                \\    <title>tmpNote</title>
                 \\  </head> 
                 \\  <body>
                 \\    <h1>note protected from bot ({s})</h1>

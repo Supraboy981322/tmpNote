@@ -1023,6 +1023,7 @@ pub fn chk_user_agent(
     for (bots) |bot| {
         if (mem.count(u8, agent, bot) > 0) {
             hlp.send.headers(200, req.reqTime, req.req) catch return true;
+            // TODO: preview image (1200x627px)
             req.req.server.out.print(
                 \\<!DOCTYPE html>
                 \\<html lang="en">

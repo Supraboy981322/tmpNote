@@ -49,7 +49,7 @@ pub const conf = struct {
 
     const Self = @This();
     pub var log_level:i8 = undefined;
-    pub var max_note_size:u64 = undefined;
+    pub var max_note_size:usize = undefined;
 
     //parsing the config
     pub fn read(alloc:std.mem.Allocator) !Self {

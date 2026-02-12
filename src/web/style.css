@@ -274,13 +274,15 @@ h1, .resText {
   outline: none;
   color: #d8dee9;
   display: block;
-  overflow: scroll;
   font-size: 1.25em;
   border-radius: 1em;
   margin-bottom: 1em;
+  overflow-y: scroll;
+  scrollbar-width: none;
   font-family: monospace;
   box-sizing: border-box;
   background-color: #2e3440;
+  &::-webkit-scrollbar { display: none }
   @media (orientation: portrait) { height: 50vw }
   @media (orientation: landscape) { height: 50vh }
 }

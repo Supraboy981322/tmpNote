@@ -122,7 +122,7 @@ pub const log = struct {
         args:anytype
     ) !void {
         //log to file if set
-        if (globs.conf.log_file.len > 0) try Self.wr_log_file(tag, msg, args);
+        if (globs.conf.server.log.file.len > 0) try Self.wr_log_file(tag, msg, args);
         //... and print to the terminal 
         try stdout.print(tag++" "++msg++"\n", args);
         try stdout.flush();
@@ -144,16 +144,16 @@ pub const log = struct {
         { const e:anyerror!void = blk: {
             //temp name 
             tmp_name = std.fmt.allocPrint(
-                globs.alloc, "{s}.tmp", .{globs.conf.log_file}
+                globs.alloc, "{s}.tmp", .{globs.conf.server.log.file}
             ) catch |e| break :blk e;
 
             //copy the file
             cwd.copyFile(
-                globs.conf.log_file, cwd, tmp_name, .{}
+                globs.conf.server.log.file, cwd, tmp_name, .{}
             ) catch |e| switch (e) {
                 error.FileNotFound => {
                     //silently create file tmp file and actual log files
-                    _ = cwd.createFile(globs.conf.log_file, .{}) catch |er| return er;
+                    _ = cwd.createFile(globs.conf.server.log.file, .{}) catch |er| return er;
                     _ = cwd.createFile(tmp_name, .{}) catch |er| return er;
                 },
                 else => {
@@ -172,7 +172,7 @@ pub const log = struct {
 
         //open the log file
         const log_fi = cwd.openFile(
-            globs.conf.log_file, .{ .mode = .read_write }
+            globs.conf.server.log.file, .{ .mode = .read_write }
         ) catch |e| {
             fat_err("failed to open log file: {t}", .{e});
             unreachable;
@@ -204,7 +204,7 @@ pub const log = struct {
             }
 
             //construct new log line based on configured format
-            const new_li = switch (globs.conf.log_format) {
+            const new_li = switch (globs.conf.server.log.format) {
                 .txt => b: {
                     //just put the tag and message together
                     //  (along with any params passed to logger) 
@@ -255,8 +255,6 @@ pub const log = struct {
                         globs.alloc, stuff.len, stuff
                     );
                 },
-                //shouldn't happen
-                else => @panic("unknown log format"),
             }; defer globs.alloc.free(new_li);
 
             //add the new line to the log
@@ -285,7 +283,7 @@ pub const log = struct {
         remAddr:[]const u8,
         reqPage: []const u8
     ) !void {
-        if (globs.conf.log_level > 2) return;
+        if (@import("conf.zig").conf.log_level > 2) return;
         try Self.generic(
             "\x1b[1;37m[\x1b[1;36mreq\x1b[1;37m]:\x1b[0m",
             blk: { //message with a few fields ('addr{...} page{...} date{...}')
@@ -301,7 +299,7 @@ pub const log = struct {
     //debug logger
     pub fn deb(comptime msg:[]const u8, args:anytype) !void {
         //only log if debug level
-        if (globs.conf.log_level > 0) return;
+        if (@import("conf.zig").conf.log_level > 0) return;
         try Self.generic(
             "\x1b[1;37m[\x1b[1;34mdebug\x1b[1;37m]:\x1b[0m", msg, args
         );
@@ -310,7 +308,7 @@ pub const log = struct {
     //err logger
     pub fn err(comptime msg:[]const u8, args:anytype) !void {
         //only log if err level
-        if (globs.conf.log_level > 4) return;
+        if (@import("conf.zig").conf.log_level > 4) return;
         try Self.generic("\x1b[1;37m[\x1b[1;31merr\x1b[1;37m]:\x1b[0m", msg, args);
     }
 
@@ -324,14 +322,14 @@ pub const log = struct {
     //info logger
     pub fn info(comptime msg:[]const u8, args:anytype) !void {
         //only log if info level
-        if (globs.conf.log_level > 1) return;
+        if (@import("conf.zig").conf.log_level > 1) return;
         try Self.generic("\x1b[1;37m[\x1b[1;35minfo\x1b[1;37m]:\x1b[0m", msg, args);
     }
 
     //warn logger
     pub fn warn(comptime msg:[]const u8, args:anytype) anyerror!void {
         //only log if warn level
-        if (globs.conf.log_level > 3) return;
+        if (@import("conf.zig").conf.log_level > 3) return;
         try Self.generic("\x1b[1;37m[\x1b[1;33mWARN\x1b[1;37m]:\x1b[0m", msg, args);
     }
 };

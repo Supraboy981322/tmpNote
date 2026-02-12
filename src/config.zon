@@ -1,0 +1,20 @@
+.{
+    .server = .{
+        .port = 8795,
+        .default_page = .new,
+        .log = .{
+            .level = .debug,
+            .format = .json,
+            .file = "log.json",
+        },
+    },
+    .customization = .{
+        .name = "//tmpNote",
+    },
+    .notes = .{
+        .max_size = "10MB",
+        .compression = .brotli,
+        .text_preview_size = 100,
+        .escape_ampersand = false,
+    },
+}

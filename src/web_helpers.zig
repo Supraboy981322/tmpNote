@@ -205,7 +205,7 @@ fn api_new(
     if (req.head.content_length) |si| {
         len_req = si; //just an alias 
         //if the note is too large 
-        if (si > conf.max_note_size) {
+        if (si > @import("conf.zig").conf.max_note_size) {
             //message that's sent
             const too_large_msg:[]const u8 = "note exceeds configured limit";
             if (isReq) { //only respond with err if it's an api request 
@@ -295,10 +295,10 @@ fn api_new(
 
     //note struct
     const n:Note = .{
-        .content = if (conf.compression != .none) b: {
+        .content = if (conf.notes.compression != .none) b: {
             defer alloc.free(note);
             const n_C = compression.do(
-                note, conn, null, conf.compression, alloc
+                note, conn, null, conf.notes.compression, alloc
             ) catch |e| {
                 try log.err("failed to compress note: {t}", .{e});
                 return e;
@@ -307,7 +307,7 @@ fn api_new(
             break :b try alloc.dupe(u8, n_C);
         } else note,
         .file = file,
-        .compression = conf.compression,
+        .compression = conf.notes.compression,
         .encrypt = false, //may add encryption later
     };
 
@@ -408,9 +408,9 @@ fn api_view(
     //check if note exists 
     if (db.get(id)) |n| {
         //set note and delete from db
-        note = if (conn.conf.compression != .none) b: {
+        note = if (conn.conf.notes.compression != .none) b: {
             break :b compression.undo(
-                n.content, conn, null, conn.conf.compression, alloc
+                n.content, conn, null, conn.conf.notes.compression, alloc
             ) catch |e| {
                 if (e == globs.server_errs.UnknownType) {
                     @panic("unknown compression type");
@@ -445,7 +445,7 @@ fn api_view(
     //const size = file.size;
 
     //generate note preview 
-    const conf_prev_size:usize = conn.conf.preview_size;
+    const conf_prev_size:usize = conn.conf.notes.text_preview_size;
     const prev_si = if (note.len < conf_prev_size) note.len else conf_prev_size;
     const prev_R = note[0..prev_si];
 
@@ -576,18 +576,18 @@ pub const compression = struct {
             //convert to enum
             const en = std.meta.stringToEnum(
                 globs.compression, enc
-            ) orelse .unknown;
+            );
             
             //if better than previously matched best, set new best 
-            if (en != .unknown and en != .none) {
+            if (en) |e| if (e != .none) {
                 const co_I = for (0..,globs.compression_preference) |i, co| {
-                    if (co == en) break i;
+                    if (co == e) break i;
                 } else {
-                    try log.errf("uncaught: invalid compression ({s})", .{@tagName(en)});
+                    try log.errf("uncaught: invalid compression ({s})", .{@tagName(e)});
                     unreachable;
                 };
                 if (best < co_I) best = co_I;
-            }
+            };
         }
 
         //shouldn't happen, but just in case (funny message)
@@ -598,7 +598,7 @@ pub const compression = struct {
         //return the best compression type found
         const enc = if (best >= 0) b: {
             break :b globs.compression_preference[@intCast(best)]; 
-        } else .unknown;
+        } else .none;
         return enc;
     }
 
@@ -629,10 +629,9 @@ pub const compression = struct {
                     .cont = in.ptr,
                     .leng = @intCast(in.raw.len),
                 },
-                .unknown => break :b null,
             }
         };
-        conn.encoding.picked = if (enc == .unknown) .none else enc;
+        conn.encoding.picked = enc;
 
         //return unwrapped
         return try Self.attempt_unwrap(alloc, comp);
@@ -666,7 +665,6 @@ pub const compression = struct {
                     .cont = in.ptr,
                     .leng = @intCast(in.raw.len),
                 },
-                .unknown => break :b null,
                 //else => {
                 //    try log.deb("TODO: decoding {s}", .{@tagName(enc)});
                 //    break :b null;
@@ -739,7 +737,7 @@ fn newNotePage(
     const placs = [_][]const u8 {
         "<!-- server name -->",
     }; const replacs = [_][]const u8 {
-        conn.conf.name,
+        conn.conf.customization.name,
     };//generate the page
     const respPage_R = hlp.gen_page(
         @embedFile("web_comp/new_note.html"), &placs, &replacs, alloc
@@ -782,7 +780,7 @@ fn viewNotePage(
     const noteR:[]const u8 = note_lw.cont;
 
     //whether or not to escape ampersand
-    const esc_html_amper = conn.conf.escape_html_ampersand;
+    const esc_html_amper = conn.conf.notes.escape_ampersand;
 
     //escape html in note
     const note = if (note_lw.is_file) null else b: {
@@ -802,7 +800,7 @@ fn viewNotePage(
         "<!-- is deleted -->",
     }; const replacs = [_][]const u8 {
         //server name
-        conn.conf.name,
+        conn.conf.customization.name,
         //note info
         generate_note_info(alloc, conn, note_lw),
         //either put note view element or file view element 
@@ -870,7 +868,7 @@ pub const web = struct {
             "<!-- error status -->",
             "<!-- err data -->",
         }; const replacs = [_][]const u8 {
-            conn.conf.name, //server name
+            conn.conf.customization.name, //server name
             code_str,
             stat, //the err msg
             err_json,

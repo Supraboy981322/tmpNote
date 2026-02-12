@@ -45,25 +45,31 @@ pub fn main() !void {
 
     //set the global config
     glob_types.conf = config.read(globAlloc) catch |e| {
-        try log.errf("failed to initialize: {t}", .{e});
-        unreachable;
+        log.errf(
+            "failed to parse config: \"{t}\" " ++ 
+                "(I know, utterly useless error, stupid std.zon Zig error handling)\n" ++
+                "I shall now dump the stack trace (sorry)\n\n", .{e}
+        ) catch {};
+        return e;
     };
     const conf = glob_types.conf; //just an alias
     init(conf) catch |e| try log.errf("failed to init {t}", .{e});
 
     //get server addr
-    const addr = net.Address.resolveIp("::", conf.port) catch |e| {
+    const addr = net.Address.resolveIp("::", conf.server.port) catch |e| {
         try log.errf("failed to resolve ip: {t}", .{e}); return;
     };
 
     //initialize the server
     var server = addr.listen(.{ .reuse_address = true }) catch |e| {
-        try log.errf("failed to listen on port '{d}': {t}", .{conf.port, e});
+        try log.errf("failed to listen on port '{d}': {t}", .{conf.server.port, e});
         return;
     }; defer server.deinit();
 
     //log port
-    try log.info("{s} is listening on port {d}", .{conf.name, conf.port});
+    try log.info("{s} is listening on port {d}", .{
+        conf.customization.name, conf.server.port
+    });
 
     //wait for connections
     while (true) {
@@ -117,7 +123,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     }; defer req.server.out.flush() catch {};
     var itr = mem.splitAny(u8, req.head.target[1..], "?"); //remove query params
     //check the request page, uses default from conf if none
-    const reqPage:[]const u8 = if (itr.first().len < 1) conf.default_page else blk: {
+    const reqPage:[]const u8 = if (itr.first().len < 1) @tagName(conf.server.default_page) else blk: {
         itr.reset() ; break :blk itr.first(); //move index to 0 and get first item
     };
     const params = if (itr.next()) |p| p else ""; //read the params
@@ -142,7 +148,7 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
                     log.err("failed to append to encoding array: {t}", .{e}) catch {};
                     return e;
                 };
-                encoding = .{ .accepts = stuff.items, .picked = .unknown };
+                encoding = .{ .accepts = stuff.items, .picked = .none };
             },
             .@"User-Agent" => {
                 try log.deb("{s}", .{h.value}); 
@@ -211,9 +217,9 @@ pub fn init(conf:config) !void {
     if (@import("conf.zig").used_default) {
         try log.warn("config file not found, using default (use write_config arg to make the default file)", .{});
     }
-    if (conf.log_file.len > 0) {
+    if (conf.server.log.file.len > 0) {
         const opts:std.fs.Dir.WriteFileOptions = .{
-            .sub_path = conf.log_file,
+            .sub_path = conf.server.log.file,
             .data = "",
             .flags = std.fs.File.CreateFlags{
                 .read = false,
@@ -232,14 +238,13 @@ pub fn init(conf:config) !void {
     //shouldn't occur, but if, for some reason it does, then something changed
     } else try log.deb("config file not set in config", .{});
 
-    if (conf.log_file.len > 0) {
-        var stuff = std.mem.splitAny(u8, conf.log_file, ".");
+    if (conf.server.log.file.len > 0) {
+        var stuff = std.mem.splitAny(u8, conf.server.log.file, ".");
         var ext:[]const u8 = "";
         while (stuff.next()) |f| ext = f;
-        const e = std.meta.stringToEnum(globs.log_fmt, ext) orelse .invalid;
+        const e = std.meta.stringToEnum(globs.log_fmt, ext).?;
         switch (e) {
-            .invalid => {},
-            else => if (e != conf.log_format) try log.warn(
+            else => if (e != conf.server.log.format) try log.warn(
                 "log file format doesn't match file extension", .{}
             ),
         }
@@ -271,8 +276,8 @@ fn chk_args() bool {
                 stdout.print("writing default config... (config)\n", .{}) catch {};
                 stdout.flush() catch {};
                 _ = std.fs.cwd().writeFile(.{
-                    .data = @embedFile("config"),
-                    .sub_path = "config",
+                    .data = @embedFile("config.zon"),
+                    .sub_path = "config.zon",
                     .flags = .{},
                 }) catch |e| {
                     stderr.print("failed to write default config: {t}\n", .{e}) catch {};

@@ -49,7 +49,6 @@ pub const log_lvl = enum {
     req,
     warn,
     err,
-    bad, //invalid
 };
 
 pub const File = struct {
@@ -96,7 +95,6 @@ pub const File_Type = struct {
 pub const log_fmt = enum {
     txt,
     json,
-    invalid,
 };
 
 pub const compression = enum {
@@ -104,7 +102,6 @@ pub const compression = enum {
     gzip,
     zlib,
     none,
-    unknown,
 };
 
 pub const compression_preference = [_]compression {

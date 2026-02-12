@@ -20,6 +20,7 @@
     .customization = .{
         //the name given to the server (shown to others)
         .name = "//tmpNote",
+        // TODO: custom CSS
     },
 
     //note settings

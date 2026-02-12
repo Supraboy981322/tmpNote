@@ -457,6 +457,7 @@ pub const html = struct {
         return respPage;
     }
 };
+
 //helper to generate a light-weight note with a message 
 pub fn lazy_lw_note(msg:[]const u8) LW_Note {
     return LW_Note{

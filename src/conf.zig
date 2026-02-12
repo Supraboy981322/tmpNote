@@ -39,6 +39,10 @@ pub const conf = struct {
     },
     customization: struct {
         name:[]const u8,
+        css: ?struct {
+            disable_default: bool,
+            custom_file: ?[]const u8,
+        },
     },
     notes:struct {
         max_size:[]const u8,

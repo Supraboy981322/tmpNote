@@ -739,8 +739,8 @@ fn newNotePage(
     }; const replacs = [_][]const u8 {
         conn.conf.customization.name,
     };//generate the page
-    const respPage_R = hlp.gen_page(
-        @embedFile("web_comp/new_note.html"), &placs, &replacs, alloc
+    const respPage_R = hlp.html.gen_page(
+        web.new_page, &placs, &replacs, alloc
     ) catch |e| {
         web.send_err(500, "server err", conn);
         try log.err("failed to generate page {t}", .{e});
@@ -814,8 +814,8 @@ fn viewNotePage(
     };
 
     //generate the page
-    const respPage_R = hlp.gen_page(
-        @embedFile("web_comp/view_note.html"), &placs, &replacs, alloc
+    const respPage_R = hlp.html.gen_page(
+        web.view_page, &placs, &replacs, alloc
     ) catch |e| {
         web.send_err(500, "server err", conn);
         try log.err("failed to generate page: {t}", .{e});
@@ -834,6 +834,10 @@ fn viewNotePage(
 
 //embeded web-ui files
 pub const web = struct {
+    pub var view_page:[]const u8 = @embedFile("web_comp/view_note.html");
+    pub var new_page:[]const u8 = @embedFile("web_comp/new_note.html");
+    pub var err_page:[]const u8 = @embedFile("web_comp/err.html");
+
     //helper to send error page
     pub fn send_err(code:i16, stat:[]const u8, conn:*ServerConn) void {
         const curTime = conn.reqTime;
@@ -875,8 +879,8 @@ pub const web = struct {
         }; defer globAlloc.free(err_json);
 
         //generate response page
-        const err_html:[]const u8 = @embedFile("web_comp/err.html");
-        const respPage = hlp.gen_page(
+        const err_html:[]const u8 = web.err_page;
+        const respPage = hlp.html.gen_page(
             err_html, &placs, &replacs, globAlloc
         ) catch |e| blk: {
             log.err("failed to generate error page: {t}", .{e}) catch {};

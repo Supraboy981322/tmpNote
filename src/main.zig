@@ -215,7 +215,10 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
 
 pub fn init(conf:config) !void {
     if (@import("conf.zig").used_default) {
-        try log.warn("config file not found, using default (use write_config arg to make the default file)", .{});
+        try log.warn(
+            "config file not found, using default " ++ 
+            "(use write_config arg to make the default file)", .{}
+        );
     }
     if (conf.server.log.file.len > 0) {
         const opts:std.fs.Dir.WriteFileOptions = .{
@@ -249,6 +252,51 @@ pub fn init(conf:config) !void {
             ),
         }
     } else try log.warn("no log file set in config", .{});
+
+    if (conf.customization.css) |css| {
+        const alloc = globs.alloc;
+        if (css.disable_default) {
+            web.err_page = try hlp.html.remove_element(
+                alloc, .{ .open = "<style>", .close = "</style" }, web.err_page
+            );
+            web.view_page = try hlp.html.remove_element(
+                alloc, .{ .open = "<style>", .close = "</style" }, web.view_page
+            );
+            web.new_page = try hlp.html.remove_element(
+                alloc, .{ .open = "<style>", .close = "</style" }, web.new_page
+            );
+        }
+        if (css.custom_file) |filename| {
+            const is_abs:bool = fs.path.isAbsolute(filename);
+            const file_path = if (is_abs) try alloc.dupe(u8, filename) else b: {
+                break :b try fs.cwd().realpathAlloc(alloc, filename);
+            };
+            defer alloc.free(file_path);
+
+            const stylesheet_file = try fs.openFileAbsolute(file_path, .{});
+
+            var wrapper = stylesheet_file.reader(&.{});
+            var re = &wrapper.interface;
+
+            var array_list = try std.ArrayList(u8).initCapacity(alloc, 0);
+            defer array_list.deinit(alloc);
+
+            try re.appendRemainingUnlimited(alloc, &array_list);
+
+            const element = try fmt.allocPrint(alloc, "<style>{s}</style>", .{array_list.items});
+            defer alloc.free(element);
+            
+            web.view_page = try hlp.html.add_to_element(
+                alloc, "</head>", web.view_page, element
+            );
+            web.new_page = try hlp.html.add_to_element(
+                alloc, "</head>", web.new_page, element
+            );
+            web.err_page = try hlp.html.add_to_element(
+                alloc, "</head>", web.err_page, element
+            );
+        }
+    }
 }
 
 fn chk_args() bool {

@@ -384,41 +384,79 @@ pub fn sanitizeHTML(
     return new_note;
 }
 
-//helper to replace placeholder comments
-pub fn gen_page(
-    og:[]const u8,
-    placeholders:[]const []const u8,
-    replacements:[]const []const u8,
-    alloc:mem.Allocator
-) ![]const u8 {
-    //start with original page
-    var respPage:[]const u8 = og;
-    //iterate through each placeholder
-    for (0.., placeholders) |i, plac| {
-        //set the thing to replace with
-        const replac_with = replacements[i];
-
-        //calculate in-between page size
-        const na_replac_si = mem.replacementSize(
-            u8, respPage, plac, replac_with
-        );
-
-        //allocate in-between page
-        const between = alloc.alloc(u8, na_replac_si) catch |e| {
-            try log.err("failed to allocate replacement size: {t}", .{e});
-//            send.headersWithType(500, curTime, req, "text/plain") catch {};
-            return e;
-        };
-
-        //replace placeholders 
-        _ = mem.replace(u8, respPage, plac, replac_with, between);
-        //replace response page with in-between
-        respPage = between;
+//html helpers
+pub const html = struct {
+    //helper to get element contents
+    pub fn get_element(
+        tag: struct{ open:[]const u8, close:[]const u8 },
+        page: []const u8,
+    ) ![]const u8 {
+        const idx1 = mem.indexOf(u8, page, tag.open);
+        const idx2 = mem.indexOf(u8, page, tag.close);
+        return page[idx1.?+tag.open.len..idx2.?];
     }
 
-    return respPage;
-}
+    pub fn add_to_element(
+        alloc: mem.Allocator,
+        tag: []const u8,
+        page: []const u8,
+        element: []const u8
+    ) ![]const u8 {
+        const idx = mem.indexOf(u8, page, tag);
+        const pre = page[0..idx.?]; 
+        const after = page[idx.?+tag.len..];
+        return try fmt.allocPrint(alloc, "{s}{s}{s}", .{pre, element, after});
+    }
 
+    pub fn remove_element(
+        alloc: mem.Allocator,
+        tag: struct{ open:[]const u8, close:[]const u8 },
+        page: []const u8,
+    ) ![]const u8 {
+        const idx1 = mem.indexOf(u8, page, tag.open);
+        const idx2 = mem.indexOf(u8, page, tag.close);
+        const first, const last = .{ page[0..idx1.?], page[idx2.?+tag.close.len+1..] };
+        var buf = try alloc.alloc(u8, first.len+last.len);
+        std.mem.copyForwards(u8, buf[0..first.len], first);
+        std.mem.copyForwards(u8, buf[first.len..first.len+last.len], last);
+        return buf;
+    }
+
+    //helper to replace placeholder comments
+    pub fn gen_page(
+        og:[]const u8,
+        placeholders:[]const []const u8,
+        replacements:[]const []const u8,
+        alloc:mem.Allocator
+    ) ![]const u8 {
+        //start with original page
+        var respPage:[]const u8 = og;
+        //iterate through each placeholder
+        for (0.., placeholders) |i, plac| {
+            //set the thing to replace with
+            const replac_with = replacements[i];
+
+            //calculate in-between page size
+            const na_replac_si = mem.replacementSize(
+                u8, respPage, plac, replac_with
+            );
+
+            //allocate in-between page
+            const between = alloc.alloc(u8, na_replac_si) catch |e| {
+                try log.err("failed to allocate replacement size: {t}", .{e});
+    //            send.headersWithType(500, curTime, req, "text/plain") catch {};
+                return e;
+            };
+
+            //replace placeholders 
+            _ = mem.replace(u8, respPage, plac, replac_with, between);
+            //replace response page with in-between
+            respPage = between;
+        }
+
+        return respPage;
+    }
+};
 //helper to generate a light-weight note with a message 
 pub fn lazy_lw_note(msg:[]const u8) LW_Note {
     return LW_Note{

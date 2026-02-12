@@ -21,6 +21,10 @@
         //the name given to the server (shown to others)
         .name = "//tmpNote",
         // TODO: custom CSS
+        .css = .{
+            .disable_default = false,
+            .custom_file = "../testing/test.css",
+        },
     },
 
     //note settings

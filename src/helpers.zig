@@ -647,7 +647,9 @@ pub fn do_xor(
     input: []const u8,
     options: ? struct { mk_hash:bool = false },
 ) !struct { hash:?[32]u8, res:[]u8 } {
+    try log.deb("doing xor", .{});
     const key = if (key_in) |k| k else if (options) |o| if (o.mk_hash) b: {
+        try log.deb("creating hash", .{});
         var key:[32]u8 = undefined;
         crypto.hash.Blake3.hash(input, &key, .{});
         break :b key;

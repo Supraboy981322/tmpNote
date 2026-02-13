@@ -150,13 +150,14 @@ fn api_new(
     var note:[]u8 = "";
     var comment:[]u8 = "";
     var file_name:[]u8 = "";
+    var encrypt:bool = conf.notes.use_encryption;
     {   //scoped so I don't have to worry about var names clobbering 
         var hItr = req.iterateHeaders();
         //iterate over headers
         while (hItr.next()) |h_C| {
             //create enum from header so I can 'switch'
             const h = meta.stringToEnum(enum {
-                @"is-file", @"err-html", note, skip, comment,
+                @"is-file", @"err-html", note, skip, comment, encrypt,
             }, h_C.name) orelse .skip; //if not wanted, set to skip 
             //switch on header enum 
             switch (h) {
@@ -195,6 +196,7 @@ fn api_new(
                     log.err("alloc note comment failed: {t}", .{e}) catch {};
                     return "";
                 },
+                .encrypt => encrypt = true,
                 //otherwise skip header
                 .skip => continue,
             }
@@ -294,7 +296,7 @@ fn api_new(
         .name = file_name,
     };
 
-    const hash, note = if (conf.notes.use_encryption) b: {
+    const hash, note = if (encrypt) b: {
         const stuff = try hlp.do_xor(alloc, null, note, .{ .mk_hash = true });
         break :b .{ stuff.hash.?, stuff.res };
     } else .{ null, note };
@@ -315,7 +317,7 @@ fn api_new(
         .file = file,
         .compression = conf.notes.compression,
         .encryption = .{
-            .enabled = conf.notes.use_encryption,
+            .enabled = encrypt,
             .key = hash,
         },
     };

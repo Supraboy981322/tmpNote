@@ -3,26 +3,9 @@
     .server = .{
         //listening port
         .port = 8795,
-        //default index page
-        .default_page = .new,
         //log settings
         .log = .{
-            //level ('.debug', '.info', '.req' (request), '.warn', '.err')
-            .level = .debug,
-            //log format ('.json', or '.txt')
-            .format = .json,
-            //log file
             .file = "log.json",
-        },
-    },
-
-    //web ui customization
-    .customization = .{
-        //the name given to the server (shown to others)
-        .name = "//tmpNote",
-        .css = .{
-            .disable_default = false,
-            .custom_file = null,
         },
     },
 
@@ -32,9 +15,5 @@
         .max_size = "10MB",
         //compression type ('.brotli', '.zlib', '.gzip', or '.none')
         .compression = .brotli,
-        //character length of note text file previews
-        .text_preview_size = 100,
-        //escape HTML ampersand when doing XSS stripping
-        .escape_ampersand = false,
     },
 }

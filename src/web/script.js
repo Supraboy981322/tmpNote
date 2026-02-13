@@ -164,7 +164,7 @@ async function newNote() {
   if (note_file !== null) {
     req_headers.append("comment", note_comment);
     req_headers.append("is-file", note_file.name);
-  }
+  } if (server_info.use_encryption) req_headers.append("encrypt", "true");
 
   
   //make a POST request to server

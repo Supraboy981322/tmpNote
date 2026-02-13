@@ -29,27 +29,27 @@ const err = error {
 
 pub const conf = struct {
     server: struct {
-        port: u16,
-        default_page: enum {new, view},
+        port: u16 = 8795,
+        default_page: enum {new, view} = .new,
         log: struct {
-            level: globs.log_lvl,
-            format: globs.log_fmt,
-            file: []const u8,
-        },
-    },
+            level: globs.log_lvl = .debug,
+            format: globs.log_fmt = .json,
+            file: []const u8 = "log.json",
+        } = .{},
+    } = .{},
     customization: struct {
-        name:[]const u8,
+        name:[]const u8 = "//tmpNote",
         css: ?struct {
-            disable_default: bool,
-            custom_file: ?[]const u8,
-        },
-    },
+            disable_default: bool = true,
+            custom_file: ?[]const u8 = null,
+        } = null,
+    } = .{},
     notes:struct {
-        max_size:[]const u8,
-        text_preview_size:usize,
-        compression: globs.compression,
-        escape_ampersand: bool,
-    },
+        max_size:[]const u8 = "10MB",
+        text_preview_size:usize = 100,
+        compression: globs.compression = .brotli,
+        escape_ampersand: bool = false,
+    } = .{},
 
     const Self = @This();
     pub var log_level:i8 = undefined;

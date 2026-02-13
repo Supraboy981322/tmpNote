@@ -249,8 +249,8 @@ pub const log = struct {
 
                     //json stuff 
                     const stuff = [_]Json_Pair{
-                        Json_Pair{ .k = "tag", .v = tag_P, .is_str = true },
-                        Json_Pair{ .k = "msg", .v = msg_P, .is_str = true },
+                        .{ .k = "tag", .v = tag_P, .is_str = true },
+                        .{ .k = "msg", .v = msg_P, .is_str = true },
                     }; //reture allocated string of json
                     break :b mk_json_inline(
                         globs.alloc, stuff.len, stuff

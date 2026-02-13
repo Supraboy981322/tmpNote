@@ -858,8 +858,8 @@ pub const web = struct {
             //fields:
             //  .{ [key], [value], [is_string (empty for false)] }
             const stuff = [_]Json_Pair{
-                Json_Pair{ .k = "code",    .v = code_str,  .is_str = false },
-                Json_Pair{ .k = "status",  .v = stat,      .is_str = true  },
+                .{ .k = "code",    .v = code_str,  .is_str = false },
+                .{ .k = "status",  .v = stat,      .is_str = true  },
             };
             break :blk hlp.mk_json(
                 globAlloc, stuff.len, stuff
@@ -989,13 +989,13 @@ fn generate_note_info(
     const comment = if (has_comment) lw_note.comment else "null";
 
     const stuff = [_]Json_Pair {
-        Json_Pair{ .k = "note_size", .v = str_size,            .is_str = false },
-        Json_Pair{ .k = "is_file",   .v = str_is_file,         .is_str = false },
-        Json_Pair{ .k = "file_type", .v = lw_note.typ,         .is_str = true  },
-        Json_Pair{ .k = "file_name", .v = lw_note.file_name,   .is_str = true  },
-        Json_Pair{ .k = "prev",      .v = lw_note.prev,        .is_str = true  },
-        Json_Pair{ .k = "note_id",   .v = lw_note.id,          .is_str = true  },
-        Json_Pair{ .k = "class",     .v = lw_note.magic.class, .is_str = true  },
+        .{ .k = "note_size", .v = str_size,            .is_str = false },
+        .{ .k = "is_file",   .v = str_is_file,         .is_str = false },
+        .{ .k = "file_type", .v = lw_note.typ,         .is_str = true  },
+        .{ .k = "file_name", .v = lw_note.file_name,   .is_str = true  },
+        .{ .k = "prev",      .v = lw_note.prev,        .is_str = true  },
+        .{ .k = "note_id",   .v = lw_note.id,          .is_str = true  },
+        .{ .k = "class",     .v = lw_note.magic.class, .is_str = true  },
         .{ .k = "comment",   .v = comment,             .is_str = has_comment },
     };
 

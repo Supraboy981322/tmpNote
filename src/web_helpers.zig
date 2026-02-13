@@ -309,7 +309,7 @@ fn api_new(
         } else note,
         .file = file,
         .compression = conf.notes.compression,
-        .encrypt = false, //may add encryption later
+        .encryption = .{ .enabled = false }, //may add encryption later
     };
 
     //log the file type (debug)

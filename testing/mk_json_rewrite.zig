@@ -12,7 +12,7 @@ pub fn main() !void {
     };
 
     const json = try mk_json_with_opts(
-        alloc, pairs.len, pairs, .{ .pack = true }
+        alloc, pairs.len, pairs, .{ .pack = false, .delim = '@' }
     );
 
     std.debug.print("{s}", .{json});
@@ -36,7 +36,7 @@ pub fn mk_json_with_opts(
     try res.append(alloc, '{');
 
     //add either newline (non-packing) or delimiter (empty if none provided)
-    try res.appendSlice(alloc, if (!opts.pack) "\n" else delim);
+    try res.appendSlice(alloc, if (!opts.pack) "\n" else "");
 
     //iterate through pairs
     for (0..,pairs) |i, p| {
@@ -61,6 +61,6 @@ pub fn mk_json_with_opts(
         for (chunks) |ch| try res.appendSlice(alloc, ch);
     }
 
-    try res.append(alloc, '}');
+    try res.appendSlice(alloc, if (opts.pack) delim ++ "}" else "}");
     return try alloc.dupe(u8, res.items);
 }

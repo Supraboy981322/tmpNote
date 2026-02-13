@@ -492,18 +492,19 @@ pre#note { border: solid #697da3 0.25em; }
   display:block;
   &:before {
     content:"";
-    background-color:#88c0d0;
+    background-color:#bf616a;
     border:.35em solid #2e3440;
     border-radius:.75rem;
     width:50%;
     height:100%;
-    margin:-.35em 0 0 -.275em;
+    margin:-.35em 0 0 calc(50% - .35em);
     padding:0;
     transition:all .25s;
     display:block
   }
   &:has(input:checked):before {
-    margin-left:calc(50% - .35em)
+    margin-left:-.275em;
+    background-color: #a3be8c;
   }
   & input {
     opacity:0;

@@ -110,3 +110,10 @@ pub const compression_preference = [_]compression {
     .br, .brotli,
     .none, //shouldn't be grabbed, but here just in case 
 };
+
+
+pub const Json_Pair = struct{
+    k: []const u8,
+    v: []const u8,
+    is_str: bool
+};

@@ -9,6 +9,7 @@ const globAlloc = globs.alloc;
 const log = hlp.log;
 const lazy_lw_note = hlp.lazy_lw_note;
 const note_errs = globs.note_errs;
+const Json_Pair = globs.Json_Pair;
 
 //structs from std
 const fs = std.fs;
@@ -856,9 +857,9 @@ pub const web = struct {
         const err_json = blk: {
             //fields:
             //  .{ [key], [value], [is_string (empty for false)] }
-            const stuff = [_][3][]const u8 {
-                .{ "code",    code_str,  ""  },
-                .{ "status",  stat,      "_" },
+            const stuff = [_]Json_Pair{
+                Json_Pair{ .k = "code",    .v = code_str,  .is_str = false },
+                Json_Pair{ .k = "status",  .v = stat,      .is_str = true  },
             };
             break :blk hlp.mk_json(
                 globAlloc, stuff.len, stuff
@@ -982,25 +983,20 @@ fn generate_note_info(
     //convert non-string values to a string (makes the function easier to read)
     const str_is_file = fmt.allocPrint(alloc, "{}", .{lw_note.is_file}) catch "false";
     const str_size = fmt.allocPrint(alloc, "{d}", .{lw_note.size}) catch "null";
-    
-    //"true" and "false" (used for flagging a string or non-string)
-    const T, const F = .{ "_", "" };
 
     const has_comment = lw_note.comment.len > 0;
 
     const comment = if (has_comment) lw_note.comment else "null";
 
-    //fields:
-    //  .{ [key], [value], [is_string] }
-    const stuff = [_][3][]const u8 {
-        .{ "note_size", str_size,            F },
-        .{ "is_file",   str_is_file,         F },
-        .{ "file_type", lw_note.typ,         T },
-        .{ "file_name", lw_note.file_name,   T },
-        .{ "prev",      lw_note.prev,        T },
-        .{ "note_id",   lw_note.id,          T },
-        .{ "class",     lw_note.magic.class, T },
-        .{ "comment",   comment,             if (has_comment) T else F },
+    const stuff = [_]Json_Pair {
+        Json_Pair{ .k = "note_size", .v = str_size,            .is_str = false },
+        Json_Pair{ .k = "is_file",   .v = str_is_file,         .is_str = false },
+        Json_Pair{ .k = "file_type", .v = lw_note.typ,         .is_str = true  },
+        Json_Pair{ .k = "file_name", .v = lw_note.file_name,   .is_str = true  },
+        Json_Pair{ .k = "prev",      .v = lw_note.prev,        .is_str = true  },
+        Json_Pair{ .k = "note_id",   .v = lw_note.id,          .is_str = true  },
+        Json_Pair{ .k = "class",     .v = lw_note.magic.class, .is_str = true  },
+        .{ .k = "comment",   .v = comment,             .is_str = has_comment },
     };
 
     std.debug.print("{any}", .{@TypeOf(stuff[0])});

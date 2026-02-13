@@ -16,6 +16,7 @@ const ServerConn = globs.ServerConn;
 const note_errs = globs.note_errs;
 const LW_Note = globs.LW_Note;
 const File_Type = globs.File_Type;
+const Json_Pair = globs.Json_Pair;
 
 //defaulting to stderr is stupid 
 var stdout_buf:[1024]u8 = undefined;
@@ -247,9 +248,9 @@ pub const log = struct {
                     }; defer globs.alloc.free(msg_P);
 
                     //json stuff 
-                    const stuff = [_][3][]const u8{
-                        .{ "tag", tag_P, "_", },
-                        .{ "msg", msg_P, "_", },
+                    const stuff = [_]Json_Pair{
+                        Json_Pair{ .k = "tag", .v = tag_P, .is_str = true },
+                        Json_Pair{ .k = "msg", .v = msg_P, .is_str = true },
                     }; //reture allocated string of json
                     break :b mk_json_inline(
                         globs.alloc, stuff.len, stuff
@@ -534,122 +535,72 @@ pub fn text_magic() globs.Magic {
 pub fn mk_json(
     alloc:mem.Allocator,
     comptime N:usize,
-    stuff:[N][3][]const u8
+    stuff:[N]Json_Pair
 ) []const u8 {
     return mk_json_with_opts(alloc, N, stuff, .{
         .pack = true,
-    });
+    }) catch |e| @panic(@errorName(e));
 }
 
 //single-line json (eg: '{ "foo":"bar", "baz":"qux" }')
 pub fn mk_json_inline(
     alloc:mem.Allocator,
     comptime N:usize,
-    stuff:[N][3][]const u8
+    stuff:[N]Json_Pair
 ) []const u8 {
     return mk_json_with_opts(alloc, N, stuff, .{
         .pack = true,
         .delim = ' ',
-    });
+    }) catch |e| @panic(@errorName(e));
 }
 
-//fields:
-//  .{ [key], [value], [is_string (empty for false)] }
 pub fn mk_json_with_opts(
     alloc:mem.Allocator,
     comptime N: usize,
-    stuff:[N][3][]const u8,
+    pairs:[N]Json_Pair,
     comptime opts:struct{
         pack:bool = false,
         delim:?u8 = null,
     },
-) []const u8 {
-    //open JSON body
-    var res:[]const u8 = "{"++if (!opts.pack) "\n" else blk: {
-        //only use delimiter at start if set to pack json
-        break :blk if (opts.delim) |d| b: {
-            const foo = &[_]u8{d}; //turn byte into array of 1 byte
-            break :b foo[0..]; //coerce into a slice
-        } else ""; //default to no spacing
-    };
+) ![]const u8 {
+    const delim = if (opts.delim) |d| &[_]u8{d} else if (opts.pack) "" else " ";
+    //create array list
+    var res = try std.ArrayList(u8).initCapacity(alloc, 0);
+    defer _ = res.deinit(alloc); 
 
-    //iterate through each pair 
-    for (0..,stuff) |i, t| {
-        //create a writer
-        var v_R_buf:[1024]u8 = undefined;
-        var v_R_stream = std.io.fixedBufferStream(&v_R_buf);
-        var v_R_wr = v_R_stream.writer().adaptToNewApi(&v_R_buf).new_interface;
-        //pull buffer out of stream struct (easier to read)
-        const v_S_buf = v_R_stream.buffer;
+    //open json object
+    try res.append(alloc, '{');
 
-        //escape json value
-        std.zig.stringEscape(t[1], &v_R_wr) catch |e| {
-            log.err("failed to escape JSON string: {t}", .{e}) catch {};
-            return t[1];
+    //add either newline (non-packing) or delimiter (empty if none provided)
+    try res.appendSlice(alloc, if (!opts.pack) "\n" else "");
+
+    //iterate through pairs
+    for (0..,pairs) |i, p| {
+        //determine what goes before the key
+        const before_key = (if (opts.pack) delim else "\t") ++ "\"";
+
+        //determine the slice added after the key 
+        const after_key = "\":" ++ (if (opts.pack) "" else delim);
+
+        //before value
+        const before_val = if (p.is_str) "\"" else "";
+
+        //determine the slice added after the key 
+        const after_val = if (p.is_str) "\"" else "";
+
+        const chunks = [_][]const u8 {
+            before_key, p.k, after_key,
+            before_val, p.v, after_val,
+            if (i < N-1) "," else "", if (opts.pack) "" else "\n"
         };
 
-        //cut-off on first non-ascii byte
-        const v_R = for (0..v_S_buf.len) |j| {
-            if (!ascii.isAscii(v_S_buf[j])) break v_S_buf[0..j];
-        } else v_S_buf;
+        for (chunks) |ch| try res.appendSlice(alloc, ch);
+    }
 
-        //either put in quotations (string; unescaped) or leave alone (non-string)
-        const v = if (t[2].len == 0) v_R else blk: {
-            //allocated value in quotes
-            break :blk fmt.allocPrint(alloc, "\"{s}\"", .{v_R}) catch |e| blk2: {
-                log.err("failed to format note info value {t}", .{e}) catch {};
-                break :blk2 "";
-            };
-        };
-
-        //only use a comma if it isn't he last pair
-        const end = blk: {
-            //determine delimiter
-            const delim:[]const u8 = if (opts.pack) bl: {
-                //only use check the provided delimiter if set to pack 
-                break :bl if (opts.delim) |d| b: {
-                    const foo = &[_]u8{d}; //turn byte into array of 1 byte
-                    break :b foo[0..]; //coerce into a slice
-                } else ""; //default to no spacing when packing
-            } else "\n"; //use newline when not packing
-            //add a comma if not the last item (json sucks)
-            break :blk if (i == stuff.len-1) delim else ","++delim;
-        };
-
-        //format the line
-        const line = blk: {
-            //determine the separator
-            const sep = if (!opts.pack) b: {
-                //only use provided delimiter if *not* packing
-                if (opts.delim) |d| {
-                    const foo = &[_]u8{d}; //turn byte into array of 1 byte
-                    break :b foo[0..]; //coerce into a slice
-                } else " "; //default to space when not packing
-            } else ""; //use no spacing when packing
-            //make allocated formatted line string
-            break :blk fmt.allocPrint(
-                alloc, "{s}\"{s}\":{s}{s}{s}", .{
-                    if (opts.pack) sep else "\t", t[0], sep, v, end
-                }
-            ) catch |e| b: { //log err and use empty line 
-                log.err("failed to format json line: {t}", .{e}) catch {};
-                break :b "";
-            };
-        };
-
-        //add the line to the result
-        res = fmt.allocPrint(alloc, "{s}{s}", .{res, line}) catch |e| blk: {
-            log.err("failed to generate note info: {t}", .{e}) catch {};
-            break :blk res;
-        };
-    } res = fmt.allocPrint( //close the JSON object
-        alloc, "{s}}}{s}", .{ res, if (!opts.pack) "\n" else "" }
-    ) catch |e| blk: { //log err and set to empty object on err 
-        log.err("failed to close note info json object: {t}", .{e}) catch {};
-        break :blk "{}";
-    };
-    return res;
+    try res.appendSlice(alloc, if (opts.pack) delim ++ "}" else "}");
+    return try alloc.dupe(u8, res.items);
 }
+
 
 //helper to strip non-ascii from string
 pub fn strip_ansi(

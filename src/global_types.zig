@@ -65,8 +65,8 @@ pub const Note = struct {
     file: File,
     compression: compression,
     encryption: struct {
-        enabled: bool, //might do this at some point
-        key: ?[]const u8 = null,
+        enabled: bool,
+        key: ?[32]u8 = null,
     }
 };
 

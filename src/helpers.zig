@@ -642,16 +642,16 @@ pub fn to_lower(
 }
 
 pub fn do_xor(
-    alloc: std.mem.allocator,
-    key_in: ?[]const u8,
+    alloc: std.mem.Allocator,
+    key_in: ?[32]u8,
     input: []const u8,
     options: ? struct { mk_hash:bool = false },
-) !struct { hash:?[]const u8, res:[]const u8 } {
+) !struct { hash:?[32]u8, res:[]u8 } {
     const key = if (key_in) |k| k else if (options) |o| if (o.mk_hash) b: {
         var key:[32]u8 = undefined;
         crypto.hash.Blake3.hash(input, &key, .{});
         break :b key;
-    } else unreachable;
+    } else unreachable else unreachable;
 
     var res = try std.ArrayList(u8).initCapacity(alloc, 0);
     defer _ = res.deinit(alloc);

@@ -294,6 +294,11 @@ fn api_new(
         .name = file_name,
     };
 
+    const hash, note = if (conf.notes.use_encryption) b: {
+        const stuff = try hlp.do_xor(alloc, null, note, .{ .mk_hash = true });
+        break :b .{ stuff.hash, stuff.res };
+    } else .{ null, note };
+
     //note struct
     const n:Note = .{
         .content = if (conf.notes.compression != .none) b: {
@@ -309,7 +314,10 @@ fn api_new(
         } else note,
         .file = file,
         .compression = conf.notes.compression,
-        .encryption = .{ .enabled = false }, //may add encryption later
+        .encryption = .{
+            .enabled = conf.notes.use_encryption,
+            .key = hash,
+        },
     };
 
     //log the file type (debug)

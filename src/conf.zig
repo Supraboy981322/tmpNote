@@ -49,6 +49,7 @@ pub const conf = struct {
         text_preview_size:usize = 100,
         compression: globs.compression = .brotli,
         escape_ampersand: bool = false,
+        use_encryption:bool = false,
     } = .{},
 
     const Self = @This();

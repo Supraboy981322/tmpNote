@@ -39,6 +39,12 @@ var server_info = undefined;
       })();
     }
   }}
+
+  const server_info_elm = document.getElementById("server_info");
+  if (server_info_elm != null) {
+    server_info = JSON.parse(server_info_elm.innerText);
+    console.log(server_info.use_encryption);
+  }
   
   if (document.querySelector("body>div>h1>.page").innerText == "new") {
     //create tab element
@@ -409,11 +415,12 @@ function tab_btn(btn) {
 
         let encrypt_container = document.createElement("div");
         encrypt_container.className = "encrypt_cont";
-        encrypt_container.setAttribute("enabled", "true");
-        encrypt_container.onclick = () => { return () => {
-          let enabled = JSON.parse(encrypt_container.getAttribute("enabled"));
-          encrypt_container.setAttribute("enabled", enabled);
-        }};
+        encrypt_container.setAttribute("enabled", server_info.use_encryption);
+        encrypt_container.addEventListener("click", () => {
+          let current = JSON.parse(encrypt_container.getAttribute("enabled"));
+          encrypt_container.setAttribute("enabled", !current);
+          console.log(!current);
+        });
         let encrypt_switch = document.createElement("label");
         encrypt_switch.className = "switch";
         let encrypt_chk_box = document.createElement("input");
@@ -423,6 +430,10 @@ function tab_btn(btn) {
         encrypt_slider.className = "slider";
         encrypt_switch.appendChild(encrypt_slider);
         encrypt_container.appendChild(encrypt_switch);
+        {let childs = encrypt_switch.children;
+          for (let i = 0; i < childs.length; i++)
+            childs[i].addEventListener("click", (e) => e.stopPropagation());
+        }
         container.appendChild(encrypt_container);
         
         btn.appendChild(container);

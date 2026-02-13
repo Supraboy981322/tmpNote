@@ -640,3 +640,28 @@ pub fn to_lower(
     }
     return alloc.dupe(u8, res.items);
 }
+
+pub fn do_xor(
+    alloc: std.mem.allocator,
+    key_in: ?[]const u8,
+    input: []const u8,
+    options: ? struct { mk_hash:bool = false },
+) !struct { hash:?[]const u8, res:[]const u8 } {
+    const key = if (key_in) |k| k else if (options) |o| if (o.mk_hash) b: {
+        var key:[32]u8 = undefined;
+        crypto.hash.Blake3.hash(input, &key, .{});
+        break :b key;
+    } else unreachable;
+
+    var res = try std.ArrayList(u8).initCapacity(alloc, 0);
+    defer _ = res.deinit(alloc);
+    for (input, 0..) |b_raw, i| {
+        const b_enc = b_raw ^ key[i % key.len];
+        try res.append(alloc, b_enc);
+    }
+
+    return .{
+        .hash = if (key_in) |_| null else key,
+        .res = try alloc.dupe(u8, res.items),
+    };
+}

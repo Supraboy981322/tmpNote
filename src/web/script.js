@@ -3,6 +3,7 @@
 //set later
 var note_info = undefined; //may use for more than rendering the page 
 var note_file = null;
+var server_info = undefined;
 
 //setup the page
 (async function() {
@@ -406,6 +407,24 @@ function tab_btn(btn) {
         clear_btn.innerText = "remove file";
         container.appendChild(clear_btn);
 
+        let encrypt_container = document.createElement("div");
+        encrypt_container.className = "encrypt_cont";
+        encrypt_container.setAttribute("enabled", "true");
+        encrypt_container.onclick = () => { return () => {
+          let enabled = JSON.parse(encrypt_container.getAttribute("enabled"));
+          encrypt_container.setAttribute("enabled", enabled);
+        }};
+        let encrypt_switch = document.createElement("label");
+        encrypt_switch.className = "switch";
+        let encrypt_chk_box = document.createElement("input");
+        encrypt_chk_box.setAttribute("type", "checkbox");
+        encrypt_switch.appendChild(encrypt_chk_box);
+        let encrypt_slider = document.createElement("span");
+        encrypt_slider.className = "slider";
+        encrypt_switch.appendChild(encrypt_slider);
+        encrypt_container.appendChild(encrypt_switch);
+        container.appendChild(encrypt_container);
+        
         btn.appendChild(container);
 
         //remove onclick so clicking background of element doesn't close it 

@@ -296,7 +296,7 @@ fn api_new(
 
     const hash, note = if (conf.notes.use_encryption) b: {
         const stuff = try hlp.do_xor(alloc, null, note, .{ .mk_hash = true });
-        break :b .{ stuff.hash, stuff.res };
+        break :b .{ stuff.hash.?, stuff.res };
     } else .{ null, note };
 
     //note struct
@@ -428,6 +428,12 @@ fn api_view(
                 return e;
             };
         } else n.content;
+        if (n.encryption.enabled) {
+            const stuff = try hlp.do_xor(
+                alloc, n.encryption.key.?, note, null
+            );
+            note = stuff.res;
+        }
         file.magic = n.file.magic; 
         file.typ = if (n.file.is_file) n.file.typ else "text/plain";
         file.is_file = n.file.is_file;

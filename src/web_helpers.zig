@@ -750,11 +750,20 @@ fn newNotePage(
     conn:*ServerConn,
     alloc:mem.Allocator,
 ) !void {
+    const use_encryption_str = if (conn.conf.notes.use_encryption) "true" else "false";
+    const server_info = [_]globs.Json_Pair{
+        .{ .k = "use_encryption", .v = use_encryption_str, .is_str = false },
+    };
+    const server_info_json = hlp.mk_json(globs.alloc, server_info.len, server_info);
+    defer globs.alloc.free(server_info_json);
+
     //define placeholder replacements
     const placs = [_][]const u8 {
         "<!-- server name -->",
+        "<!-- server info -->",
     }; const replacs = [_][]const u8 {
         conn.conf.customization.name,
+        server_info_json,
     };//generate the page
     const respPage_R = hlp.html.gen_page(
         web.new_page, &placs, &replacs, alloc

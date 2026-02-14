@@ -140,15 +140,12 @@ pub const conf = struct {
                 try log.errf("{t} not a number: {s}", .{e, si_str});
                 unreachable;
             };
-            try log.deb("|{s}| {d}", .{si_str, si});
 
             //set the maximum note size
             Self.max_note_size = si;
             var foo:usize = si; //Zig can't directly multiply optional
             for (0..mult_num) |_| foo *= 1024;
             Self.max_note_size = foo;
-
-            try log.deb("{d} != {d}", .{Self.max_note_size.?, foo});
         }
 
         safe = true; 

@@ -632,19 +632,16 @@ pub const compression = struct {
         //get enum from compression input
         const enc = try Self.get_current(encs_R, encs_e);
 
-        //compress
-        const comp = b: {
-            //switch on compression type  TODO: more compression types
-            switch (enc) {
-                .gzip => break :b compress.Gz(in.ptr, @intCast(in.raw.len)),
-                .br, .brotli => break :b compress.Br(in.ptr, @intCast(in.raw.len)),
-                .zlib => break :b compress.Zlib(in.ptr, @intCast(in.raw.len)),
-                //shouldn't happen, but just in case
-                .none => break :b compress.res{
-                    .cont = in.ptr,
-                    .leng = @intCast(in.raw.len),
-                },
-            }
+        //compress (switch on compression type)
+        const comp = switch (enc) {
+            .gzip => compress.Gz(in.ptr, @intCast(in.raw.len)),
+            .br, .brotli => compress.Br(in.ptr, @intCast(in.raw.len)),
+            .zlib => compress.Zlib(in.ptr, @intCast(in.raw.len)),
+            //shouldn't happen, but just in case
+            .none => compress.res {
+                .cont = in.ptr,
+                .leng = @intCast(in.raw.len),
+            },
         };
         conn.encoding.picked = enc;
 
@@ -665,26 +662,19 @@ pub const compression = struct {
 
         const in = try Self.const_u8_to_c_str(in_R, alloc);
 
-        //compress
-        const comp = b: {
-            //get enum from compression input
-            const enc = try Self.get_current(encs_R, encs_e);
+        //get enum from compression input
+        const enc = try Self.get_current(encs_R, encs_e);
 
-            //switch on compression type  TODO: more compression types
-            switch (enc) {
-                .gzip => break :b compress.De_Gz(in.ptr, @intCast(in.raw.len)),
-                .br, .brotli => break :b compress.De_Br(in.ptr, @intCast(in.raw.len)),
-                .zlib => break :b compress.De_Zlib(in.ptr, @intCast(in.raw.len)),
-                //shouldn't happen, but just in case
-                .none => break :b compress.res{
-                    .cont = in.ptr,
-                    .leng = @intCast(in.raw.len),
-                },
-                //else => {
-                //    try log.deb("TODO: decoding {s}", .{@tagName(enc)});
-                //    break :b null;
-                //}
-            }
+        //compress (switch on compression type)
+        const comp = switch (enc) {
+            .gzip => compress.De_Gz(in.ptr, @intCast(in.raw.len)),
+            .br, .brotli => compress.De_Br(in.ptr, @intCast(in.raw.len)),
+            .zlib => compress.De_Zlib(in.ptr, @intCast(in.raw.len)),
+            //shouldn't happen, but just in case
+            .none => compress.res{
+                .cont = in.ptr,
+                .leng = @intCast(in.raw.len),
+            },
         };
 
         //return unwrapped

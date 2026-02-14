@@ -48,31 +48,45 @@ pub const send = struct {
         defer _ = gpa.deinit();
         const alloc = gpa.allocator();
 
+        const status_code = switch (status) {
+            200 => "HTTP/1.1 200 OK",
+            400 => "HTTP/1.1 400 Bad Request",
+            403 => "HTTP/1.1 403 FORBIDDEN",
+            404 => "HTTP/1.1 404 not found",
+            411 => "HTTP/1.1 411 Length Required",
+            413 => "HTTP/1.1 413 Content Too Large",
+            else => "HTTP/1.1 500 Internal Server Error",
+        };
+
+        const content_type_header = fmt.allocPrint(
+            alloc, "Content-Type: {s}; charset=UTF-8",
+            .{ content_type orelse "text/html" }
+        ) catch |e| blk: { //just use text/html if alloc fails
+            try log.err("failed to allocate 'Content-Type' header: {t}", .{e});
+            break :blk "Content-Type: text/html";
+        };
+
+        const date_header = fmt.allocPrint(
+            alloc, "date: {s}", .{curTime}
+        ) catch |e| blk: {
+            try log.err("failed to allocate 'date' header: {t}", .{e});
+            break :blk "foo-bar-baz: foo bar baz"; //jargon if err
+        };
+
+        //free allocated headers
+        defer {
+            alloc.free(date_header);
+            alloc.free(content_type_header);
+        }
+
         //array of headers
         const heads = [_][]const u8 {
-            switch (status) {
-                200 => "HTTP/1.1 200 OK",
-                400 => "HTTP/1.1 400 Bad Request",
-                403 => "HTTP/1.1 403 FORBIDDEN",
-                404 => "HTTP/1.1 404 not found",
-                411 => "HTTP/1.1 411 Length Required",
-                413 => "HTTP/1.1 413 Content Too Large",
-                else => "HTTP/1.1 500 Internal Server Error",
-            },
-            fmt.allocPrint(
-                alloc, "Content-Type: {s}; charset=UTF-8",
-                .{ content_type orelse "text/html" }
-            ) catch |e| blk: { //just use text/html if alloc fails
-                try log.err("failed to allocate 'Content-Type' header: {t}", .{e});
-                break :blk "Content-Type: text/html";
-            },
+            status_code,
+            content_type_header,
             "x-content-type-options: nosniff",
             "server: homebrew zig http server",
-            fmt.allocPrint(alloc, "date: {s}", .{curTime}) catch |e| blk: {
-                try log.err("failed to allocate 'date' header: {t}", .{e});
-                break :blk "foo-bar-baz: foo bar baz"; //jargon if err
-            },
-        }; defer for ([_]usize{ 1, 4, }) |i| alloc.free(heads[i]); //only free alloc
+            date_header,
+        };
         
         //send headers
         for (heads) |h| {
@@ -80,12 +94,15 @@ pub const send = struct {
             req.server.out.flush() catch return;
         }
 
+        //send additional headers
         if (things) |ts| for (ts) |t| {
             req.server.out.print("{s}\r\n", .{t}) catch return;
             req.server.out.flush() catch return;
         };
 
+        //end headers
         req.server.out.print("\r\n", .{}) catch return;
+        req.server.out.flush() catch return;
     }
 };
 

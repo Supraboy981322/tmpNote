@@ -417,6 +417,7 @@ function tab_btn(btn) {
         clear_btn.innerText = "remove file";
         container.appendChild(clear_btn);
 
+        //encryption toggle slider and label
         let encrypt_container = document.createElement("div");
         encrypt_container.className = "encrypt_cont";
         encrypt_container.setAttribute("enabled", server_info.use_encryption);
@@ -429,6 +430,7 @@ function tab_btn(btn) {
         encrypt_switch.className = "switch";
         let encrypt_chk_box = document.createElement("input");
         encrypt_chk_box.setAttribute("type", "checkbox");
+        encrypt_chk_box.checked = server_info.use_encryption;
         encrypt_switch.appendChild(encrypt_chk_box);
         let encrypt_slider = document.createElement("span");
         encrypt_slider.className = "slider";

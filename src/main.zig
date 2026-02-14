@@ -217,7 +217,7 @@ pub fn init(conf:config) !void {
     if (@import("conf.zig").used_default) {
         try log.warn(
             "config file not found, using default " ++ 
-            "(use write_config arg to make the default file)", .{}
+            "(use the write_config arg to write it to a file)", .{}
         );
     }
     if (conf.server.log.file.len > 0) {

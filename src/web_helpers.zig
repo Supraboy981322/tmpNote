@@ -442,6 +442,7 @@ fn api_view(
         file.size = n.file.size;
         file.name = n.file.name;
         file.comment = n.file.comment;
+
         if (n.file.size == 0) {
             log.deb("n.file.size == 0 (api_view(...))", .{}) catch {};
             return hlp.lazy_lw_note("");
@@ -457,9 +458,6 @@ fn api_view(
             return lazy_lw_note("failed to remove from db");
         };
     } else return note_errs.note_not_found;
-
-    //passed to light-weight note struct
-    //const size = file.size;
 
     //generate note preview 
     const conf_prev_size:usize = conn.conf.notes.text_preview_size;

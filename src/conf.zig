@@ -14,7 +14,6 @@ const valid_byte_sizes = enum {
     tb, //terabyte
     pb, //petabyte
     eb, //exabyte
-    yb, //yottabyte
     any,//TODO: any size
     bad,//invalid
 };
@@ -135,7 +134,6 @@ pub const conf = struct {
             .tb => 4,
             .pb => 5,
             .eb => 6,
-            .yb => 7,
             .bad => {
                 //err on invalid
                 try log.errf("{t}: bad extention {s}", .{err.Invalid_Value, ext.items});

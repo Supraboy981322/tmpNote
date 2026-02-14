@@ -208,7 +208,7 @@ fn api_new(
     if (req.head.content_length) |si| {
         len_req = si; //just an alias 
         //if the note is too large 
-        if (si > @import("conf.zig").conf.max_note_size) {
+        if (@import("conf.zig").conf.max_note_size) |max| if (si > max) {
             //message that's sent
             const too_large_msg:[]const u8 = "note exceeds configured limit";
             if (isReq) { //only respond with err if it's an api request 
@@ -221,7 +221,7 @@ fn api_new(
                 } return ""; //return empty string
             //otherwise return err to calling fn
             } else return note_errs.note_too_large;
-        }
+        };
     } else if (respond_html) {
         web.send_err(
             411, "need \"Content-Length\" header", conn

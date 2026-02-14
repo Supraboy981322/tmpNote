@@ -53,7 +53,7 @@ pub const conf = struct {
 
     const Self = @This();
     pub var log_level:i8 = undefined;
-    pub var max_note_size:usize = undefined;
+    pub var max_note_size:?usize = undefined;
 
     //parsing the config
     pub fn read(alloc:std.mem.Allocator) !Self {
@@ -63,7 +63,6 @@ pub const conf = struct {
         //make sure dupe is freed
         defer alloc.free(file);
 
-        safe = true; 
         const config = try std.zon.parse.fromSlice(
             Self, alloc, file, null, .{
                 .ignore_unknown_fields = false,
@@ -99,20 +98,6 @@ pub const conf = struct {
         //convert size number array into string
         const si_str:[]const u8 = si_str_arr.items;
 
-        //err if no number
-        if (si_str.len == 0) try log.errf(
-            "err parsing config: ({t}) no number found in {s}", .{err.Invalid_Value, si_str}
-        ); 
-
-        //attempt to convert string to int
-        const si:u64 = std.fmt.parseInt(u64, si_str, 10) catch |e| {
-            try log.errf("{t} not a number: {s}", .{e, si_str});
-            unreachable;
-        };
-
-        //set the maximum note size
-        Self.max_note_size = si;
-
         //convert measurement array into lowercase string
         var extL_buf:[1024]u8 = undefined;
         const extL = std.ascii.lowerString(&extL_buf, ext.items);
@@ -128,9 +113,9 @@ pub const conf = struct {
         const mult_num:usize = switch (v) {
             .any => 0, //skip multiplication 
             .b => 0, //skip multiplication 
-            .kb => 1, 
-            .mb => 2, 
-            .gb => 3, 
+            .kb => 1,
+            .mb => 2,
+            .gb => 3,
             .tb => 4,
             .pb => 5,
             .eb => 6,
@@ -141,8 +126,27 @@ pub const conf = struct {
             },
         };
 
-        //multiply by the set number
-        for (0..mult_num) |_| Self.max_note_size *= 1024;
+        //if any size, just set to null,
+        //  otherwise, multiply by the set number
+        if (v == .any) Self.max_note_size = null else {
+            //err if no number
+            if (si_str.len == 0) try log.errf(
+                "err parsing config: ({t}) no number found in {s}", .{err.Invalid_Value, si_str}
+            );
+            //attempt to convert string to int
+            const si:usize = std.fmt.parseInt(usize, si_str, 10) catch |e| {
+                try log.errf("{t} not a number: {s}", .{e, si_str});
+                unreachable;
+            };
+
+            //set the maximum note size
+            Self.max_note_size = si;
+            var foo:usize = 0; //Zig can't directly multiply optional
+            for (0..mult_num) |_| foo *= 1024;
+            Self.max_note_size = foo;
+        }
+
+        safe = true; 
 
         //attempty to parse Zon
         return config;

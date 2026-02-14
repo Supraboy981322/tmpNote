@@ -669,3 +669,10 @@ pub fn do_xor(
         .res = try alloc.dupe(u8, res.items),
     };
 }
+
+pub fn str_is_num(str:[]const u8) bool {
+    for (str) |b| {
+        if (b < '0' or b > '9') return false;
+    }
+    return true;
+}

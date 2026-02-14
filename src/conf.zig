@@ -56,7 +56,9 @@ pub const conf = struct {
     pub var max_note_size:?usize = undefined;
 
     //parsing the config
-    pub fn read(alloc:std.mem.Allocator) !Self {
+    pub fn read(
+        alloc:std.mem.Allocator
+    ) !Self {
         //read the whole config file
         const file = try read_whole_damn_file(alloc, "config.zon");
 
@@ -154,7 +156,10 @@ pub const conf = struct {
 };
 
 //helper to just read a whole file
-pub fn read_whole_damn_file(alloc:std.mem.Allocator, name:[]const u8) ![:0]const u8 {
+pub fn read_whole_damn_file(
+    alloc:std.mem.Allocator,
+    name:[]const u8,
+) ![:0]const u8 {
     //open file
     const fi:?std.fs.File = std.fs.cwd().openFile(name, .{}) catch |e| b: {
         if (e == error.FileNotFound) break :b null;

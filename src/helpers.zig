@@ -89,7 +89,10 @@ pub const send = struct {
     }
 };
 
-pub fn ranStr(len:usize, alloc: mem.Allocator) ![]u8 {
+pub fn ranStr(
+    len: usize,
+    alloc: mem.Allocator
+) ![]u8 {
     //byte slice of alpha-numeric characters 
     const chars:[]const u8 = "qwertzuiopasdfghjklycvb" ++
                              "nmQWERTZUIOPASDFGHJKLYXCVBNM1234567890";
@@ -298,7 +301,10 @@ pub const log = struct {
     }
 
     //debug logger
-    pub fn deb(comptime msg:[]const u8, args:anytype) !void {
+    pub fn deb(
+        comptime msg:[]const u8,
+        args:anytype
+    ) !void {
         //only log if debug level
         if (@import("conf.zig").conf.log_level > 0) return;
         try Self.generic(
@@ -307,28 +313,40 @@ pub const log = struct {
     }
 
     //err logger
-    pub fn err(comptime msg:[]const u8, args:anytype) !void {
+    pub fn err(
+        comptime msg:[]const u8,
+        args:anytype
+    ) !void {
         //only log if err level
         if (@import("conf.zig").conf.log_level > 4) return;
         try Self.generic("\x1b[1;37m[\x1b[1;31merr\x1b[1;37m]:\x1b[0m", msg, args);
     }
 
     //err and exit
-    pub fn errf(comptime msg:[]const u8, args:anytype) !void {
+    pub fn errf(
+        comptime msg:[]const u8,
+        args:anytype
+    ) !void {
         try log.err(msg, args);
         std.process.exit(1);
         @panic("failed to fail");
     }
 
     //info logger
-    pub fn info(comptime msg:[]const u8, args:anytype) !void {
+    pub fn info(
+        comptime msg:[]const u8,
+        args:anytype
+    ) !void {
         //only log if info level
         if (@import("conf.zig").conf.log_level > 1) return;
         try Self.generic("\x1b[1;37m[\x1b[1;35minfo\x1b[1;37m]:\x1b[0m", msg, args);
     }
 
     //warn logger
-    pub fn warn(comptime msg:[]const u8, args:anytype) anyerror!void {
+    pub fn warn(
+        comptime msg:[]const u8,
+        args:anytype
+    ) anyerror!void {
         //only log if warn level
         if (@import("conf.zig").conf.log_level > 3) return;
         try Self.generic("\x1b[1;37m[\x1b[1;33mWARN\x1b[1;37m]:\x1b[0m", msg, args);
@@ -336,7 +354,10 @@ pub const log = struct {
 };
 
 //fatal error (unrecoverable and can't log)
-pub fn fat_err(comptime msg:[]const u8, args:anytype) void {
+pub fn fat_err(
+    comptime msg:[]const u8,
+    args:anytype
+) void {
     var buf:[1024]u8 = undefined;
     var wr = std.fs.File.stderr().writer(&buf);
     const stderr = &wr.interface;
@@ -460,7 +481,9 @@ pub const html = struct {
 };
 
 //helper to generate a light-weight note with a message 
-pub fn lazy_lw_note(msg:[]const u8) LW_Note {
+pub fn lazy_lw_note(
+    msg:[]const u8
+) LW_Note {
     return LW_Note{
         .cont = msg, 
         .is_file = false,
@@ -475,26 +498,36 @@ pub fn lazy_lw_note(msg:[]const u8) LW_Note {
 }
 
 //helper to check if a string starts with another string
-pub fn starts_with(b_s:[]const u8, pre:[]const u8) bool {
+pub fn starts_with(
+    b_s:[]const u8,
+    pre:[]const u8
+) bool {
     if (b_s.len < pre.len) return false;
     const first_half = b_s[0..pre.len];
     return mem.eql(u8, first_half, pre);
 }
 
 //helper to check if string contains a byte
-pub fn str_has_byte(str:[]const u8, b:u8) bool {
+pub fn str_has_byte(
+    str:[]const u8,
+    b:u8
+) bool {
     for (str) |c| if (c == b) return true;
     return false;
 }
 
 //helper for plain-text checks
-pub fn chk_is_ascii(b_s:[]u8) bool {
+pub fn chk_is_ascii(
+    b_s:[]u8
+) bool {
     for (b_s) |b| if (!ascii.isAscii(b)) return false; 
     return true;
 }
 
 //helper to check binary type
-pub fn chk_magic(b_s:[]u8) File_Type {
+pub fn chk_magic(
+    b_s:[]u8
+) File_Type {
     const is_text = chk_is_ascii(b_s);
     var typ:[]const u8 = if (is_text) "text/plain" else "unknown";
     
@@ -670,7 +703,9 @@ pub fn do_xor(
     };
 }
 
-pub fn str_is_num(str:[]const u8) bool {
+pub fn str_is_num(
+    str:[]const u8
+) bool {
     for (str) |b| {
         if (b < '0' or b > '9') return false;
     }

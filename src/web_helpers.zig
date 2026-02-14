@@ -863,7 +863,11 @@ pub const web = struct {
     pub var err_page:[]const u8 = @embedFile("web_comp/err.html");
 
     //helper to send error page
-    pub fn send_err(code:i16, stat:[]const u8, conn:*ServerConn) void {
+    pub fn send_err(
+        code:i16,
+        stat:[]const u8,
+        conn:*ServerConn
+    ) void {
         const curTime = conn.reqTime;
         const req = conn.req;
 

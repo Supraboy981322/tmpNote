@@ -83,7 +83,10 @@ pub fn main() !void {
 }
 
 //handles incoming connections
-pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
+pub fn hanConn(
+    conn: net.Server.Connection,
+    conf:config
+) !void {
     defer conn.stream.close(); //ensure stream is closed
 
     //scoped allocator
@@ -213,7 +216,9 @@ pub fn hanConn(conn: net.Server.Connection, conf:config) !void {
     req.server.out.flush() catch {};
 }
 
-pub fn init(conf:config) !void {
+pub fn init(
+    conf:config
+) !void {
     if (@import("conf.zig").used_default) {
         try log.warn(
             "config file not found, using default " ++ 

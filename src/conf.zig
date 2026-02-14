@@ -113,8 +113,7 @@ pub const conf = struct {
         //  the max-note-size int by when converting 
         //    from the specified measurement to bytes
         const mult_num:usize = switch (v) {
-            .any => 0, //skip multiplication 
-            .b => 0, //skip multiplication 
+            .any, .b => 0, //skip multiplication 
             .kb => 1,
             .mb => 2,
             .gb => 3,
@@ -135,17 +134,21 @@ pub const conf = struct {
             if (si_str.len == 0) try log.errf(
                 "err parsing config: ({t}) no number found in {s}", .{err.Invalid_Value, si_str}
             );
+
             //attempt to convert string to int
             const si:usize = std.fmt.parseInt(usize, si_str, 10) catch |e| {
                 try log.errf("{t} not a number: {s}", .{e, si_str});
                 unreachable;
             };
+            try log.deb("|{s}| {d}", .{si_str, si});
 
             //set the maximum note size
             Self.max_note_size = si;
-            var foo:usize = 0; //Zig can't directly multiply optional
+            var foo:usize = si; //Zig can't directly multiply optional
             for (0..mult_num) |_| foo *= 1024;
             Self.max_note_size = foo;
+
+            try log.deb("{d} != {d}", .{Self.max_note_size.?, foo});
         }
 
         safe = true; 

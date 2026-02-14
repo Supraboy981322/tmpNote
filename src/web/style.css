@@ -73,18 +73,25 @@
       height: 1.25em;
       color: #2e3440;
       display: block;
+      line-height: 0;
       cursor: pointer;
       position: fixed;
-      padding-left: 0.35em;
+      padding-left: 0.225em;
       transition: all 250ms;
       box-sizing: border-box;
       background-color: #d8dee9;
       border-radius: 0 0 0.3em 0;
+      border: solid 0.15em #d8dee9;
       @media (orientation:landscape) {
         right: calc(35vw - 1.25em);
       }
       @media (orientation:portrait) {
         right: calc(80vw - 1.25em);
+      }
+      &:hover {
+        color: #d8dee9;
+        padding-left: 0.225em;
+        background-color: #2e3440;
       }
     }
     .tab {

@@ -650,9 +650,9 @@ pub fn do_xor(
     try log.deb("doing xor", .{});
     const key = if (key_in) |k| k else if (options) |o| if (o.mk_hash) b: {
         try log.deb("creating hash", .{});
-        var key:[32]u8 = undefined;
-        crypto.hash.Blake3.hash(input, &key, .{});
-        break :b key;
+        //var key:[32]u8 = undefined;
+        //crypto.hash.Blake3.hash(input, &key, .{});
+        break :b try rand_bytes(alloc, 32);
     } else unreachable else unreachable;
 
     var res = try std.ArrayList(u8).initCapacity(alloc, 0);
@@ -666,4 +666,11 @@ pub fn do_xor(
         .hash = if (key_in) |_| null else key,
         .res = try alloc.dupe(u8, res.items),
     };
+}
+
+pub fn rand_bytes(alloc:mem.Allocator, comptime len:usize) ![len]u8 {
+    _ = alloc;
+    var buf:[len]u8 = undefined;//try alloc.alloc(u8, len); 
+    std.crypto.random.bytes(&buf);
+    return buf;
 }

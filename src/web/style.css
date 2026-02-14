@@ -399,6 +399,7 @@ pre#note { border: solid #697da3 0.25em; }
       border:none;
       outline:none;
       color:#2e3440;
+      cursor: pointer;
       font: var(--font);
       font-weight: bold;
       border-radius: 0.3em;

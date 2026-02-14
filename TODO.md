@@ -45,6 +45,6 @@
   - [ ] Go module
 - [ ] mascot(?)
 - [x] minify web source
-- [ ] encryption
+- [x] encryption
 - [x] compression
 - [ ] comprehensive memory behavior testing

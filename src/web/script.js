@@ -162,11 +162,7 @@ async function newNote() {
   //ask for errs in HTML
   req_headers.append("err-html", "true");
   if (note_file !== null) {
-    if (note_comment.includes("\n")) {
-      alert("notes with a file cannot contain newlines in the comment");
-      return;
-    }
-    req_headers.append("comment", note_comment);
+    req_headers.append("comment", JSON.stringify(note_comment));
     req_headers.append("is-file", note_file.name);
   } if (server_info.use_encryption) req_headers.append("encrypt", "true");
 

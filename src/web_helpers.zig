@@ -1041,7 +1041,24 @@ fn generate_note_info(
 
     const has_comment = lw_note.comment.len > 0;
 
-    const comment = if (has_comment) lw_note.comment else "null";
+    const comment = if (has_comment) b: {
+        const com = lw_note.comment;
+        const is_valid = std.json.validate(alloc, com) catch |e| {
+            log.errf("failed to validate json value: {t}", .{e}) catch {};
+            unreachable;
+        };
+
+        if (is_valid) break :b com;
+
+        var wr = std.Io.Writer.Allocating.init(alloc);
+        defer wr.deinit();
+
+        std.json.Stringify.value(com, .{}, &wr.writer) catch |e| {
+            log.errf("failed to stringify json: {t}", .{e}) catch {};
+            unreachable;
+        };
+        break :b wr.written();
+    } else "null";
 
     const stuff = [_]Json_Pair {
         .{ .k = "note_size", .v = str_size,            .is_str = false },
@@ -1051,7 +1068,7 @@ fn generate_note_info(
         .{ .k = "prev",      .v = lw_note.prev,        .is_str = true  },
         .{ .k = "note_id",   .v = lw_note.id,          .is_str = true  },
         .{ .k = "class",     .v = lw_note.magic.class, .is_str = true  },
-        .{ .k = "comment",   .v = comment,             .is_str = has_comment },
+        .{ .k = "comment",   .v = comment,             .is_str = false },
     };
 
     std.debug.print("{any}", .{@TypeOf(stuff[0])});

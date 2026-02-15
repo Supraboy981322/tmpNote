@@ -311,7 +311,19 @@ function file_page(note_info, file_elm, img) {
       left.appendChild(cont);
     };
 
-    new_attr("fi_size", "file size", null, `${note_info.note_size} bytes`);
+    //convert note size bytes to a human-readable string
+    const note_size = (() => {
+      var cur = note_info.note_size; 
+      const ext = [ "", "K", "M", "G", "T", "P", "E", "Y" ]; 
+      var i = j = 0;
+      while (cur > 1024) {
+        cur /= 1024 ; i++;
+        if (i >= ext.length) return `${cur.toFixed(2)} ${ext[i-1]}B`; 
+      }
+      return `${cur.toFixed(2)} ${ext[i]}B`;
+    })();
+
+    new_attr("fi_size", "file size", null, `${note_size}`);
     new_attr("fi_typ", "file type", "file_type", note_info.file_type);
     new_attr("file_name", "filename", "name", note_info.file_name);
     

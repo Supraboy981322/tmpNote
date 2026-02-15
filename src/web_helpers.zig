@@ -386,7 +386,8 @@ fn api_view(
                 try log.err("failed to get id: {t}", .{e});
                 return e;
             }; //break with value if found 
-            if (res.len != 0) break :b res;
+            defer alloc.free(res);
+            if (res.len != 0) break :b try alloc.dupe(u8, res);
         };
 
         //if 'break' not called yet, id not found
@@ -694,42 +695,47 @@ fn page_compressor_handler(
         if (e != globs.server_errs.UnknownType) {
             log.err("failed to encode page: {t}", .{e}) catch {};
         }
-        break :b resp_page_R;
-    } else resp_page_R;
+        break :b alloc.dupe(u8, resp_page_R) catch unreachable;
+    } else alloc.dupe(u8, resp_page_R) catch unreachable;
+
+    const content_type = if (conn.encoding.accepts) |_| fmt.allocPrint(
+        alloc, "Content-Encoding: {s}", .{@tagName(conn.encoding.picked)}
+    ) catch |e| b: {
+        log.err("failed to alloc print \"Content-Encoding\" header: {t}", .{e}) catch {};
+        break :b "_: ignore me";
+    } else alloc.dupe(u8, "_: ignore me") catch |e| {
+        log.err("failed to alloc.dupe: {t}", .{e}) catch {};
+        hlp.send.headersWithType(
+            200, conn.reqTime, conn.req, null, null, null
+        ) catch {};
+        return resp_page_R;
+    };
+    defer alloc.free(content_type);
+
+    
+    const comment_header = if (info) |i| fmt.allocPrint(
+        alloc, "comment: {s}", .{ i.comment }
+    ) catch |e| bl: {
+        log.err("Failed to format comment header: {t}", .{e}) catch {};
+        break :bl alloc.dupe(u8, "_: ignore me") catch return resp_page_R;
+    } else alloc.dupe(u8, "_: ignore me") catch return resp_page_R;
+    defer alloc.free(comment_header);
 
     //additional headers 
     const add_headers = [_][]const u8 {
         //only send compression header if applicable
         //  (sends garbage which'll be filtered-out by stuff like Nginx otherwise)
-        if (conn.encoding.accepts) |_| b: {
-            break :b fmt.allocPrint(
-                alloc, "Content-Encoding: {s}", .{@tagName(conn.encoding.picked)}
-            ) catch |e| {
-                log.err("failed to alloc print \"Content-Encoding\" header: {t}", .{e}) catch {};
-                break :b "_: ignore me";
-            };
-        } else alloc.dupe(u8, "_: ignore me") catch |e| {
-            log.err("failed to alloc.dupe: {t}", .{e}) catch {};
-            hlp.send.headersWithType(
-                200, conn.reqTime, conn.req, null, null, null
-            ) catch {};
-            return resp_page_R;
-        },
-        if (info) |i| b: {
-            const c = i.comment;
-            break :b fmt.allocPrint(alloc, "comment: {s}", .{ c }) catch |e| bl: {
-                log.err("Failed to format comment header: {t}", .{e}) catch {};
-                break :bl alloc.dupe(u8, "_: ignore me") catch return resp_page_R;
-            };
-        } else alloc.dupe(u8, "_: ignore me") catch return resp_page_R,
+        content_type,
+        comment_header,
         "Vary: Accept-Encoding", // TODO: check if should be removed if no compression 
-    }; defer for ([_]usize{ 0, 1 }) |i| alloc.free(add_headers[i]);
+    };
 
     //respond with headers
     hlp.send.headersWithType(
         200, conn.reqTime, conn.req,
         add_headers.len, add_headers, null
     ) catch {};
+
     return res;
 }
 
@@ -738,21 +744,35 @@ fn newNotePage(
     conn:*ServerConn,
     alloc:mem.Allocator,
 ) !void {
-    const use_encryption_str = if (conn.conf.notes.use_encryption) "true" else "false";
+    const use_encryption_str = try fmt.allocPrint(
+        alloc, "{}", .{conn.conf.notes.use_encryption}
+    );
+    defer alloc.free(use_encryption_str);
+
     const server_info = [_]globs.Json_Pair{
-        .{ .k = "use_encryption", .v = use_encryption_str, .is_str = false },
+        .{
+            .k = "use_encryption",
+            .v = use_encryption_str,
+            .is_str = false
+        },
     };
-    const server_info_json = hlp.mk_json(globs.alloc, server_info.len, server_info);
+
+    const server_info_json = hlp.mk_json(
+        globs.alloc, server_info.len, server_info
+    );
     defer globs.alloc.free(server_info_json);
 
     //define placeholder replacements
     const placs = [_][]const u8 {
         "<!-- server name -->",
         "<!-- server info -->",
-    }; const replacs = [_][]const u8 {
+    };
+    const replacs = [_][]const u8 {
         conn.conf.customization.name,
         server_info_json,
-    };//generate the page
+    };
+
+    //generate the page
     const respPage_R = hlp.html.gen_page(
         web.new_page, &placs, &replacs, alloc
     ) catch |e| {
@@ -763,7 +783,7 @@ fn newNotePage(
 
     //either compress or leave uncompressed (sends headers)
     const resp_page = page_compressor_handler(
-        respPage_R, conn, alloc, null//.{ .comment = undefined } 
+        respPage_R, conn, alloc, null
     );
 
     //send page
@@ -780,15 +800,20 @@ fn viewNotePage(
     const req = conn.req;
 
     //get the note content  TODO: config opt for confirmation screen before fetching
-    const note_lw:LW_Note = api_view(conn, alloc, false, db) catch |e| switch (e) {
+    const note_lw:LW_Note = api_view(
+        conn, alloc, false, db
+    ) catch |e| switch (e) {
         note_errs.no_key_found => {
             web.send_err(400, "key not provided", conn); return;
         },
         note_errs.note_not_found => {
             web.send_err(404, "note not found", conn); return;
         },
-        else => { web.send_err(500, "server error", conn); return; },
-    }; defer alloc.free(note_lw.id); //free the note's id
+        else => {
+            web.send_err(500, "server error", conn); return;
+        },
+    };
+    defer alloc.free(note_lw.id); //free the note's id
 
     //unescaped note
     const noteR:[]const u8 = note_lw.cont;
@@ -797,13 +822,18 @@ fn viewNotePage(
     const esc_html_amper = conn.conf.notes.escape_ampersand;
 
     //escape html in note
-    const note = if (note_lw.is_file) null else b: {
-        break :b hlp.sanitizeHTML(noteR, alloc, esc_html_amper) catch |e| {
-            try log.err("failed to sanitize html: {t}", .{e});
-            web.send_err(500, "failed to sanitize html", conn);
-            return e;
-        };
-    }; defer if (note) |n| { log.deb("freeing note", .{})catch{}; alloc.free(n);}; //free the escaped note
+    const note = if (note_lw.is_file) null else hlp.sanitizeHTML(
+        noteR, alloc, esc_html_amper
+    ) catch |e| {
+        try log.err("failed to sanitize html: {t}", .{e});
+        web.send_err(500, "failed to sanitize html", conn);
+        return e;
+    };
+     //free the escaped note
+    defer if (note) |n| {
+        log.deb("freeing note", .{}) catch {};
+        alloc.free(n);
+    };
 
     //define placeholder replacements
     const placs = [_][]const u8 {
@@ -812,7 +842,8 @@ fn viewNotePage(
         "<!-- file or plain-text -->",
         "<!-- note content -->",
         "<!-- is deleted -->",
-    }; const replacs = [_][]const u8 {
+    };
+    const replacs = [_][]const u8 {
         //server name
         conn.conf.customization.name,
         //note info
@@ -862,14 +893,17 @@ pub const web = struct {
         const req = conn.req;
 
         //status code as string
-        const code_str = fmt.allocPrint(globAlloc, "{d}", .{code}) catch |e| {
+        const code_str = fmt.allocPrint(
+            globAlloc, "{d}", .{code}
+        ) catch |e| {
             //log err
             log.err("failed to allocPrint() {t}", .{e}) catch {};
             //respond with 500
             hlp.send.headers(500, curTime, req) catch {};
             req.server.out.print("500 server err", .{}) catch {};
             return;
-        }; defer globAlloc.free(code_str);
+        };
+        defer globAlloc.free(code_str);
 
         const err_json = blk: {
             //fields:
@@ -897,13 +931,13 @@ pub const web = struct {
         }; defer globAlloc.free(err_json);
 
         //generate response page
-        const err_html:[]const u8 = web.err_page;
         const respPage = hlp.html.gen_page(
-            err_html, &placs, &replacs, globAlloc
+            web.err_page, &placs, &replacs, globAlloc
         ) catch |e| blk: {
             log.err("failed to generate error page: {t}", .{e}) catch {};
-            break :blk "500 server err";
+            break :blk globAlloc.dupe(u8, "500 server err") catch return;
         };
+        defer globAlloc.free(respPage);
 
         //send response
         hlp.send.headers(code, curTime, req) catch {};
@@ -972,7 +1006,9 @@ fn read_body(
     
     //read the body
     //  (assumes 'Content-Length' header is correct, responds 500 if not)
-    const bod:[]u8 = bod_r.readAlloc(alloc, len_req) catch |e| {
+    const bod:[]u8 = bod_r.readAlloc(
+        alloc, len_req
+    ) catch |e| {
         //if err, respond with either html or return err
         if (respond_html) web.send_err(500, "failed to read request", conn) else {
             //log err
@@ -983,7 +1019,7 @@ fn read_body(
             ) catch {};
             //send error
             req.server.out.print("failed to read request body", .{}) catch {};
-            return alloc.dupe(u8, "server err"); //can't return []const u8 as a []u8 without alloc
+            return try alloc.dupe(u8, "server err");
         } return e;
     };
 
@@ -999,7 +1035,9 @@ fn generate_note_info(
 
     //convert non-string values to a string (makes the function easier to read)
     const str_is_file = fmt.allocPrint(alloc, "{}", .{lw_note.is_file}) catch "false";
+    defer alloc.free(str_is_file);
     const str_size = fmt.allocPrint(alloc, "{d}", .{lw_note.size}) catch "null";
+    defer alloc.free(str_size);
 
     const has_comment = lw_note.comment.len > 0;
 

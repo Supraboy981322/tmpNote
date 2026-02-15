@@ -826,21 +826,6 @@ pub const list = [_][3][]const u8 {
     "Multimedia"
   },
   .{
-    "\x52\x49\x46\x46",
-    "Windows animated cursor",
-    "Windows"
-  },
-  .{
-    "\x52\x49\x46\x46",
-    "CorelDraw document",
-    "Presentation"
-  },
-  .{
-    "\x52\x49\x46\x46",
-    "Resource Interchange File Format",
-    "Multimedia"
-  },
-  .{
     "\x53\x43\x48\x6C",
     "Underground Audio",
     "Multimedia"
@@ -869,6 +854,21 @@ pub const list = [_][3][]const u8 {
     "\x57\x45\x42\x50",
     "RIFF WebP",
     "Multimedia"
+  },
+  .{
+    "\x52\x49\x46\x46",
+    "Resource Interchange File Format",
+    "Multimedia"
+  },
+  .{
+    "\x52\x49\x46\x46",
+    "CorelDraw document",
+    "Presentation"
+  },
+  .{
+    "\x52\x49\x46\x46",
+    "Windows animated cursor",
+    "Windows"
   },
   .{
     "\x58\x50\x44\x53",

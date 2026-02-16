@@ -1,4 +1,4 @@
-module tmpNote_combined_headers
+module tmpNote_headers
 
 go 1.25.5
 

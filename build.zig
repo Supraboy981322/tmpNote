@@ -14,7 +14,7 @@ pub fn build(b: *std.Build) void {
 
     bin.addIncludePath(b.path("include"));
     bin.addLibraryPath(b.path("include"));
-    bin.addObjectFile(b.path("include/compress.a"));
+    bin.addObjectFile(b.path("include/combined.a"));
 
     for ([_][]const u8 {
         "libbrotlicommon", "libbrotlidec", "libbrotlienc"

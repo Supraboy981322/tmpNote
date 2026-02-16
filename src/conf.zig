@@ -35,7 +35,7 @@ pub const conf = struct {
         port: u16 = 8795,
         default_page: enum {new, view} = .new,
 
-        //TEMPORARY, HACKY SOLUTION UNTIL ZIG 0.16 RELEASES
+        // HACK: TEMPORARY, SOLUTION UNTIL ZIG 0.16 RELEASES
         //  TODO: REMOVE THIS
         use_async:bool = false,
 

@@ -5,7 +5,6 @@ const config = @import("conf.zig").conf;
 const glob_types = @import("global_types.zig");
 const globs = glob_types;
 const web_hlp = @import("web_helpers.zig");
-const go = globs.go;
 const c = @cImport({
     @cInclude("time.h");
 });
@@ -75,41 +74,13 @@ pub fn main() !void {
     while (true) {
         const acc = server.accept() catch continue;
         if (conf.server.use_async) {
-            var data_ptr = struct {
-                acc: net.Server.Connection,
-                conf: config,
-            } { .acc = acc, .conf = conf };
-            const f_cast:?*anyopaque = @ptrCast(@constCast(&async_request));
-            const data_cast:?*anyopaque = @ptrCast(&data_ptr);
-            go.async_data(f_cast, data_cast);
+            try log.deb("spawning handler thread", .{});
+            const t = try std.Thread.spawn(.{}, hanConn, .{acc, conf});
+            t.detach();
         } else hanConn(acc, conf) catch |e| {
             try log.err("failed to handle connection: {t}", .{e});
         };
     }
-}
-
-export fn fn_callback(f:?*anyopaque) callconv(.c) void {
-    const func = @as(*const fn () callconv(.c) void, @ptrCast(@alignCast(f)));
-    func();
-}
-
-export fn void_ptr_fn_callback(f:?*anyopaque, data:?*anyopaque) callconv(.c) void {
-    const func = @as(*const fn (?*anyopaque) callconv(.c) void, @ptrCast(@alignCast(f)));
-    func(data);
-}
-
-pub fn async_request(data_packed:?*anyopaque) callconv(.c) void {
-    const data = @as(
-        *struct {
-            acc: net.Server.Connection,
-            conf: config,
-        },
-        @ptrCast(@alignCast(data_packed)),
-    );
-    hanConn(data.acc, data.conf) catch |e| {
-        log.err("failed to handle connection: {t}", .{e}) catch {};
-    };
-    log.deb("end connection", .{}) catch {};
 }
 
 //handles incoming connections

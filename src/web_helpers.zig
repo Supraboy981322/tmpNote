@@ -2,7 +2,7 @@ const std = @import("std");
 const globs = @import("global_types.zig");
 const hlp = @import("helpers.zig");
 const file_types = @import("file_types.zig");
-const compress = globs.go;
+const compress = globs.compress;
 
 const ServerConn = globs.ServerConn;
 const globAlloc = globs.alloc;

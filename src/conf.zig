@@ -26,6 +26,10 @@ const err = error {
     The_Whole_Damn_Thing,
 };
 
+var stderr_buf:[1024]u8 = undefined;
+var stderr_wr = std.fs.File.stderr().writer(&stderr_buf);
+const stderr = &stderr_wr.interface;
+
 pub const conf = struct {
     server: struct {
         port: u16 = 8795,
@@ -70,12 +74,16 @@ pub const conf = struct {
         //make sure dupe is freed
         defer alloc.free(file);
 
-        const config = try std.zon.parse.fromSlice(
+        const config = std.zon.parse.fromSlice(
             Self, alloc, file, null, .{
                 .ignore_unknown_fields = false,
                 .free_on_error = true,
             }
-        );
+        ) catch |e| {
+            try stderr.print("failed to parse config: {t}\n", .{e});
+            try stderr.flush();
+            std.process.exit(1);
+        };
 
         log_level = switch (config.server.log.level) {
             .@"0", .debug => 0,

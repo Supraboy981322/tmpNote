@@ -3,18 +3,56 @@
     .server = .{
         //listening port
         .port = 8795,
+
+        // INFO: to enable async,
+        //  uncomment the '.format = .none' line
+        //    as well as the following line
+        //.use_async = true,
+        
         //log settings
         .log = .{
+            //the verbosity of the log
+            //  options: (in order of most to least verbose)
+            //    '.debug', '.info', '.req', '.warn', then '.err'
+            .level = .debug,
+            
+            //the file that logs are written to
             .file = "log.json",
+
+            //the format used in the log file
+            //  options: '.json', '.txt', and '.none'
+            // INFO: to use async, this must be uncommented
+            //.format = .none,
+        },
+    },
+    
+    //server and web ui customization
+    .customization = .{
+        //the name your server refers to itself as
+        //  INFO: this is shown to users and the log
+        .name = "//tmpNote",
+
+        //customize the stylesheets used
+        .css = .{
+            //set to 'true' to disable the default stylesheet 
+            .disable_default = false,
+
+            //path to a custom CSS stylesheet 
+            .custom_file = null,
         },
     },
 
     //note settings
     .notes = .{
         //maximum note size
+        // WARNING: keep in mind that every note is
+        //  stored in memory, be sure you have enough RAM
         .max_size = "10MB",
-        //compression type ('.brotli', '.zlib', '.gzip', or '.none')
+        
+        //compression type
+        //  options: '.brotli', '.zlib', '.gzip', or '.none'
         .compression = .brotli,
+
         //encrypt notes
         .use_encryption = true,
     },

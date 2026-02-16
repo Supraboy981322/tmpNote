@@ -49,8 +49,13 @@ pub const send = struct {
     ) !void {
         //scoped allocator
         var gpa = heap.GeneralPurposeAllocator(.{}){};
-        defer _ = gpa.deinit();
-        const alloc = gpa.allocator();
+        defer {
+            log.deb("freeing gpa (headersWithType)", .{}) catch {};
+            if (gpa.deinit() == .leak) {
+                log.err("MEMORY LEAK: headersWithType", .{}) catch {};
+            }
+        }
+        var alloc = gpa.allocator();
 
         const status_code = switch (status) {
             200 => "HTTP/1.1 200 OK",
@@ -160,6 +165,10 @@ pub const log = struct {
         comptime msg:[]const u8,
         args:anytype
     ) !void {
+        var arena = heap.ArenaAllocator.init(heap.page_allocator);
+        defer arena.deinit();
+        var alloc = arena.allocator();
+
         if (!@import("conf.zig").safe or globs.conf.server.log.format == .none) return;
 
         const cwd = std.fs.cwd();
@@ -169,7 +178,7 @@ pub const log = struct {
         { const e:anyerror!void = blk: {
             //temp name 
             tmp_name = std.fmt.allocPrint(
-                globs.alloc, "{s}.tmp", .{globs.conf.server.log.file}
+                alloc, "{s}.tmp", .{globs.conf.server.log.file}
             ) catch |e| break :blk e;
 
             //copy the file
@@ -181,10 +190,7 @@ pub const log = struct {
                     _ = cwd.createFile(globs.conf.server.log.file, .{}) catch |er| return er;
                     _ = cwd.createFile(tmp_name, .{}) catch |er| return er;
                 },
-                else => {
-                    globs.alloc.free(tmp_name);
-                    break :blk e;
-                },
+                else => break :blk e,
             };
         //treat any errs as fatal
         }; if (e) {} else |er| fat_err("failed to log to file {t}", .{er}); }
@@ -193,7 +199,6 @@ pub const log = struct {
                 stderr.print("failed to remove temp log file: {t}", .{e}) catch {};
                 stderr.flush() catch {};
             };
-            globs.alloc.free(tmp_name);
         }
 
         //open the log file
@@ -220,7 +225,7 @@ pub const log = struct {
             const fi_in = &fi_re.interface;
 
             //initialize an array list to append to 
-            var lines = std.array_list.Managed([]const u8).init(globs.alloc);
+            var lines = std.array_list.Managed([]const u8).init(alloc);
             defer lines.deinit();
 
             //add each line to the file
@@ -235,14 +240,14 @@ pub const log = struct {
                     //just put the tag and message together
                     //  (along with any params passed to logger) 
                     const li_R = std.fmt.allocPrint(
-                        globs.alloc, tag++" "++msg, args
+                        alloc, tag++" "++msg, args
                     ) catch |e| {
                         fat_err("failed to format log message {t}", .{e});
                         unreachable;
-                    }; defer globs.alloc.free(li_R);
+                    }; defer alloc.free(li_R);
 
                     //return an allocated string with only ascii bytes
-                    break :b strip_ansi(globs.alloc, li_R) catch |e| {
+                    break :b strip_ansi(alloc, li_R) catch |e| {
                         fat_err("failed to strip ansi: {t}", .{e});
                         unreachable;
                     };
@@ -251,26 +256,26 @@ pub const log = struct {
                     //strip non-ascii bytes from the tag 
                     const tag_P = bl: {
                         const tag_T = strip_ansi(
-                            globs.alloc, tag
+                            alloc, tag
                         ) catch |e| {
                             fat_err("couldn't strip ansi from log json: {t}", .{e});
                             unreachable;
-                        }; defer globs.alloc.free(tag_T);
+                        }; defer alloc.free(tag_T);
                          //return allocated string without the '[' and ']:'
-                        break :bl try globs.alloc.dupe(u8, tag_T[1..tag_T.len-2]); 
-                    }; defer globs.alloc.free(tag_P);
+                        break :bl try alloc.dupe(u8, tag_T[1..tag_T.len-2]); 
+                    }; defer alloc.free(tag_P);
 
                     //formatted message
-                    const m = fmt.allocPrint(globs.alloc, msg, args) catch |e| {
+                    const m = fmt.allocPrint(alloc, msg, args) catch |e| {
                         fat_err("couldn't format message for json log: {t}", .{e});
                         unreachable;
-                    }; defer globs.alloc.free(m);
+                    }; defer alloc.free(m);
 
                     //strip non-ascii from formatted message
-                    const msg_P = strip_ansi(globs.alloc, m) catch |e| {
+                    const msg_P = strip_ansi(alloc, m) catch |e| {
                         fat_err("couldn't strip ansi from log json: {t}", .{e});
                         unreachable;
-                    }; defer globs.alloc.free(msg_P);
+                    }; defer alloc.free(msg_P);
 
                     //json stuff 
                     const stuff = [_]Json_Pair{
@@ -278,25 +283,25 @@ pub const log = struct {
                         .{ .k = "msg", .v = msg_P, .is_str = true },
                     }; //reture allocated string of json
                     break :b mk_json_inline(
-                        globs.alloc, stuff.len, stuff
+                        alloc, stuff.len, stuff
                     );
                 },
                 .none => return,
-            }; defer globs.alloc.free(new_li);
+            }; defer alloc.free(new_li);
 
             //add the new line to the log
             lines.append(new_li) catch |e| fat_err("{t}", .{e});
-            const res = std.mem.join(globs.alloc, "\n", lines.items) catch |e| {
+            const res = std.mem.join(alloc, "\n", lines.items) catch |e| {
                 fat_err("failed to merge log messages: {t}", .{e});
                 unreachable;
             };
 
             //return copy in mem so it can be freed here (scoped allocation crap) 
-            break :blk globs.alloc.dupe(u8, res) catch |e| {
+            break :blk alloc.dupe(u8, res) catch |e| {
                 fat_err("failed to allocate new log: {t}", .{e});
                 unreachable;
             };
-        }; defer globs.alloc.free(new_log);
+        }; defer alloc.free(new_log);
 
         //finally, actually write the log file
         _ = log_fi.write(new_log) catch |e| fat_err(
@@ -397,7 +402,8 @@ pub fn sanitizeHTML(
     //bad chars
     const bad = [_][]const u8{ "<", ">", "&", "\"", "'" };
     //start with original
-    var new_note:[]const u8 = og;
+    var new_note:[]const u8 = try alloc.dupe(u8, og);
+    defer alloc.free(new_note);
     //replace each instance of each bad char
     for (0.., bad) |i, char| {
         //set replacement char
@@ -423,7 +429,7 @@ pub fn sanitizeHTML(
         new_note = tmp_note; //replace note
     }
  
-    return new_note;
+    return try alloc.dupe(u8, new_note);
 }
 
 //html helpers
@@ -472,7 +478,8 @@ pub const html = struct {
         alloc:mem.Allocator
     ) ![]const u8 {
         //start with original page
-        var respPage:[]const u8 = og;
+        var respPage:[]const u8 = try alloc.dupe(u8, og);
+        defer alloc.free(respPage);
         //iterate through each placeholder
         for (0.., placeholders) |i, plac| {
             //set the thing to replace with
@@ -496,7 +503,7 @@ pub const html = struct {
             respPage = between;
         }
 
-        return respPage;
+        return try alloc.dupe(u8, respPage);
     }
 };
 
@@ -621,7 +628,7 @@ pub fn mk_json_with_opts(
 
     //create array list
     var res = try std.ArrayList(u8).initCapacity(alloc, 0);
-    defer _ = res.deinit(alloc); 
+    defer res.deinit(alloc);
 
     //open json object
     try res.append(alloc, '{');
@@ -726,7 +733,7 @@ pub fn do_xor(
 
     //create arraylist to hold resulting bytes 
     var res = try std.ArrayList(u8).initCapacity(alloc, 0);
-    defer _ = res.deinit(alloc);
+    defer res.deinit(alloc);
 
     //range over input and do xor using key
     //  (adding each byte to result)

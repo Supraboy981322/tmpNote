@@ -31,19 +31,24 @@ var stdout_buf:[1024]u8 = undefined;
 var stdout_wr = fs.File.stdout().writer(&stdout_buf);
 const stdout = &stdout_wr.interface;
 
-//scoped allocation is an... interesting... idea
-const globAlloc = glob_types.alloc;
-
 //database
-var db = std.StringHashMap(Note).init(globAlloc);
+var db:globs.DB = undefined; 
 
 pub fn main() !void {
     if (!chk_args()) std.process.exit(0);
-    //wipe db on close  TODO: graceful shutdown
-    defer db.deinit();
+
+    var db_arena = std.heap.ArenaAllocator.init(heap.page_allocator);
+    defer db_arena.deinit();
+
+    //create db (db doesn't save to disk)  TODO: graceful shutdown
+    db = .{ //db has it's own allocator
+        .db = std.StringHashMap(Note).init(db_arena.allocator()),
+        .alloc = db_arena.allocator(),
+    };
+    defer db.db.deinit();
 
     //set the global config
-    glob_types.conf = config.read(globAlloc) catch |e| {
+    globs.conf = config.read(globs.alloc) catch |e| {
         log.errf(
             "failed to parse config: \"{t}\" " ++ 
                 "(I know, utterly useless error, stupid std.zon Zig error handling)\n" ++
@@ -51,6 +56,8 @@ pub fn main() !void {
         ) catch {};
         return e;
     };
+    defer std.zon.parse.free(globs.alloc, globs.conf);
+
     const conf = glob_types.conf; //just an alias
     init(conf) catch |e| try log.errf("failed to init {t}", .{e});
 
@@ -70,6 +77,9 @@ pub fn main() !void {
         conf.customization.name, conf.server.port
     });
 
+    //used for debugging
+    var i:usize = 0;
+
     //wait for connections
     while (true) {
         const acc = server.accept() catch continue;
@@ -80,6 +90,10 @@ pub fn main() !void {
         } else hanConn(acc, conf) catch |e| {
             try log.err("failed to handle connection: {t}", .{e});
         };
+        if (conf.debug.quit_after_n_requests) |n| {
+            if (i >= n-1) break else i+=1;
+            try log.warn("request {d} of {d} until quitting", .{i, n});
+        }
     }
 }
 
@@ -88,12 +102,12 @@ pub fn hanConn(
     conn: net.Server.Connection,
     conf:config,
 ) !void {
+    //arena that lasts the lifetime of the request
+    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    defer arena.deinit();
+    var alloc = arena.allocator();
+    
     defer conn.stream.close(); //ensure stream is closed
-
-    //scoped allocator
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const alloc = gpa.allocator();
 
     //get time (uses C's time lib)
     const timeStamp = c.time(null);
@@ -153,7 +167,8 @@ pub fn hanConn(
 
         switch (h_e) {
             .@"Accept-Encoding" => {
-                var stuff = std.array_list.Managed([]const u8).init(globs.alloc);
+                var stuff = std.array_list.Managed([]const u8).init(alloc);
+                defer stuff.deinit();
                 var eItr = mem.tokenizeSequence(u8, h.value, ", ");
                 while (eItr.next()) |enc| stuff.append(enc) catch |e| {
                     log.err("failed to append to encoding array: {t}", .{e}) catch {};
@@ -214,7 +229,7 @@ pub fn hanConn(
 
     //determine if api call or web req 
     var target = mem.tokenizeSequence(u8, reqPage, "/");
-    if (target.next()) |t| if (mem.eql(u8, t, "api")) { 
+    if (target.next()) |t| if (mem.eql(u8, t, "api")) {
         if (target.next()) |t2| web_hlp.handle_api(&serverConn, t2, &db) else {
             web.send_err(404, "Not Found", &serverConn);
         }
@@ -238,6 +253,10 @@ pub fn init(
             "(use the write_config arg to write it to a file)", .{}
         );
     }
+    if (conf.debug.quit_after_n_requests) |n| {
+        try log.warn("the server is set to quit after {d} requests", .{n});
+    }
+
     if (conf.server.log.file.len > 0 and conf.server.log.format != .none) {
         const opts:std.fs.Dir.WriteFileOptions = .{
             .sub_path = conf.server.log.file,
@@ -272,7 +291,7 @@ pub fn init(
     } else try log.warn("no log file set in config", .{});
 
     if (conf.customization.css) |css| {
-        const alloc = globs.alloc;
+        var alloc = globs.alloc;
         if (css.disable_default) {
             web.err_page = try hlp.html.remove_element(
                 alloc, .{ .open = "<style>", .close = "</style" }, web.err_page

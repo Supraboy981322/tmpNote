@@ -9,7 +9,7 @@ pub const compress = @cImport({
 pub var conf:config = undefined;
 
 //global allocator (scoped allocation is dumb)
-pub const alloc = std.heap.page_allocator;
+pub var alloc:std.mem.Allocator = std.heap.page_allocator;
 
 //used by more than one file
 pub const note_errs = error {
@@ -122,4 +122,9 @@ pub const Json_Pair = struct{
     k: []const u8,
     v: []const u8,
     is_str: bool
+};
+
+pub const DB = struct {
+    db:std.StringHashMap(Note),
+    alloc:std.mem.Allocator,
 };

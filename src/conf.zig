@@ -59,6 +59,9 @@ pub const conf = struct {
         escape_ampersand: bool = false,
         use_encryption:bool = true,
     } = .{},
+    debug: struct {
+        quit_after_n_requests:?usize = null,
+    } = .{},
 
     const Self = @This();
     pub var log_level:u8 = undefined;
@@ -70,8 +73,6 @@ pub const conf = struct {
     ) !Self {
         //read the whole config file
         const file = try read_whole_damn_file(alloc, "config.zon");
-
-        //make sure dupe is freed
         defer alloc.free(file);
 
         const config = std.zon.parse.fromSlice(
@@ -182,7 +183,7 @@ pub fn read_whole_damn_file(
 
     //create array_list
     var res = try std.ArrayList(u8).initCapacity(alloc,0);
-    defer _ = res.deinit(alloc);
+    defer res.deinit(alloc);
 
     //get reader interface
     var re = if (fi) |f| b: {

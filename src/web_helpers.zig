@@ -5,7 +5,6 @@ const file_types = @import("file_types.zig");
 const compress = globs.compress;
 
 const ServerConn = globs.ServerConn;
-const globAlloc = globs.alloc;
 const log = hlp.log;
 const lazy_lw_note = hlp.lazy_lw_note;
 const note_errs = globs.note_errs;
@@ -30,8 +29,12 @@ const File_Type = globs.File_Type;
 pub fn handle_api(
     conn:*ServerConn,
     t2:[]const u8,
-    db:*std.StringHashMap(Note)
+    db:*globs.DB,
 ) void {
+    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    defer arena.deinit();
+    var alloc = arena.allocator();
+
     //aliases
     const curTime = conn.reqTime;
     const req = conn.req;
@@ -43,7 +46,7 @@ pub fn handle_api(
     switch (p) {
         .new => {
             //mk note, and get id 
-            const id = api_new(conn, globAlloc, true, db) catch |e| blk: {
+            const id = api_new(conn, alloc, true, db) catch |e| blk: {
                switch (e) {
                     note_errs.note_too_large => {
                         hlp.send.headersWithType(
@@ -61,7 +64,7 @@ pub fn handle_api(
         },
         .view => {
             //get the note
-            const note = api_view(conn, globAlloc, true, db) catch |e| blk: {
+            const note = api_view(conn, alloc, true, db) catch |e| blk: {
                 switch (e) {
                     note_errs.note_not_found => {
                         hlp.send.headersWithType(
@@ -72,7 +75,8 @@ pub fn handle_api(
                     else => break :blk lazy_lw_note("server error"),
                 }
             }; defer {
-                globAlloc.free(note.id);
+                alloc.free(note.id);
+                alloc.free(note.cont);
                 req.server.out.flush() catch {};
             }
             //respond with note
@@ -85,8 +89,11 @@ pub fn handle_api(
 //determines what file to send and handles it
 pub fn handle_web(
     serverConn:*ServerConn,
-    db:*std.StringHashMap(Note)
+    db:*globs.DB,
 ) !void {
+    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    defer arena.deinit();
+    const alloc = arena.allocator();
 
     try log.deb("reqPage web han", .{});
 
@@ -104,12 +111,12 @@ pub fn handle_web(
     switch (page) {
         //new note web page
         .new => newNotePage(
-            serverConn, globAlloc
+            serverConn, alloc
         ) catch |e| return e,
 
         //view note web page 
         .view => viewNotePage(
-            serverConn, globAlloc, db
+            serverConn, alloc, db
         ) catch |e| return e,
 
         else => web.send_err(404, "not found", serverConn),
@@ -137,7 +144,7 @@ fn api_new(
     serverConn:*ServerConn,
     alloc:mem.Allocator,
     isReq:bool,
-    db:*std.StringHashMap(Note)
+    db:*globs.DB,
 ) ![]const u8 {
     //get needed vals from struct
     const curTime = serverConn.reqTime;
@@ -259,6 +266,7 @@ fn api_new(
     ) combined_err_typ![]u8{ get_params, read_body, };
     //iterate through array of fns (passes new connection struct)
     for (fns) |f| {
+//        alloc.free(note);
         if (note.len == 0) note = f(alloc, &new_conn, "note") catch |e| {
             //just print err if err isn't no length
             if (e != note_errs.zero_len) try log.err("{t}", .{e});
@@ -267,7 +275,7 @@ fn api_new(
     }
 
     //generate note id (random string generator helper)
-    const id:[]u8 = hlp.ranStr(16, alloc) catch |e| {
+    const id:[]u8 = hlp.ranStr(16, db.alloc) catch |e| {
         try log.err("failed to generate random string (hlp.ranStr()) {t}", .{e});
         //either respond with html err page or plain-text
         if (respond_html) web.send_err(500, "server err", &new_conn) else {
@@ -295,33 +303,36 @@ fn api_new(
         .is_file = is_file,
         .typ = file_type.typ,
         .size = note.len,
-        .comment = comment,
-        .name = file_name,
+        .comment = try db.alloc.dupe(u8, comment),
+        .name = try db.alloc.dupe(u8, file_name),
     };
+
 
     const hash, note = if (encrypt) b: {
         const stuff = try hlp.do_xor(alloc, null, note, .{ .mk_hash = true });
         break :b .{ stuff.hash.?, stuff.res };
     } else .{ null, note };
+    defer {
+        alloc.free(note);
+    }
 
     //note struct
     const n:Note = .{
-        .content = if (conf.notes.compression != .none) b: {
-            defer alloc.free(note);
+        .content = try db.alloc.dupe(u8, if (conf.notes.compression != .none) b: {
             const n_C = compression.do(
                 note, conn, null, conf.notes.compression, alloc
             ) catch |e| {
                 try log.err("failed to compress note: {t}", .{e});
                 return e;
             };
-
+            defer alloc.free(n_C);
             break :b try alloc.dupe(u8, n_C);
-        } else note,
+        } else note),
         .file = file,
         .compression = conf.notes.compression,
         .encryption = .{
             .enabled = encrypt,
-            .key = hash,
+            .key = if (hash) |_| (try db.alloc.dupe(u8, &hash.?))[0..32].* else null,
         },
     };
 
@@ -336,7 +347,7 @@ fn api_new(
     //) catch {};
 
     //add the note to db
-    db.put(id, n) catch |e| { //on err
+    db.db.put(id, n) catch |e| { //on err
         //either respond html err page or plain-text
         if (respond_html) web.send_err(500, "failed to store note", &new_conn) else {
             //send headers (500 server err)
@@ -354,7 +365,7 @@ fn api_new(
         200, curTime, req, null, null, "text/plain"
     ) catch {}; //ignore err
 
-    return id;
+    return alloc.dupe(u8, id);
 }
 
 //api for new note
@@ -362,13 +373,14 @@ fn api_view(
     conn:*ServerConn,
     alloc:mem.Allocator,
     isReq:bool,
-    db:*std.StringHashMap(Note)
+    db:*globs.DB,
 ) !LW_Note {
     //pull things from conn struct
     const req = conn.req;
     const curTime = conn.reqTime;
     
 
+    try log.deb("getting id", .{});
     //check for id
     const id:[]const u8 = b: {
         //create a new connection struct with content_length
@@ -420,10 +432,13 @@ fn api_view(
     //default to invalid
     var note:[]const u8 = "key not found";
 
+    try log.deb("getting note", .{});
     //check if note exists 
-    if (db.get(id)) |n| {
+    if (db.db.get(id)) |n| {
+        try log.deb("got note", .{});
         //set note and delete from db
         note = if (conn.conf.notes.compression != .none) b: {
+            try log.deb("undoing compression", .{});
             break :b compression.undo(
                 n.content, conn, null, conn.conf.notes.compression, alloc
             ) catch |e| {
@@ -433,8 +448,9 @@ fn api_view(
                 try log.err("failed to decompress note: {t}", .{e});
                 return e;
             };
-        } else n.content;
+        } else try alloc.dupe(u8, n.content);
         if (n.encryption.enabled) {
+            try log.deb("doing encryption", .{});
             const stuff = try hlp.do_xor(
                 alloc, n.encryption.key.?, note, null
             );
@@ -452,8 +468,9 @@ fn api_view(
             return hlp.lazy_lw_note("");
         }
 
+        try log.deb("removing note", .{});
         //could be from either api request or internal function call
-        if (isReq or !file.is_file) if (!db.remove(id)) {
+        if (isReq or !file.is_file) if (!db.db.remove(id)) {
             //send headers (500 server err)
             hlp.send.headersWithType(
                 500, conn.reqTime, conn.req, null, null, "text/plain"
@@ -472,6 +489,7 @@ fn api_view(
     const is_text = mem.eql(u8, file.typ, "text/plain");
     try log.deb("{any}", .{is_text});
 
+    try log.deb("generating preview", .{});
     //only generate preview if it's plain-text
     const prev = if (!is_text) "" else blk: {
         //create a writer
@@ -581,10 +599,14 @@ pub const compression = struct {
         //if already enum, just return it
         if (encs_e) |en| return en;
 
+        var arena = heap.ArenaAllocator.init(heap.page_allocator);
+        defer _ = arena.deinit();
+        const alloc = arena.allocator();
+
         //create empty list of compression types
-        var l = try std.ArrayList([]const u8).initCapacity(globs.alloc, 1);
-        defer l.deinit(globs.alloc);
-        try l.append(globs.alloc, "");
+        var l = try std.ArrayList([]const u8).initCapacity(alloc, 1);
+        defer l.deinit(alloc);
+        try l.append(alloc, "");
 
         //get list of compression types
         const encs = if (encs_R) |encs| encs else l.items;
@@ -632,6 +654,7 @@ pub const compression = struct {
         if (in_R.len > std.math.maxInt(i32)) return in_R;
 
         const in = try Self.const_u8_to_c_str(in_R, alloc);
+        defer alloc.free(in.raw);
 
         //get enum from compression input
         const enc = try Self.get_current(encs_R, encs_e);
@@ -665,6 +688,7 @@ pub const compression = struct {
         if (in_R.len > std.math.maxInt(i32)) return in_R;
 
         const in = try Self.const_u8_to_c_str(in_R, alloc);
+        defer alloc.free(in.raw);
 
         //get enum from compression input
         const enc = try Self.get_current(encs_R, encs_e);
@@ -761,9 +785,9 @@ fn newNotePage(
     };
 
     const server_info_json = hlp.mk_json(
-        globs.alloc, server_info.len, server_info
+        alloc, server_info.len, server_info
     );
-    defer globs.alloc.free(server_info_json);
+    defer alloc.free(server_info_json);
 
     //define placeholder replacements
     const placs = [_][]const u8 {
@@ -783,11 +807,13 @@ fn newNotePage(
         try log.err("failed to generate page {t}", .{e});
         return e;
     };
+    defer alloc.free(respPage_R);
 
     //either compress or leave uncompressed (sends headers)
     const resp_page = page_compressor_handler(
         respPage_R, conn, alloc, null
     );
+    defer alloc.free(resp_page);
 
     //send page
     conn.req.server.out.print("{s}", .{resp_page}) catch {};
@@ -798,7 +824,7 @@ fn newNotePage(
 fn viewNotePage(
     conn:*ServerConn,
     alloc:mem.Allocator,
-    db:*std.StringHashMap(Note)
+    db:*globs.DB,
 ) !void {
     const req = conn.req;
 
@@ -859,7 +885,7 @@ fn viewNotePage(
         if (note_lw.is_file) "" else note.?,
         //only show "note deleted" if it's not a file 
         if (note_lw.is_file) "" else "<p><i>note deleted</i></p>",
-    };
+    }; defer alloc.free(replacs[1]);
 
     //generate the page
     const respPage_R = hlp.html.gen_page(
@@ -869,11 +895,13 @@ fn viewNotePage(
         try log.err("failed to generate page: {t}", .{e});
         return e;
     };
+    defer alloc.free(respPage_R);
 
     //either compress or leave uncompressed (sends headers)
     const resp_page = page_compressor_handler(
         respPage_R, conn, alloc, &.{ .comment = note_lw.comment }
     );
+    defer alloc.free(resp_page);
     
     //send HTML body and return if err
     req.server.out.print("{s}", .{resp_page}) catch return;
@@ -892,12 +920,16 @@ pub const web = struct {
         stat:[]const u8,
         conn:*ServerConn
     ) void {
+        var arena = std.heap.ArenaAllocator.init(heap.page_allocator);
+        defer arena.deinit();
+        var alloc = arena.allocator();
+
         const curTime = conn.reqTime;
         const req = conn.req;
 
         //status code as string
         const code_str = fmt.allocPrint(
-            globAlloc, "{d}", .{code}
+            alloc, "{d}", .{code}
         ) catch |e| {
             //log err
             log.err("failed to allocPrint() {t}", .{e}) catch {};
@@ -906,7 +938,7 @@ pub const web = struct {
             req.server.out.print("500 server err", .{}) catch {};
             return;
         };
-        defer globAlloc.free(code_str);
+        defer alloc.free(code_str);
 
         const err_json = blk: {
             //fields:
@@ -916,9 +948,10 @@ pub const web = struct {
                 .{ .k = "status",  .v = stat,      .is_str = true  },
             };
             break :blk hlp.mk_json(
-                globAlloc, stuff.len, stuff
+                alloc, stuff.len, stuff
             );
         };
+        defer alloc.free(err_json);
         
         //define placeholders and replacements
         const placs = [_][]const u8 {
@@ -931,16 +964,16 @@ pub const web = struct {
             code_str,
             stat, //the err msg
             err_json,
-        }; defer globAlloc.free(err_json);
+        };
 
         //generate response page
         const respPage = hlp.html.gen_page(
-            web.err_page, &placs, &replacs, globAlloc
+            web.err_page, &placs, &replacs, alloc
         ) catch |e| blk: {
             log.err("failed to generate error page: {t}", .{e}) catch {};
-            break :blk globAlloc.dupe(u8, "500 server err") catch return;
+            break :blk alloc.dupe(u8, "500 server err") catch return;
         };
-        defer globAlloc.free(respPage);
+        defer alloc.free(respPage);
 
         //send response
         hlp.send.headers(code, curTime, req) catch {};
@@ -960,7 +993,7 @@ fn get_header(
         //return allocated value if match
         if (mem.eql(u8, h.name, which)) return try alloc.dupe(u8, h.value);
     } //return empty if not found 
-    return "";
+    return alloc.dupe(u8, "");
 }
 
 //helper to get the query params
@@ -986,7 +1019,7 @@ fn get_params(
     }
     
     //default to empty
-    return "";
+    return alloc.dupe(u8, "");
 }
 
 //helper to read request body
@@ -1086,8 +1119,12 @@ pub fn chk_user_agent(
     agent_R:[]const u8,
     req:ServerConn,
 ) !bool {
-    const agent:[]const u8 = try hlp.to_lower(globs.alloc, agent_R);
-    defer globs.alloc.free(agent);
+    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    defer arena.deinit();
+    var alloc = arena.allocator();
+
+    const agent:[]const u8 = try hlp.to_lower(alloc, agent_R);
+    defer alloc.free(agent);
 
     const bots:[]const []const u8 = &.{
         "whatsapp", "twitterbot", "slackbot", "applebot", "bingpreview",

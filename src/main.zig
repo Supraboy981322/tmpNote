@@ -260,7 +260,7 @@ pub fn init(
             "(use the write_config arg to write it to a file)", .{}
         );
     }
-    if (conf.server.log.file.len > 0) {
+    if (conf.server.log.file.len > 0 and conf.server.log.format != .none) {
         const opts:std.fs.Dir.WriteFileOptions = .{
             .sub_path = conf.server.log.file,
             .data = "",

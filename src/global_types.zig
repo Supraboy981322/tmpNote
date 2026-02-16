@@ -100,6 +100,7 @@ pub const File_Type = struct {
 pub const log_fmt = enum {
     txt,
     json,
+    none,
 };
 
 pub const compression = enum {

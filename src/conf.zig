@@ -30,6 +30,11 @@ pub const conf = struct {
     server: struct {
         port: u16 = 8795,
         default_page: enum {new, view} = .new,
+
+        //TEMPORARY, HACKY SOLUTION UNTIL ZIG 0.16 RELEASES
+        //  TODO: REMOVE THIS
+        use_async:bool = false,
+
         log: struct {
             level: globs.log_lvl = .debug,
             format: globs.log_fmt = .json,
@@ -52,7 +57,7 @@ pub const conf = struct {
     } = .{},
 
     const Self = @This();
-    pub var log_level:i8 = undefined;
+    pub var log_level:u8 = undefined;
     pub var max_note_size:?usize = undefined;
 
     //parsing the config

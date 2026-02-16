@@ -23,6 +23,10 @@ var stdout_buf:[1024]u8 = undefined;
 var stdout_wr = std.fs.File.stdout().writer(&stdout_buf);
 const stdout = &stdout_wr.interface;
 
+var stderr_buf:[1024]u8 = undefined;
+var stderr_wr = std.fs.File.stderr().writer(&stderr_buf);
+const stderr = &stderr_wr.interface;
+
 pub const send = struct {
 
     const Self = @This();
@@ -186,7 +190,8 @@ pub const log = struct {
         }; if (e) {} else |er| fat_err("failed to log to file {t}", .{er}); }
         defer { //cleanup
             cwd.deleteFile(tmp_name) catch |e| {
-                fat_err("failed to remove temp log file: {t}", .{e});
+                stderr.print("failed to remove temp log file: {t}", .{e}) catch {};
+                stderr.flush() catch {};
             };
             globs.alloc.free(tmp_name);
         }
@@ -276,6 +281,7 @@ pub const log = struct {
                         globs.alloc, stuff.len, stuff
                     );
                 },
+                .none => return,
             }; defer globs.alloc.free(new_li);
 
             //add the new line to the log
@@ -375,9 +381,6 @@ pub fn fat_err(
     comptime msg:[]const u8,
     args:anytype
 ) void {
-    var buf:[1024]u8 = undefined;
-    var wr = std.fs.File.stderr().writer(&buf);
-    const stderr = &wr.interface;
     //print to stderr
     stderr.print(msg, args) catch {};
     stderr.flush() catch {};

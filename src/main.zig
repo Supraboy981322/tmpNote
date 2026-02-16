@@ -74,15 +74,15 @@ pub fn main() !void {
     //wait for connections
     while (true) {
         const acc = server.accept() catch continue;
-        //const fn_ptr = &async_request;
-        //const data_ptr = &struct {
-        //    acc: net.Server.Connection,
-        //    conf: config,
-        //} { .acc = acc, .conf = conf };
-        //const f_cast:?*anyopaque = @ptrCast(@constCast(fn_ptr));
-        //const data_cast:?*anyopaque = @ptrCast(@constCast(data_ptr));
-        //go.async_data(f_cast, data_cast);
-        hanConn(acc, conf) catch |e| {
+        if (conf.server.use_async) {
+            var data_ptr = struct {
+                acc: net.Server.Connection,
+                conf: config,
+            } { .acc = acc, .conf = conf };
+            const f_cast:?*anyopaque = @ptrCast(@constCast(&async_request));
+            const data_cast:?*anyopaque = @ptrCast(&data_ptr);
+            go.async_data(f_cast, data_cast);
+        } else hanConn(acc, conf) catch |e| {
             try log.err("failed to handle connection: {t}", .{e});
         };
     }
@@ -189,7 +189,7 @@ pub fn hanConn(
 
                 // BUG: Zig std.http hangs after mobile request finishes
                 //   TODO: switch to new async http when Zig 0.16.0 releases
-                is_mobile = if (mem.count(u8, h.value, "Mobile") > 0) {
+                is_mobile = if (!conf.server.use_async and mem.count(u8, h.value, "Mobile") > 0) {
                     hlp.send.headersWithType(
                         400, curTime, req, null, null, "text/plain"
                     ) catch { return; };
@@ -249,7 +249,12 @@ pub fn hanConn(
 pub fn init(
     conf:config
 ) !void {
-    if (@import("conf.zig").used_default) {
+    const config_ = @import("conf.zig");
+    if (conf.server.use_async and conf.server.log.format != .none) {
+        try log.errf("sorry, but currently it's not possible to use " ++ 
+            "both async and a log file. please set server.log.format = .none", .{}); 
+    }
+    if (config_.used_default) {
         try log.warn(
             "config file not found, using default " ++ 
             "(use the write_config arg to write it to a file)", .{}

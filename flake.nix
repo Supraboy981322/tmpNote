@@ -84,6 +84,10 @@
  
           success "entered nix shell"
 
+          err_log() {
+            printf "$@" 1>&2
+          }
+          
           # build cmd
           build_tmpNote() (
             # strict err exiting
@@ -113,26 +117,18 @@
               cd "$REPO_ROOT"
             done
 
+
             # golang c header export stuff
             action "building headers..."
-            cd "include" # move to include dir
-            for header_src in $(ls *.go); do
-              # get name without file extension
-              declare name="$(printf "$header_src" | sed 's|.go$||')"
-
-              # create msg for which file
-              declare msg='\t"\033[33m%s\033[0m"'
-              msg+=' (output: "\033[34m%s\033[0m"'
-              msg+=' and "\033[35m%s\033[0m")\n'
-
-              # log current file
-              printf "$msg" "$header_src" "$name.a" "$name.h"
-
-              # compile C header file
-              go build -buildmode=c-archive -o $name.a $header_src
-            done \
-              && success "headers built." \
-              || err_out "failed to build headers."
+            # combine into one file
+            bun run scripts/combine_go_headers.ts \
+              || err_out "failed to combine go headers source"
+            cd include
+            go mod init tmpNote_combined_headers 2>/dev/null || true
+            go mod tidy
+            go build -buildmode=c-archive -o combined.a combined.go \
+                && success "headers built." \
+                || err_out "failed to build headers."
             cd "$REPO_ROOT" # go back to repo root 
 
             # web ui

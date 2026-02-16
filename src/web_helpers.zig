@@ -119,12 +119,15 @@ pub fn handle_web(
 }
 
 //generic helper to serve byte slice
-fn generic_serve(
+pub fn generic_serve(
     conn:*ServerConn,
     typ:[]const u8,
     content:[]const u8,
+    status: ?i16,
 ) !void {
-    hlp.send.headersWithType(200, conn.reqTime, conn.req, typ) catch {};
+    hlp.send.headersWithType(
+        if (status) |s| s else 200, conn.reqTime, conn.req, null, null, typ
+    ) catch {};
     conn.req.server.out.print("{s}", .{content}) catch {};
     conn.req.server.out.flush() catch {};
 }

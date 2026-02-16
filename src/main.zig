@@ -86,7 +86,7 @@ pub fn main() !void {
 //handles incoming connections
 pub fn hanConn(
     conn: net.Server.Connection,
-    conf:config
+    conf:config,
 ) !void {
     defer conn.stream.close(); //ensure stream is closed
 
@@ -115,7 +115,6 @@ pub fn hanConn(
         break :b try alloc.dupe(u8, foo.written());
     };
     defer alloc.free(remAddr);
-    
 
     //buffer to hold stream data
     var buf:[1024]u8 = undefined; //buffer
@@ -126,13 +125,17 @@ pub fn hanConn(
 
     //get the requested page
     var req = http_server.receiveHead() catch |e| {
+        try log.err("failed to receive html head {t}", .{e});
         return e; //return on err (a netcat cmd could cause problems otherwise)
-        //try log.err("failed to receive html head {t}", .{e});
     }; defer req.server.out.flush() catch {};
+
     var itr = mem.splitAny(u8, req.head.target[1..], "?"); //remove query params
+
     //check the request page, uses default from conf if none
-    const reqPage:[]const u8 = if (itr.first().len < 1) @tagName(conf.server.default_page) else blk: {
-        itr.reset() ; break :blk itr.first(); //move index to 0 and get first item
+    const reqPage:[]const u8 = if (itr.first().len < 1)
+        @tagName(conf.server.default_page)
+    else blk: { //move index to 0 and get first item
+        itr.reset() ; break :blk itr.first();
     };
     const params = if (itr.next()) |p| p else ""; //read the params
 
@@ -162,19 +165,7 @@ pub fn hanConn(
                 try log.deb("{s}", .{h.value}); 
                 agent = h.value;
 
-                // BUG: Zig std.http hangs after mobile request finishes
-                //   TODO: switch to new async http when Zig 0.16.0 releases
                 is_mobile = mem.count(u8, h.value, "Mobile") > 0;
-                if (!conf.server.use_async and is_mobile) {
-                    hlp.send.headersWithType(
-                        400, curTime, req, null, null, "text/plain"
-                    ) catch {};
-                    req.server.out.print(
-                        "sorry, mobile currently overloads the server, " ++ 
-                        "still waiting for async http Zig update", .{}
-                    ) catch {};
-                    return; 
-                } 
             },
             .skip => {},
             //else => try log.deb("forgot to add {s} header switch prong", .{@tagName(h_e)}),
@@ -197,6 +188,17 @@ pub fn hanConn(
         .len_req = 0, //set later by individual endpoint
         .respond_html = false, //set later by individual endpoint
     };
+
+    // BUG: Zig std.http hangs after mobile request finishes
+    //   TODO: switch to new async http when Zig 0.16.0 releases
+    if (!conf.server.use_async and is_mobile) {
+        const msg = "sorry, mobile currently overloads the server, " ++ 
+                    "still waiting for async http Zig update";
+        web_hlp.generic_serve(
+            &serverConn, "text/plain", msg, 400
+        ) catch {};
+        return; 
+    }
 
     //check and possibly handle requests that aren't users
     const handled:bool = web_hlp.chk_user_agent(agent, serverConn) catch {

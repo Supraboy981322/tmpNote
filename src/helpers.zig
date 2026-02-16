@@ -160,7 +160,7 @@ pub const log = struct {
         comptime msg:[]const u8,
         args:anytype
     ) !void {
-        if (!@import("conf.zig").safe) return;
+        if (!@import("conf.zig").safe or globs.conf.server.log.format == .none) return;
 
         const cwd = std.fs.cwd();
         

@@ -98,7 +98,7 @@ export fn void_ptr_fn_callback(f:?*anyopaque, data:?*anyopaque) callconv(.c) voi
     func(data);
 }
 
-pub fn async_request(data_packed:?*anyopaque) void {
+pub fn async_request(data_packed:?*anyopaque) callconv(.c) void {
     const data = @as(
         *struct {
             acc: net.Server.Connection,
@@ -151,8 +151,8 @@ pub fn hanConn(
 
     //get the requested page
     var req = http_server.receiveHead() catch |e| {
-        try log.err("failed to receive html head {t}", .{e});
-        return; //return on err (a netcat cmd could cause problems otherwise)
+        return e; //return on err (a netcat cmd could cause problems otherwise)
+        //try log.err("failed to receive html head {t}", .{e});
     }; defer req.server.out.flush() catch {};
     var itr = mem.splitAny(u8, req.head.target[1..], "?"); //remove query params
     //check the request page, uses default from conf if none

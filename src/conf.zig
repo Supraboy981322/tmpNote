@@ -48,7 +48,7 @@ pub const conf = struct {
     customization: struct {
         name:[]const u8 = "//tmpNote",
         css: ?struct {
-            disable_default: bool = true,
+            disable_default: bool = false,
             custom_file: ?[]const u8 = null,
         } = null,
     } = .{},

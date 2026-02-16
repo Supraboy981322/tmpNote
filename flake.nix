@@ -64,8 +64,11 @@
           export GOPATH=$REPO_ROOT/.go
 
           # print to stderr then exit
-          err_out() {
+          err_log() {
             printf "$@" 1>&2
+          }
+          err_out() {
+            err_log "$@"
             exit 1
           }
           success() {
@@ -79,14 +82,10 @@
           chmod -R a+rw "$REPO_ROOT" || \
               err_out "failed to set dir permissions\n"
           # create go dir
-          mkdir -p "$REPO_ROOT.go" || \
-              err_out "failed to create go dir\n"
+          #mkdir -p "$REPO_ROOT.go" || \
+          #    err_out "failed to create go dir\n"
  
           success "entered nix shell"
-
-          err_log() {
-            printf "$@" 1>&2
-          }
           
           # build cmd
           build_tmpNote() (

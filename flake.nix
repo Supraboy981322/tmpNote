@@ -81,7 +81,7 @@
           # set dir ownership
           chmod -R a+rw "$REPO_ROOT" || \
               err_out "failed to set dir permissions\n"
-          # create go dir
+          ## create go dir
           #mkdir -p "$REPO_ROOT.go" || \
           #    err_out "failed to create go dir\n"
  
@@ -120,11 +120,14 @@
             # golang c header export stuff
             action "building headers..."
             # combine into one file
-            bun run scripts/combine_go_headers.ts \
+            printf "\t%s" "$(bun run scripts/combine_go_headers.ts)" \
               || err_out "failed to combine go headers source"
+            # move to include dir
             cd include
+            # make sure the Go module has been init
             go mod init tmpNote_combined_headers 2>/dev/null || true
             go mod tidy
+            # actually build the headers
             go build -buildmode=c-archive -o combined.a combined.go \
                 && success "headers built." \
                 || err_out "failed to build headers."

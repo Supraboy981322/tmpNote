@@ -616,7 +616,9 @@ pub fn mk_json_with_opts(
         delim:?u8 = null,
     },
 ) ![]const u8 {
+    //determine the delimiter (whitespace) to use
     const delim = if (opts.delim) |d| &[_]u8{d} else if (opts.pack) "" else " ";
+
     //create array list
     var res = try std.ArrayList(u8).initCapacity(alloc, 0);
     defer _ = res.deinit(alloc); 
@@ -641,16 +643,21 @@ pub fn mk_json_with_opts(
         //determine the slice added after the key 
         const after_val = if (p.is_str) "\"" else "";
 
+        //list of JSON chunks for current object
         const chunks = [_][]const u8 {
             before_key, p.k, after_key,
             before_val, p.v, after_val,
             if (i < N-1) "," else "", if (opts.pack) "" else "\n"
         };
 
+        //add each chunk to the result JSON 
         for (chunks) |ch| try res.appendSlice(alloc, ch);
     }
 
+    //close the JSON object
     try res.appendSlice(alloc, if (opts.pack) delim ++ "}" else "}");
+
+    //return an allocated slice of JSON bytes so deinit() can be called 
     return try alloc.dupe(u8, res.items);
 }
 
@@ -686,11 +693,16 @@ pub fn to_lower(
     alloc:mem.Allocator,
     str:[]const u8
 ) ![]const u8 {
+    //arraylist containing the result
     var res = try std.ArrayList(u8).initCapacity(alloc, str.len);
     defer res.deinit(alloc);
-    for (str) |b| {
+    
+    //iterate over input string
+    for (str) |b| { //either append byte with an offset (if capital) or as is 
         try res.append(alloc, if (b >= 'A' and b <= 'Z') b+32 else b);
     }
+
+    //return allocated slice so deinit() can be called
     return alloc.dupe(u8, res.items);
 }
 
@@ -701,33 +713,39 @@ pub fn do_xor(
     options: ? struct { mk_hash:bool = false },
 ) !struct { hash:?[32]u8, res:[]u8 } {
     try log.deb("doing xor", .{});
+
+    //either use the provided key or generate one 
     const key = if (key_in) |k| k else if (options) |o| if (o.mk_hash) b: {
         try log.deb("creating hash", .{});
-        //var key:[32]u8 = undefined;
-        //crypto.hash.Blake3.hash(input, &key, .{});
-        var buf:[32]u8 = undefined;//try alloc.alloc(u8, len); 
+        //32 bytes long
+        var buf:[32]u8 = undefined;
+        //fill buffer with random bytes
         std.crypto.random.bytes(&buf);
-        break :b buf; 
-    } else unreachable else unreachable;
+        break :b buf;
+    } else unreachable else unreachable; //shouldn't occur if used as intended
 
+    //create arraylist to hold resulting bytes 
     var res = try std.ArrayList(u8).initCapacity(alloc, 0);
     defer _ = res.deinit(alloc);
+
+    //range over input and do xor using key
+    //  (adding each byte to result)
     for (input, 0..) |b_raw, i| {
         const b_enc = b_raw ^ key[i % key.len];
         try res.append(alloc, b_enc);
     }
 
+    //return struct containing the key (hash) used and the result
     return .{
         .hash = if (key_in) |_| null else key,
-        .res = try alloc.dupe(u8, res.items),
+        .res = try alloc.dupe(u8, res.items), //allocated so deinit() can be called
     };
 }
-
+ 
+//helper to determine of a string is a base-10 number
 pub fn str_is_num(
     str:[]const u8
 ) bool {
-    for (str) |b| {
-        if (b < '0' or b > '9') return false;
-    }
+    for (str) |b| if (b < '0' or b > '9') return false;
     return true;
 }

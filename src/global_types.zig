@@ -1,7 +1,9 @@
 //imports
 const std = @import("std");
 const config = @import("conf.zig").conf;
-pub const compress = @cImport(@cInclude("compress.h"));
+pub const go = @cImport({
+    @cInclude("combined.h");
+});
 
 //config (imported by a few scripts and set at startup)
 pub var conf:config = undefined;

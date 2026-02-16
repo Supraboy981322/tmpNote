@@ -125,10 +125,10 @@
             # move to include dir
             cd include
             # make sure the Go module has been init
-            go mod init tmpNote_combined_headers 2>/dev/null || true
+            #go mod init tmpNote_combined_headers 2>/dev/null || true
             go mod tidy
             # actually build the headers
-            go build -buildmode=c-archive -o combined.a combined.go \
+            go build -buildmode=c-archive -o compress.a compress.go \
                 && success "headers built." \
                 || err_out "failed to build headers."
             cd "$REPO_ROOT" # go back to repo root 

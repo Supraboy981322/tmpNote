@@ -160,16 +160,17 @@ pub fn hanConn(
 
                 // BUG: Zig std.http hangs after mobile request finishes
                 //   TODO: switch to new async http when Zig 0.16.0 releases
-                is_mobile = if (!conf.server.use_async and mem.count(u8, h.value, "Mobile") > 0) {
+                is_mobile = mem.count(u8, h.value, "Mobile") > 0;
+                if (!conf.server.use_async and is_mobile) {
                     hlp.send.headersWithType(
                         400, curTime, req, null, null, "text/plain"
-                    ) catch { return; };
+                    ) catch {};
                     req.server.out.print(
-                        "sorry, mobile currently overloads server, " ++ 
-                        "waiting for async Zig http update", .{}
-                    ) catch { return; };
+                        "sorry, mobile currently overloads the server, " ++ 
+                        "still waiting for async http Zig update", .{}
+                    ) catch {};
                     return; 
-                } else false;
+                } 
             },
             .skip => {},
             //else => try log.deb("forgot to add {s} header switch prong", .{@tagName(h_e)}),

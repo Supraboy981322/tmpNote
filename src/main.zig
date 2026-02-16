@@ -108,10 +108,14 @@ pub fn hanConn(
     const curTime = time_buf[0..time_len];
 
     //get remote conn addr
-    var remAddr:[]const u8 = undefined; //buffer
-    const addrRaw = conn.address.in.sa.addr;
-    remAddr = std.fmt.allocPrint(alloc, "{d}", .{addrRaw}) catch return;
+    const remAddr:[]const u8 = b: {
+        var foo = std.Io.Writer.Allocating.init(alloc);
+        defer foo.deinit();
+        try conn.address.format(&foo.writer);
+        break :b try alloc.dupe(u8, foo.written());
+    };
     defer alloc.free(remAddr);
+    
 
     //buffer to hold stream data
     var buf:[1024]u8 = undefined; //buffer

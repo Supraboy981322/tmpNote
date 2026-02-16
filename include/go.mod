@@ -1,4 +1,4 @@
-module github.com/Supraboy981322/tmpNote/include
+module tmpNote_combined_headers
 
 go 1.25.5
 

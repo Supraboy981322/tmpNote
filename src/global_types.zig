@@ -98,7 +98,7 @@ pub const File_Type = struct {
 };
 
 pub const log_fmt = enum {
-    txt,
+    txt, text,
     json,
     none,
 };

@@ -231,7 +231,7 @@ pub const log = struct {
 
             //construct new log line based on configured format
             const new_li = switch (globs.conf.server.log.format) {
-                .txt => b: {
+                .txt, .text => b: {
                     //just put the tag and message together
                     //  (along with any params passed to logger) 
                     const li_R = std.fmt.allocPrint(

@@ -11,3 +11,6 @@ include/*.h
 .go/
 web_comp/
 node_modules/
+combined.*
+include/go.mod
+include/go.sum

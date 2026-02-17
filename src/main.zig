@@ -37,16 +37,6 @@ var db:globs.DB = undefined;
 pub fn main() !void {
     if (!chk_args()) std.process.exit(0);
 
-    var db_arena = std.heap.ArenaAllocator.init(heap.page_allocator);
-    defer db_arena.deinit();
-
-    //create db (db doesn't save to disk)  TODO: graceful shutdown
-    db = .{ //db has it's own allocator
-        .db = std.StringHashMap(Note).init(db_arena.allocator()),
-        .alloc = db_arena.allocator(),
-    };
-    defer db.db.deinit();
-
     //set the global config
     globs.conf = config.read(globs.alloc) catch |e| {
         log.errf(
@@ -57,6 +47,10 @@ pub fn main() !void {
         return e;
     };
     defer std.zon.parse.free(globs.alloc, globs.conf);
+
+    db = try @import("db.zig").DB.init();
+    try log.deb("db test: {any}\n", .{db});
+    defer db.deinit();
 
     const conf = glob_types.conf; //just an alias
     init(conf) catch |e| try log.errf("failed to init {t}", .{e});
@@ -90,6 +84,8 @@ pub fn main() !void {
         } else hanConn(acc, conf) catch |e| {
             try log.err("failed to handle connection: {t}", .{e});
         };
+
+        //for debugging
         if (conf.debug.quit_after_n_requests) |n| {
             if (i >= n-1) break else i+=1;
             try log.warn("request {d} of {d} until quitting", .{i, n});
@@ -223,13 +219,13 @@ pub fn hanConn(
         req.server.out.print("failed to check user agent", .{}) catch {};
         return;
     }; if (handled) return;
-
     
     try log.deb("get target", .{});
 
     //determine if api call or web req 
     var target = mem.tokenizeSequence(u8, reqPage, "/");
     if (target.next()) |t| if (mem.eql(u8, t, "api")) {
+        try log.deb("serving api", .{});
         if (target.next()) |t2| web_hlp.handle_api(&serverConn, t2, &db) else {
             web.send_err(404, "Not Found", &serverConn);
         }

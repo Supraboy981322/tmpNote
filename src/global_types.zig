@@ -18,6 +18,7 @@ pub const note_errs = error {
     note_not_found,
     note_too_large,
     invalid_escape,
+    failed_to_remove,
 };
 
 pub const Encoding = struct {
@@ -62,15 +63,8 @@ pub const File = struct {
     comment: []u8,
 };
 
-pub const Note = struct {
-    content: []u8,
-    file: File,
-    compression: compression,
-    encryption: struct {
-        enabled: bool,
-        key: ?[32]u8 = null,
-    }
-};
+pub const Note = @import("db.zig").Note;
+
 
 pub const LW_Note = struct {
     is_file: bool,
@@ -124,7 +118,4 @@ pub const Json_Pair = struct{
     is_str: bool
 };
 
-pub const DB = struct {
-    db:std.StringHashMap(Note),
-    alloc:std.mem.Allocator,
-};
+pub const DB = @import("db.zig").DB;

@@ -45,6 +45,7 @@ pub fn handle_api(
     ) orelse .bad;
     switch (p) {
         .new => {
+            log.deb("api/new matched", .{}) catch {};
             //mk note, and get id 
             const id = api_new(conn, alloc, true, db) catch |e| blk: {
                switch (e) {
@@ -161,6 +162,7 @@ fn api_new(
     var comment:[]u8 = "";
     var file_name:[]u8 = "";
     var encrypt:bool = conf.notes.use_encryption;
+    try log.deb("checking headers", .{});
     {   //scoped so I don't have to worry about var names clobbering 
         var hItr = req.iterateHeaders();
         //iterate over headers
@@ -242,6 +244,8 @@ fn api_new(
         ) catch {}; return "need \"Content-Length\" header";
     }
 
+    try log.deb("creating new connection struct", .{});
+
     //create new connection struct
     var new_conn = ServerConn{
         .conn = conn.conn,
@@ -274,8 +278,9 @@ fn api_new(
         } else break; //stop on first non-empty found
     }
 
+    try log.deb("generating id", .{});
     //generate note id (random string generator helper)
-    const id:[]u8 = hlp.ranStr(16, db.alloc) catch |e| {
+    const id:[]u8 = hlp.ranStr(16, alloc) catch |e| {
         try log.err("failed to generate random string (hlp.ranStr()) {t}", .{e});
         //either respond with html err page or plain-text
         if (respond_html) web.send_err(500, "server err", &new_conn) else {
@@ -284,6 +289,7 @@ fn api_new(
             ) catch {}; return "server error";
         } return "";
     };
+    defer alloc.free(id);
 
     //check if it's plain-text
     const is_text = hlp.chk_is_ascii(note);
@@ -297,44 +303,27 @@ fn api_new(
         .typ = if (is_text) "text/plain" else "unknown",
     };
 
-    //file info struct
-    const file:File = .{
-        .magic = file_type.magic,
-        .is_file = is_file,
-        .typ = file_type.typ,
-        .size = note.len,
-        .comment = try db.alloc.dupe(u8, comment),
-        .name = try db.alloc.dupe(u8, file_name),
-    };
+    try log.deb("creating file struct", .{});
 
-
+    try log.deb("checking and possibly doing encryption", .{});
     const hash, note = if (encrypt) b: {
         const stuff = try hlp.do_xor(alloc, null, note, .{ .mk_hash = true });
         break :b .{ stuff.hash.?, stuff.res };
     } else .{ null, note };
-    defer {
-        alloc.free(note);
+
+    if (conf.notes.compression != .none) {
+        try log.deb("compressing note content", .{});
+        note = @constCast(compression.do(
+            note, conn, null, conf.notes.compression, alloc
+        ) catch |e| {
+            try log.err("failed to compress note: {t}", .{e});
+            return e;
+        });
+        try log.deb("compressed", .{});
     }
 
-    //note struct
-    const n:Note = .{
-        .content = try db.alloc.dupe(u8, if (conf.notes.compression != .none) b: {
-            const n_C = compression.do(
-                note, conn, null, conf.notes.compression, alloc
-            ) catch |e| {
-                try log.err("failed to compress note: {t}", .{e});
-                return e;
-            };
-            defer alloc.free(n_C);
-            break :b try alloc.dupe(u8, n_C);
-        } else note),
-        .file = file,
-        .compression = conf.notes.compression,
-        .encryption = .{
-            .enabled = encrypt,
-            .key = if (hash) |_| (try db.alloc.dupe(u8, &hash.?))[0..32].* else null,
-        },
-    };
+    try log.deb("creating note", .{});
+    try log.deb("note created", .{});
 
     //log the file type (debug)
     //log.deb(
@@ -346,8 +335,21 @@ fn api_new(
     //    }
     //) catch {};
 
+    try log.deb("putting in db", .{});
     //add the note to db
-    db.db.put(id, n) catch |e| { //on err
+    db.mk_entry(
+        id, note,
+        .{
+            .magic = file_type.magic,
+            .is_file = is_file,
+            .typ = file_type.typ,
+            .size = note.len,
+            .comment = comment,
+            .name = file_name,
+        },
+        conf.notes.compression,
+        .{ .enabled = encrypt, .key = hash }
+    ) catch |e| { //on err
         //either respond html err page or plain-text
         if (respond_html) web.send_err(500, "failed to store note", &new_conn) else {
             //send headers (500 server err)
@@ -365,7 +367,8 @@ fn api_new(
         200, curTime, req, null, null, "text/plain"
     ) catch {}; //ignore err
 
-    return alloc.dupe(u8, id);
+    try log.deb("returning id", .{});
+    return try alloc.dupe(u8, id);
 }
 
 //api for new note
@@ -415,78 +418,16 @@ fn api_view(
         } return note_errs.no_key_found; //return missing id err
     };
 
-    //default to invalid
-    var file:File = .{
-        .typ = "unknown",
-        .is_file = false,
-        .magic = globs.Magic{
-            .class = "",
-            .raw = "",
-            .desc = "",
-        },
-        .size = 0,
-        .comment = "",
-        .name = "",
-    };
-
-    //default to invalid
-    var note:[]const u8 = "key not found";
-
     try log.deb("getting note", .{});
-    //check if note exists 
-    if (db.db.get(id)) |n| {
-        try log.deb("got note", .{});
-        //set note and delete from db
-        note = if (conn.conf.notes.compression != .none) b: {
-            try log.deb("undoing compression", .{});
-            break :b compression.undo(
-                n.content, conn, null, conn.conf.notes.compression, alloc
-            ) catch |e| {
-                if (e == globs.server_errs.UnknownType) {
-                    @panic("unknown compression type");
-                }
-                try log.err("failed to decompress note: {t}", .{e});
-                return e;
-            };
-        } else try alloc.dupe(u8, n.content);
-        if (n.encryption.enabled) {
-            try log.deb("doing encryption", .{});
-            const stuff = try hlp.do_xor(
-                alloc, n.encryption.key.?, note, null
-            );
-            note = stuff.res;
-        }
-        file.magic = n.file.magic; 
-        file.typ = if (n.file.is_file) n.file.typ else "text/plain";
-        file.is_file = n.file.is_file;
-        file.size = n.file.size;
-        file.name = n.file.name;
-        file.comment = n.file.comment;
-
-        if (n.file.size == 0) {
-            log.deb("n.file.size == 0 (api_view(...))", .{}) catch {};
-            return hlp.lazy_lw_note("");
-        }
-
-        try log.deb("removing note", .{});
-        //could be from either api request or internal function call
-        if (isReq or !file.is_file) if (!db.db.remove(id)) {
-            //send headers (500 server err)
-            hlp.send.headersWithType(
-                500, conn.reqTime, conn.req, null, null, "text/plain"
-            ) catch {}; //ignore err
-            try log.err("failed to remove from db", .{});
-            return lazy_lw_note("failed to remove from db");
-        };
-    } else return note_errs.note_not_found;
+    var note = try db.retrieve_entry(id, conn, alloc, isReq);
 
     //generate note preview 
     const conf_prev_size:usize = conn.conf.notes.text_preview_size;
-    const prev_si = if (note.len < conf_prev_size) note.len else conf_prev_size;
-    const prev_R = note[0..prev_si];
+    const prev_si = if (note.content.len < conf_prev_size) note.content.len else conf_prev_size;
+    const prev_R = note.content[0..prev_si];
 
     //check if type is plain-text 
-    const is_text = mem.eql(u8, file.typ, "text/plain");
+    const is_text = mem.eql(u8, note.file.typ, "text/plain");
     try log.deb("{any}", .{is_text});
 
     try log.deb("generating preview", .{});
@@ -513,23 +454,23 @@ fn api_view(
     if (isReq) {
         //additional headers with note info
         const add_head = [_][]const u8{
-            try fmt.allocPrint(alloc, "comment: {s}", .{file.comment}),
+            try fmt.allocPrint(alloc, "comment: {s}", .{note.file.comment}),
         };
         hlp.send.headersWithType(
-            200, conn.reqTime, conn.req, add_head.len, add_head, file.typ
+            200, conn.reqTime, conn.req, add_head.len, add_head, note.file.typ
         ) catch {}; //ignore err
     }
 
     //create light-weight note
     const lw_note:LW_Note = .{
-        .magic = file.magic,
-        .size = file.size,
-        .cont = note,
-        .is_file = file.is_file,
-        .typ = file.typ,
+        .magic = note.file.magic,
+        .size = note.file.size,
+        .cont = note.content,
+        .is_file = note.file.is_file,
+        .typ = note.file.typ,
         .id = id,
-        .file_name = file.name,
-        .comment = file.comment,
+        .file_name = note.file.name,
+        .comment = note.file.comment,
         .prev = if (is_text) prev else "can't generate preview",
     };
 
@@ -585,6 +526,7 @@ pub const compression = struct {
         };
 
         try log.deb("com.leng == {d}", .{com.leng});
+        try log.deb("about to attempt to unwrap: {any}", .{res});
 
         //return converted to Zig string
         return try Self.c_str_to_const_u8(

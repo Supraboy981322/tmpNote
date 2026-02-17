@@ -728,19 +728,24 @@ pub fn do_xor(
         var buf:[32]u8 = undefined;
         //fill buffer with random bytes
         std.crypto.random.bytes(&buf);
+        try log.deb("setting new xor hash", .{});
         break :b buf;
     } else unreachable else unreachable; //shouldn't occur if used as intended
 
+    try log.deb("creating xor arraylist", .{});
     //create arraylist to hold resulting bytes 
     var res = try std.ArrayList(u8).initCapacity(alloc, 0);
     defer res.deinit(alloc);
 
     //range over input and do xor using key
     //  (adding each byte to result)
+    try log.deb("xor-ing input", .{});
     for (input, 0..) |b_raw, i| {
         const b_enc = b_raw ^ key[i % key.len];
         try res.append(alloc, b_enc);
     }
+
+    try log.deb("returning xor result", .{});
 
     //return struct containing the key (hash) used and the result
     return .{

@@ -145,6 +145,9 @@ pub const log = struct {
 
     const Self = @This();
 
+    pub var pool:std.Thread.Pool = undefined;
+    pub var wg: std.Thread.WaitGroup = .{};
+
     //generic logger
     pub fn generic(
         comptime tag:[]const u8,
@@ -152,7 +155,16 @@ pub const log = struct {
         args:anytype
     ) !void {
         //log to file if set
-        if (globs.conf.server.log.file.len > 0) try Self.wr_log_file(tag, msg, args);
+        if (globs.conf.server.log.file.len > 0) if (globs.conf.server.use_async) {
+            pool.spawnWg(
+            &wg, struct {
+                fn wr(
+                    comptime t:[]const u8,
+                    comptime m:[]const u8,
+                    a:anytype
+                ) void { Self.wr_log_file(t, m, a) catch {}; }
+            }.wr, .{tag, msg, args});
+        } else try Self.wr_log_file(tag, msg, args);
         //... and print to the terminal 
         try stdout.print(tag++" "++msg++"\n", args);
         try stdout.flush();

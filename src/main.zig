@@ -35,6 +35,12 @@ const stdout = &stdout_wr.interface;
 var db:globs.DB = undefined; 
 
 pub fn main() !void {
+    try log.pool.init(.{ .n_jobs = 1, .allocator = heap.page_allocator });
+    defer {
+        log.pool.deinit();
+        log.wg.wait();
+    }
+
     if (!chk_args()) std.process.exit(0);
 
     //set the global config
@@ -77,6 +83,7 @@ pub fn main() !void {
     //wait for connections
     while (true) {
         const acc = server.accept() catch continue;
+
         if (conf.server.use_async) {
             try log.deb("spawning handler thread", .{});
             const t = try std.Thread.spawn(.{}, hanConn, .{acc, conf});
@@ -100,7 +107,10 @@ pub fn hanConn(
 ) !void {
     //arena that lasts the lifetime of the request
     var arena = heap.ArenaAllocator.init(heap.page_allocator);
-    defer arena.deinit();
+    defer { 
+        log.deb("arena capacity: {d}", .{arena.queryCapacity()}) catch {};
+        arena.deinit();
+    }
     var alloc = arena.allocator();
     
     defer conn.stream.close(); //ensure stream is closed
@@ -239,10 +249,10 @@ pub fn init(
     conf:config
 ) !void {
     const config_ = @import("conf.zig");
-    if (conf.server.use_async and conf.server.log.format != .none) {
-        try log.errf("sorry, but currently it's not possible to use " ++ 
-            "both async and a log file. please set server.log.format = .none", .{}); 
-    }
+    //if (conf.server.use_async and conf.server.log.format != .none) {
+    //    try log.errf("sorry, but currently it's not possible to use " ++ 
+    //        "both async and a log file. please set server.log.format = .none", .{}); 
+    //}
     if (config_.used_default) {
         try log.warn(
             "config file not found, using default " ++ 

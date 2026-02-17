@@ -249,10 +249,14 @@ pub fn init(
     conf:config
 ) !void {
     const config_ = @import("conf.zig");
-    //if (conf.server.use_async and conf.server.log.format != .none) {
-    //    try log.errf("sorry, but currently it's not possible to use " ++ 
-    //        "both async and a log file. please set server.log.format = .none", .{}); 
-    //}
+    if (conf.server.use_async and conf.server.log.format != .none) {
+        try log.warn(
+            "currently, using both async and a log file is somewhat " ++
+                "sketchy. there is a non-zero chance of undefined " ++
+                "behavior and/or a crash/panic",
+            .{}
+        ); 
+    }
     if (config_.used_default) {
         try log.warn(
             "config file not found, using default " ++ 

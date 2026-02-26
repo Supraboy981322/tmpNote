@@ -121,12 +121,8 @@ pub fn ranStr(
     len: usize,
     alloc: mem.Allocator
 ) ![]u8 {
-    //byte slice of alpha-numeric characters 
-    const chars:[]const u8 = "qwertzuiopasdfghjklycvb" ++
-                             "nmQWERTZUIOPASDFGHJKLYXCVBNM1234567890";
-
     //alias for random
-    var p_ran = crypto.random;
+    var rand = crypto.random;
 
     //allocate a buffer
     const buf = alloc.alloc(u8, len) catch |e| {
@@ -135,8 +131,13 @@ pub fn ranStr(
     };
     //fill buffer with random characters
     for (buf) |*byte| {
-        const i = p_ran.intRangeAtMost(usize, 0, chars.len-1);
-        byte.* = chars[i];
+        const char = switch (rand.intRangeAtMost(i3, 0, 2)) {
+            0 => rand.intRangeAtMost(u8, 'a', 'z'),
+            1 => rand.intRangeAtMost(u8, 'A', 'Z'),
+            2 => rand.intRangeAtMost(u8, '0', '9'),
+            else => @panic("SOMETHING CHANGED"),
+        };
+        byte.* = char;
     }
 
     //return the buffer

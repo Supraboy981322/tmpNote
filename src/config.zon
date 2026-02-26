@@ -7,7 +7,7 @@
         // INFO: to enable async,
         //  uncomment the '.format = .none' line
         //    as well as the following line
-        //.use_async = true,
+        .use_async = true,
         
         //log settings
         .log = .{

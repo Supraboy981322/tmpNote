@@ -1,6 +1,8 @@
 const std = @import("std");
 const globs = @import("global_types.zig");
-const log = @import("helpers.zig").log;
+const hlp = @import("helpers.zig");
+
+pub var log:hlp.Log = undefined;
 
 pub var safe:bool = false;
 pub var used_default:bool = false;

@@ -18,6 +18,8 @@ const LW_Note = globs.LW_Note;
 const File_Type = globs.File_Type;
 const Json_Pair = globs.Json_Pair;
 
+pub var log:Log = undefined;
+
 //defaulting to stderr is stupid 
 var stdout_buf:[1024]u8 = undefined;
 var stdout_wr = std.fs.File.stdout().writer(&stdout_buf);
@@ -141,30 +143,28 @@ pub fn ranStr(
     return buf;
 }
 
-pub const log = struct {
+pub const Log = struct {
 
-    const Self = @This();
+    mutex:std.Thread.Mutex = .{},
+
+    pub fn init() !Log {
+        return .{ .mutex = std.Thread.Mutex{}, };
+    }
 
     pub var pool:std.Thread.Pool = undefined;
     pub var wg: std.Thread.WaitGroup = .{};
 
     //generic logger
     pub fn generic(
+        this: *Log,
         comptime tag:[]const u8,
         comptime msg:[]const u8,
         args:anytype
     ) !void {
         //log to file if set
         if (globs.conf.server.log.file.len > 0) if (globs.conf.server.use_async) {
-            pool.spawnWg(
-            &wg, struct {
-                fn wr(
-                    comptime t:[]const u8,
-                    comptime m:[]const u8,
-                    a:anytype
-                ) void { Self.wr_log_file(t, m, a) catch {}; }
-            }.wr, .{tag, msg, args});
-        } else try Self.wr_log_file(tag, msg, args);
+            try this.wr_log_file(tag, msg, args);
+        } else try this.wr_log_file(tag, msg, args);
         //... and print to the terminal 
         try stdout.print(tag++" "++msg++"\n", args);
         try stdout.flush();
@@ -173,10 +173,14 @@ pub const log = struct {
     //write to log file
     //  (separate, unexported fn so generic logger is easier to read)
     fn wr_log_file(
+        this: *Log,
         comptime tag:[]const u8,
         comptime msg:[]const u8,
         args:anytype
     ) !void {
+        this.mutex.lock();
+        defer this.mutex.unlock();
+
         var arena = heap.ArenaAllocator.init(heap.page_allocator);
         defer arena.deinit();
         var alloc = arena.allocator();
@@ -186,12 +190,11 @@ pub const log = struct {
         const cwd = std.fs.cwd();
         
         var tmp_name:[]const u8 = undefined;
-        //duplicate log file before doing anything to it
-        { const e:anyerror!void = blk: {
+        {   //duplicate log file before doing anything to it
             //temp name 
             tmp_name = std.fmt.allocPrint(
                 alloc, "{s}.tmp", .{globs.conf.server.log.file}
-            ) catch |e| break :blk e;
+            ) catch |e| return e;
 
             //copy the file
             cwd.copyFile(
@@ -202,10 +205,9 @@ pub const log = struct {
                     _ = cwd.createFile(globs.conf.server.log.file, .{}) catch |er| return er;
                     _ = cwd.createFile(tmp_name, .{}) catch |er| return er;
                 },
-                else => break :blk e,
+                else => return e,
             };
-        //treat any errs as fatal
-        }; if (e) {} else |er| fat_err("failed to log to file {t}", .{er}); }
+        }
         defer { //cleanup
             cwd.deleteFile(tmp_name) catch |e| {
                 stderr.print("failed to remove temp log file: {t}", .{e}) catch {};
@@ -216,19 +218,15 @@ pub const log = struct {
         //open the log file
         const log_fi = cwd.openFile(
             globs.conf.server.log.file, .{ .mode = .read_write }
-        ) catch |e| {
-            fat_err("failed to open log file: {t}", .{e});
-            unreachable;
-        }; defer log_fi.close();
+        ) catch |e| return e;
+        defer log_fi.close();
 
         //append to the log and remove any logs older than
         //  999 logs ago
         const new_log = blk: {
             //open the temp log file (read mode)
-            var fi = cwd.openFile(tmp_name, .{}) catch |e| {
-                fat_err("couldn't read temp log {t}", .{e});
-                unreachable;
-            }; defer fi.close();
+            var fi = cwd.openFile(tmp_name, .{}) catch |e| return e;
+            defer fi.close();
 
             //variables to iterate over log file line-by-line
             var fi_buf:[10240]u8 = undefined;
@@ -243,7 +241,7 @@ pub const log = struct {
             //add each line to the file
             while (fi_in.takeDelimiter('\n') catch |e| return e) |li| {
                 li_N += 1; //keep track of length
-                lines.append(li) catch |e| fat_err("{t}", .{e});
+                lines.append(li) catch |e| return e;
             }
 
             //construct new log line based on configured format
@@ -253,41 +251,30 @@ pub const log = struct {
                     //  (along with any params passed to logger) 
                     const li_R = std.fmt.allocPrint(
                         alloc, tag++" "++msg, args
-                    ) catch |e| {
-                        fat_err("failed to format log message {t}", .{e});
-                        unreachable;
-                    }; defer alloc.free(li_R);
+                    ) catch |e| return e;
+                    defer alloc.free(li_R);
 
                     //return an allocated string with only ascii bytes
-                    break :b strip_ansi(alloc, li_R) catch |e| {
-                        fat_err("failed to strip ansi: {t}", .{e});
-                        unreachable;
-                    };
+                    break :b strip_ansi(alloc, li_R) catch |e| return e;
                 },
                 .json => b: {
                     //strip non-ascii bytes from the tag 
                     const tag_P = bl: {
                         const tag_T = strip_ansi(
                             alloc, tag
-                        ) catch |e| {
-                            fat_err("couldn't strip ansi from log json: {t}", .{e});
-                            unreachable;
-                        }; defer alloc.free(tag_T);
+                        ) catch |e| return e;
+                        defer alloc.free(tag_T);
                          //return allocated string without the '[' and ']:'
                         break :bl try alloc.dupe(u8, tag_T[1..tag_T.len-2]); 
                     }; defer alloc.free(tag_P);
 
                     //formatted message
-                    const m = fmt.allocPrint(alloc, msg, args) catch |e| {
-                        fat_err("couldn't format message for json log: {t}", .{e});
-                        unreachable;
-                    }; defer alloc.free(m);
+                    const m = fmt.allocPrint(alloc, msg, args) catch |e| return e;
+                    defer alloc.free(m);
 
                     //strip non-ascii from formatted message
-                    const msg_P = strip_ansi(alloc, m) catch |e| {
-                        fat_err("couldn't strip ansi from log json: {t}", .{e});
-                        unreachable;
-                    }; defer alloc.free(msg_P);
+                    const msg_P = strip_ansi(alloc, m) catch |e| return e;
+                    defer alloc.free(msg_P);
 
                     //json stuff 
                     const stuff = [_]Json_Pair{
@@ -303,32 +290,25 @@ pub const log = struct {
 
             //add the new line to the log
             lines.append(new_li) catch |e| fat_err("{t}", .{e});
-            const res = std.mem.join(alloc, "\n", lines.items) catch |e| {
-                fat_err("failed to merge log messages: {t}", .{e});
-                unreachable;
-            };
+            const res = std.mem.join(alloc, "\n", lines.items) catch |e| return e;
 
             //return copy in mem so it can be freed here (scoped allocation crap) 
-            break :blk alloc.dupe(u8, res) catch |e| {
-                fat_err("failed to allocate new log: {t}", .{e});
-                unreachable;
-            };
+            break :blk alloc.dupe(u8, res) catch |e| return e;
         }; defer alloc.free(new_log);
 
         //finally, actually write the log file
-        _ = log_fi.write(new_log) catch |e| fat_err(
-            "failed to write log: {t}", .{e}
-        );
+        _ = log_fi.write(new_log) catch |e| return e;
     }
 
     //helper for formatted request
     pub fn req(
+        this: *Log,
         curTime:[]const u8,
         remAddr:[]const u8,
         reqPage: []const u8
     ) !void {
         if (@import("conf.zig").conf.log_level > 2) return;
-        try Self.generic(
+        try this.generic(
             "\x1b[1;37m[\x1b[1;36mreq\x1b[1;37m]:\x1b[0m",
             blk: { //message with a few fields ('addr{...} page{...} date{...}')
                 break :blk 
@@ -342,54 +322,59 @@ pub const log = struct {
 
     //debug logger
     pub fn deb(
+        this: *Log,
         comptime msg:[]const u8,
         args:anytype
     ) !void {
         //only log if debug level
         if (@import("conf.zig").conf.log_level > 0) return;
-        try Self.generic(
+        try this.generic(
             "\x1b[1;37m[\x1b[1;34mdebug\x1b[1;37m]:\x1b[0m", msg, args
         );
     }
 
     //err logger
     pub fn err(
+        this: *Log,
         comptime msg:[]const u8,
         args:anytype
     ) !void {
         //only log if err level
         if (@import("conf.zig").conf.log_level > 4) return;
-        try Self.generic("\x1b[1;37m[\x1b[1;31merr\x1b[1;37m]:\x1b[0m", msg, args);
+        try this.generic("\x1b[1;37m[\x1b[1;31merr\x1b[1;37m]:\x1b[0m", msg, args);
     }
 
     //err and exit
     pub fn errf(
+        this: *Log,
         comptime msg:[]const u8,
         args:anytype
     ) !void {
-        try log.err(msg, args);
+        try this.err(msg, args);
         std.process.exit(1);
         @panic("failed to fail");
     }
 
     //info logger
     pub fn info(
+        this: *Log,
         comptime msg:[]const u8,
         args:anytype
     ) !void {
         //only log if info level
         if (@import("conf.zig").conf.log_level > 1) return;
-        try Self.generic("\x1b[1;37m[\x1b[1;35minfo\x1b[1;37m]:\x1b[0m", msg, args);
+        try this.generic("\x1b[1;37m[\x1b[1;35minfo\x1b[1;37m]:\x1b[0m", msg, args);
     }
 
     //warn logger
     pub fn warn(
+        this: *Log,
         comptime msg:[]const u8,
         args:anytype
     ) anyerror!void {
         //only log if warn level
         if (@import("conf.zig").conf.log_level > 3) return;
-        try Self.generic("\x1b[1;37m[\x1b[1;33mWARN\x1b[1;37m]:\x1b[0m", msg, args);
+        try this.generic("\x1b[1;37m[\x1b[1;33mWARN\x1b[1;37m]:\x1b[0m", msg, args);
     }
 };
 

@@ -1,6 +1,7 @@
 //imports
 const std = @import("std");
 const config = @import("conf.zig").conf;
+const hlp = @import("helpers.zig");
 pub const compress = @cImport({
     @cInclude("compress.h");
 });
@@ -43,6 +44,8 @@ pub const server_errs = error {
     UnknownType,
     FailedToCompress, 
 };
+
+pub var log:hlp.Log = undefined;
 
 //log level
 pub const log_lvl = enum {

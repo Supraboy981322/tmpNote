@@ -5,7 +5,7 @@ const file_types = @import("file_types.zig");
 const compress = globs.compress;
 
 const ServerConn = globs.ServerConn;
-const log = hlp.log;
+pub var log:hlp.Log = undefined;
 const lazy_lw_note = hlp.lazy_lw_note;
 const note_errs = globs.note_errs;
 const Json_Pair = globs.Json_Pair;

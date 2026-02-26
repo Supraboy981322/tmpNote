@@ -18,8 +18,8 @@ const heap = std.heap;
 const http = std.http;
 
 //structs from helpers
-const log = hlp.log;
 const web = web_hlp.web;
+var log:hlp.Log = undefined;
 
 //types
 const note_errs = glob_types.note_errs;
@@ -35,12 +35,17 @@ const stdout = &stdout_wr.interface;
 var db:globs.DB = undefined; 
 
 pub fn main() !void {
-    try log.pool.init(.{ .n_jobs = 1, .allocator = heap.page_allocator });
-    defer {
-        log.pool.deinit();
-        log.wg.wait();
-    }
-
+    log = hlp.Log.init() catch |e| @panic(@errorName(e));
+    var logger = .{ .mutex = std.Thread.Mutex{}, };
+    _ = &logger;
+    const vars = [_]*hlp.Log{
+        &@import("global_types.zig").log,
+        &@import("conf.zig").log,
+        &@import("web_helpers.zig").log,
+        &@import("helpers.zig").log,
+        &@import("db.zig").log,
+    };
+    for (vars) |v| v.* = log;
     if (!chk_args()) std.process.exit(0);
 
     //set the global config

@@ -2,7 +2,7 @@ const std = @import("std");
 const globs = @import("global_types.zig");
 const web_hlp = @import("web_helpers.zig");
 const hlp = @import("helpers.zig");
-const log = hlp.log;
+pub var log:hlp.Log = undefined;
 
 const File = globs.File;
 
@@ -52,7 +52,9 @@ pub const Note = struct {
 pub const DB = struct {
     db:std.StringHashMap(Note),
 
-    pub const alloc = std.heap.page_allocator;
+    pub const alloc = @constCast(&std.heap.ThreadSafeAllocator {
+        .child_allocator = std.heap.page_allocator,
+    }).allocator();
 
     pub fn init() !DB {
         const foo = try alloc.dupe(u8, "foo");

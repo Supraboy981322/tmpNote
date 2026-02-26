@@ -2,7 +2,8 @@ const std = @import("std");
 
 pub fn main() !void {
     var h = handler.init();
-    for (0..try std.Thread.getCpuCount()) |i| {
+    for (0..100) |i| {
+        //try h.log("foo", .{}); _ = i;
         const t = try std.Thread.spawn(.{}, stress, .{i, &h});
         _ = t.detach();
     }
@@ -10,9 +11,7 @@ pub fn main() !void {
 }
 
 fn stress(i:usize, h:*handler) !void {
-    for (0..100) |j| {
-        try h.log("[{d}|{d}]: foo", .{i, j});
-    }
+    try h.log("[{d}]: foo", .{i});
 }
 
 pub const handler = struct {
@@ -23,9 +22,7 @@ pub const handler = struct {
 
     pub fn init() handler {
         const mutex = std.Thread.Mutex{};
-        return .{
-            .mutex = mutex,
-        };
+        return .{ .mutex = mutex };
     }
 
     pub fn deinit(Self:*handler) void {
@@ -53,30 +50,16 @@ pub const handler = struct {
             try re.appendRemainingUnlimited(alloc, &current_arr);
         }
 
-        const formatted = try std.fmt.allocPrint(alloc, fmt ++ "\n", args);
-
-        const lines = b: {
-            const a = try std.fmt.allocPrint(
-                alloc, "{s}{s}\n", .{current_arr.allocatedSlice(), formatted}
-            );
-            break :b try Self.break_into_lines(alloc, a);
-        };
+        try current_arr.print(alloc, fmt ++ "\n", args);
+        const lines = try Self.break_into_lines(alloc, current_arr.items);
         const line_count = lines.len;
         
         var wr = &@constCast(&file.writer(&.{})).interface;
-
         const diff:usize = if (line_count > 10) line_count - 10 else 0;
-        
-        var new = try std.ArrayList(u8).initCapacity(alloc, 0);
-        defer { new.clearAndFree(alloc) ; new.deinit(alloc); }
-
         for (lines[diff..line_count]) |l| {
-            try new.appendSlice(alloc, l);
-            //std.debug.print("{{{s}}}\n", .{l});
-            try new.append(alloc, '\n');
+            try wr.print("{s}\n", .{l});
+            try wr.flush();
         }
-        //std.debug.print("{s}\n", .{new.items});
-        try wr.writeAll(new.items);
     }
     fn break_into_lines(Self:*handler, alloc:std.mem.Allocator, in:[]u8) ![][]const u8 {
         _ = Self;

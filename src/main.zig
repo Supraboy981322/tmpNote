@@ -47,13 +47,6 @@ pub fn main() !void {
     for (vars) |v| v.* = log;
     if (!chk_args()) std.process.exit(0);
     
-    if (test_db) {
-        log.warn("doing basic database test\n", .{}) catch {};
-        var _db = @import("db.zig").DB.init() catch |e| @panic(@errorName(e));
-        _db.sanity_check() catch |e| @panic(@errorName(e));
-        _db.deinit();
-    }
-
     //set the global config
     globs.conf = config.read(globs.alloc) catch |e| {
         log.errf(
@@ -65,8 +58,15 @@ pub fn main() !void {
     };
     defer std.zon.parse.free(globs.alloc, globs.conf);
 
+    if (test_db) {
+        log.deb("doing basic database test\n", .{}) catch {};
+        var _db = @import("db.zig").DB.init() catch |e| @panic(@errorName(e));
+        _db.sanity_check() catch |e| @panic(@errorName(e));
+        _db.deinit();
+    }
+
+
     db = try @import("db.zig").DB.init();
-    try log.deb("db test: {any}\n", .{db});
     defer db.deinit();
 
     const conf = glob_types.conf; //just an alias

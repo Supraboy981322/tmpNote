@@ -154,8 +154,11 @@ pub const DB = struct {
         this:*DB,
     ) !void  {
         try log.deb("performing db tests", .{});
+
         var arena = std.heap.ArenaAllocator.init(globs.alloc);
         const allocator = arena.allocator();
+        defer { _ = arena.reset(.free_all); arena.deinit(); }
+
         const rand = std.crypto.random;
         for (0..1000) |_| {
             var note = try allocator.alloc(u8, rand.int(u8));

@@ -51,14 +51,10 @@ pub const Note = struct {
 
 pub const DB = struct {
     db:std.StringHashMap(Note),
-    alloc:std.mem.Allocator,
+    alloc:std.mem.Allocator = std.heap.page_allocator,
 
     pub fn init() !DB {
-        var thread_alloc = std.heap.ThreadSafeAllocator{
-            .child_allocator = globs.alloc,
-        };
-        var alloc = thread_alloc.allocator();
-        _ = &alloc;
+        const alloc = std.heap.page_allocator;
         return .{
             .alloc = alloc,
             .db = std.StringHashMap(Note).init(alloc),
@@ -68,7 +64,7 @@ pub const DB = struct {
     pub fn retrieve_entry(
         this:*DB,
         id:[]const u8,
-        conn:*globs.ServerConn,
+        conn:?*globs.ServerConn,
         allocator:std.mem.Allocator,
         is_req:bool,
     ) !Note {
@@ -89,11 +85,11 @@ pub const DB = struct {
             }
 
             //se note and delete from db
-            if (conn.conf.notes.compression != .none) {
+            if (conn) |c| if (c.conf.notes.compression != .none) {
                 note.content = @constCast(try web_hlp.compression.undo(
-                    note.content, conn, null, conn.conf.notes.compression, allocator
+                    note.content, conn.?, null, conn.?.conf.notes.compression, allocator
                 ));
-            }
+            };
 
             if (n.encryption.enabled) {
                 const stuff = try hlp.do_xor(
@@ -105,7 +101,6 @@ pub const DB = struct {
             }
         } else return globs.note_errs.note_not_found;
 
-        std.debug.print("foo", .{});
         return note;
     }
 
@@ -153,5 +148,43 @@ pub const DB = struct {
 
         const id_allocated = try this.alloc.dupe(u8, id); 
         try this.db.put(id_allocated, n);
+    }
+
+    pub fn sanity_check(
+        this:*DB,
+    ) !void  {
+        try log.deb("performing db tests", .{});
+        var arena = std.heap.ArenaAllocator.init(globs.alloc);
+        const allocator = arena.allocator();
+        const rand = std.crypto.random;
+        for (0..1000) |_| {
+            var note = try allocator.alloc(u8, rand.int(u8));
+            _ = &note;
+            for (note) |*b| {
+                b.* = rand.intRangeAtMost(u8, '0', '~');
+            }
+            var id = try allocator.alloc(u8, rand.int(u8));
+            _ = &id;
+            for (id) |*b| {
+                b.* = rand.intRangeAtMost(u8, '0', '~');
+            }
+            try log.deb(
+                "\t\x1b[33mnote{{\x1b[0m{s}\x1b[33m}} id{{\x1b[0m{s}\x1b[33m}}\x1b[0m",
+                .{note, id}
+            );
+            try this.mk_entry(id, note, .{
+                .typ = "",
+                .is_file = false,
+                .magic = hlp.text_magic(),
+                .size = note.len,
+                .name = "",
+                .comment = "",
+            }, .none, .{ .enabled = false, .key = null, });
+            const n = try this.retrieve_entry(
+                id, null, allocator, rand.boolean()
+            );
+            std.debug.assert(std.mem.eql(u8, n.content, note));
+        }
+        try this.clear();
     }
 };

@@ -226,12 +226,12 @@ pub const Log = struct {
             //    };
             //}
             //cleanup
-            //cwd.deleteFile(tmp_name) catch |e| {
-            //    stderr.print(
-            //        "failed to remove temp log file ({s}): {t}", .{tmp_name, e}
-            //    ) catch {};
-            //    stderr.flush() catch {};
-            //};
+            cwd.deleteFile(tmp_name) catch |e| {
+                stderr.print(
+                    "failed to remove temp log file ({s}): {t}", .{tmp_name, e}
+                ) catch {};
+                stderr.flush() catch {};
+            };
         }
 
         //open the log file

@@ -358,7 +358,13 @@ pre#note { border: solid #697da3 0.25em; }
   margin-bottom: 1em;
 }
 
-#js_warn { color: red; }
+h3#js_warn {
+  color: red;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  position: absolute !important;
+}
 
 .clipboard_copy {
   font-size: 1.1em !important;

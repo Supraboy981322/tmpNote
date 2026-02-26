@@ -33,6 +33,7 @@ const stdout = &stdout_wr.interface;
 
 //database
 var db:globs.DB = undefined; 
+var test_db:bool = false;
 
 pub fn main() !void {
     log = hlp.Log.init() catch |e| @panic(@errorName(e));
@@ -45,6 +46,13 @@ pub fn main() !void {
     };
     for (vars) |v| v.* = log;
     if (!chk_args()) std.process.exit(0);
+    
+    if (test_db) {
+        log.warn("doing basic database test\n", .{}) catch {};
+        var _db = @import("db.zig").DB.init() catch |e| @panic(@errorName(e));
+        _db.sanity_check() catch |e| @panic(@errorName(e));
+        _db.deinit();
+    }
 
     //set the global config
     globs.conf = config.read(globs.alloc) catch |e| {
@@ -362,7 +370,7 @@ fn chk_args() bool {
 
     const valid_args = enum {
         write_config, @"write-config", 
-        invalid
+        db_test, @"db-test", invalid
     };
     for (args, 0..) |arg, i| {
         if (i == 0) continue;
@@ -386,6 +394,7 @@ fn chk_args() bool {
                 stdout.flush() catch {};
                 start = false;
             },
+            .db_test, .@"db-test" => test_db = true,
             .invalid => {
                 stderr.print("invalid arg: {s} (# {d})\n", .{arg, i}) catch {};
                 stderr.flush() catch {};

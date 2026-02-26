@@ -48,3 +48,4 @@
 - [x] encryption
 - [x] compression
 - [ ] comprehensive memory behavior testing
+- [ ] break-up web ui for smaller filesizes and better minification

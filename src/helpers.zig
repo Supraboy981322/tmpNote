@@ -145,14 +145,19 @@ pub fn ranStr(
 
 pub const Log = struct {
 
-    mutex:std.Thread.Mutex = .{},
-
+    mutex:std.Thread.Mutex,
+    alloc:std.mem.Allocator,
+    
     pub fn init() !Log {
-        return .{ .mutex = std.Thread.Mutex{}, };
+        var mutex = std.Thread.Mutex{};
+        _ = .{ &mutex };
+        return .{
+            .mutex = mutex,
+            .alloc = @constCast(&std.heap.ThreadSafeAllocator{
+                .child_allocator = heap.page_allocator,
+            }).allocator(),
+        };
     }
-
-    pub var pool:std.Thread.Pool = undefined;
-    pub var wg: std.Thread.WaitGroup = .{};
 
     //generic logger
     pub fn generic(
@@ -161,13 +166,14 @@ pub const Log = struct {
         comptime msg:[]const u8,
         args:anytype
     ) !void {
+        //... and print to the terminal 
+        try stdout.print(tag++" "++msg++"\n", args);
+        try stdout.flush();
+
         //log to file if set
         if (globs.conf.server.log.file.len > 0) if (globs.conf.server.use_async) {
             try this.wr_log_file(tag, msg, args);
         } else try this.wr_log_file(tag, msg, args);
-        //... and print to the terminal 
-        try stdout.print(tag++" "++msg++"\n", args);
-        try stdout.flush();
     }
     
     //write to log file
@@ -181,8 +187,8 @@ pub const Log = struct {
         this.mutex.lock();
         defer this.mutex.unlock();
 
-        var arena = heap.ArenaAllocator.init(heap.page_allocator);
-        defer arena.deinit();
+        var arena = heap.ArenaAllocator.init(this.alloc);
+        defer { _ = arena.reset(.free_all); arena.deinit(); }
         var alloc = arena.allocator();
 
         if (!@import("conf.zig").safe or globs.conf.server.log.format == .none) return;
@@ -208,11 +214,24 @@ pub const Log = struct {
                 else => return e,
             };
         }
-        defer { //cleanup
-            cwd.deleteFile(tmp_name) catch |e| {
-                stderr.print("failed to remove temp log file: {t}", .{e}) catch {};
-                stderr.flush() catch {};
-            };
+        defer {
+            //{ //sanity check (I think I'm getting some undefined memory behavior)
+            //    const n = globs.conf.server.log.file;
+            //    for (tmp_name[0..tmp_name.len-4], 0..) |b, i| if (b != n[i]) {
+            //        stderr.print(
+            //            "\n\n\t\tSOMETHING IS VERY WRONG: {s} != {s}\n\n", .{tmp_name, n}
+            //        ) catch {};
+            //        stderr.flush() catch {};
+            //        while (true) std.process.exit(43);
+            //    };
+            //}
+            //cleanup
+            //cwd.deleteFile(tmp_name) catch |e| {
+            //    stderr.print(
+            //        "failed to remove temp log file ({s}): {t}", .{tmp_name, e}
+            //    ) catch {};
+            //    stderr.flush() catch {};
+            //};
         }
 
         //open the log file

@@ -10,7 +10,9 @@ pub const compress = @cImport({
 pub var conf:config = undefined;
 
 //global allocator (scoped allocation is dumb)
-pub var alloc:std.mem.Allocator = std.heap.page_allocator;
+pub var alloc:std.mem.Allocator = @constCast(&std.heap.ThreadSafeAllocator{
+    .child_allocator = std.heap.page_allocator,
+}).allocator();
 
 //used by more than one file
 pub const note_errs = error {

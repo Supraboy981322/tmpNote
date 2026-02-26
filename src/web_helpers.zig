@@ -31,7 +31,7 @@ pub fn handle_api(
     t2:[]const u8,
     db:*globs.DB,
 ) void {
-    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    var arena = heap.ArenaAllocator.init(globs.alloc);
     defer arena.deinit();
     var alloc = arena.allocator();
 
@@ -92,7 +92,7 @@ pub fn handle_web(
     serverConn:*ServerConn,
     db:*globs.DB,
 ) !void {
-    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    var arena = heap.ArenaAllocator.init(globs.alloc);
     defer arena.deinit();
     const alloc = arena.allocator();
 
@@ -541,7 +541,7 @@ pub const compression = struct {
         //if already enum, just return it
         if (encs_e) |en| return en;
 
-        var arena = heap.ArenaAllocator.init(heap.page_allocator);
+        var arena = heap.ArenaAllocator.init(globs.alloc);
         defer _ = arena.deinit();
         const alloc = arena.allocator();
 
@@ -862,7 +862,7 @@ pub const web = struct {
         stat:[]const u8,
         conn:*ServerConn
     ) void {
-        var arena = std.heap.ArenaAllocator.init(heap.page_allocator);
+        var arena = std.heap.ArenaAllocator.init(globs.alloc);
         defer arena.deinit();
         var alloc = arena.allocator();
 
@@ -1061,7 +1061,7 @@ pub fn chk_user_agent(
     agent_R:[]const u8,
     req:ServerConn,
 ) !bool {
-    var arena = heap.ArenaAllocator.init(heap.page_allocator);
+    var arena = heap.ArenaAllocator.init(globs.alloc);
     defer arena.deinit();
     var alloc = arena.allocator();
 

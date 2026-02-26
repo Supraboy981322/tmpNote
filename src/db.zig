@@ -51,16 +51,16 @@ pub const Note = struct {
 
 pub const DB = struct {
     db:std.StringHashMap(Note),
-
-    pub const alloc = @constCast(&std.heap.ThreadSafeAllocator {
-        .child_allocator = std.heap.page_allocator,
-    }).allocator();
+    alloc:std.mem.Allocator,
 
     pub fn init() !DB {
-        const foo = try alloc.dupe(u8, "foo");
-        try log.deb("db init allocator test: {s}\n", .{foo});
-        alloc.free(foo);
+        var thread_alloc = std.heap.ThreadSafeAllocator{
+            .child_allocator = globs.alloc,
+        };
+        var alloc = thread_alloc.allocator();
+        _ = &alloc;
         return .{
+            .alloc = alloc,
             .db = std.StringHashMap(Note).init(alloc),
         };
     }
@@ -77,14 +77,14 @@ pub const DB = struct {
         var note:Note = undefined;
         if (this.db.fetchRemove(id)) |kv| {
             const n = @constCast(&kv.value);
-            defer n.deinit(alloc);
+            defer n.deinit(this.alloc);
 
             note = try n.clone(allocator);
 
             const is_file = n.file.is_file;
             if (!is_req or is_file) {
-                const id_alloc = try alloc.dupe(u8, id);
-                const duped_note = try n.clone(alloc);
+                const id_alloc = try this.alloc.dupe(u8, id);
+                const duped_note = try n.clone(this.alloc);
                 try this.db.put(id_alloc, duped_note);
             }
 
@@ -113,10 +113,10 @@ pub const DB = struct {
         var it = this.db.keyIterator();
         while (it.next()) |key_ptr| {
             const key = key_ptr.*; 
-            defer alloc.free(key);
+            defer this.alloc.free(key);
 
             const value = if (this.db.fetchRemove(key)) |k| k.value else continue;
-            @constCast(&value).deinit(alloc);
+            @constCast(&value).deinit(this.alloc);
         }
         this.db.clearAndFree();
     }
@@ -135,23 +135,23 @@ pub const DB = struct {
         encryption: struct { enabled:bool, key:?[32]u8 },
     ) !void {
         const n:Note = .{
-            .content = try alloc.dupe(u8, note),
+            .content = try this.alloc.dupe(u8, note),
             .file = .{
                 .magic = file.magic,
                 .is_file = file.is_file,
                 .typ = file.typ,
                 .size = file.size,
-                .comment = try alloc.dupe(u8, file.comment),
-                .name = try alloc.dupe(u8, file.name),
+                .comment = try this.alloc.dupe(u8, file.comment),
+                .name = try this.alloc.dupe(u8, file.name),
             },
             .compression = compression,
             .encryption = .{
                 .enabled = encryption.enabled,
-                .key = if (encryption.key) |h| (try alloc.dupe(u8, &h))[0..32].* else null,
+                .key = if (encryption.key) |h| (try this.alloc.dupe(u8, &h))[0..32].* else null,
             },
         };
 
-        const id_allocated = try alloc.dupe(u8, id); 
+        const id_allocated = try this.alloc.dupe(u8, id); 
         try this.db.put(id_allocated, n);
     }
 };

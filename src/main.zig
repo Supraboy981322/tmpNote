@@ -36,8 +36,6 @@ var db:globs.DB = undefined;
 
 pub fn main() !void {
     log = hlp.Log.init() catch |e| @panic(@errorName(e));
-    var logger = .{ .mutex = std.Thread.Mutex{}, };
-    _ = &logger;
     const vars = [_]*hlp.Log{
         &@import("global_types.zig").log,
         &@import("conf.zig").log,
@@ -111,10 +109,10 @@ pub fn hanConn(
     conf:config,
 ) !void {
     //arena that lasts the lifetime of the request
-    var arena = heap.ArenaAllocator.init(heap.page_allocator);
-    defer { 
+    var arena = heap.ArenaAllocator.init(globs.alloc);
+    defer {
         log.deb("arena capacity: {d}", .{arena.queryCapacity()}) catch {};
-        arena.deinit();
+        _ = arena.reset(.free_all) ; arena.deinit();
     }
     var alloc = arena.allocator();
     
@@ -287,7 +285,7 @@ pub fn init(
         };
         std.fs.cwd().writeFile(opts) catch |e| {
             try log.errf("failed to create/clear log file: {t}", .{e});
-            unreachable;
+            @panic(@errorName(e));
         };
         try log.deb("reset log", .{});
     //shouldn't occur, but if, for some reason it does, then something changed

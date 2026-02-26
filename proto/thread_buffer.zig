@@ -1,69 +1,101 @@
 const std = @import("std");
 
 pub fn main() !void {
-    try handler.init();
-    const t = try std.Thread.spawn(.{}, handler.start, .{});
-    _ = t.detach();
-    std.Thread.sleep(100 * std.time.ns_per_ms);
-    for (0..100) |_| try handler.push("foo");
+    var h = handler.init();
+    for (0..try std.Thread.getCpuCount()) |i| {
+        const t = try std.Thread.spawn(.{}, stress, .{i, &h});
+        _ = t.detach();
+    }
+    std.Thread.sleep(1000 * std.time.ns_per_ms);
 }
 
-fn stress() !void {
-    for (0..100) |_| {
-        try handler.push("foo");
-        try handler.write();
+fn stress(i:usize, h:*handler) !void {
+    for (0..100) |j| {
+        try h.log("[{d}|{d}]: foo", .{i, j});
     }
 }
 
 pub const handler = struct {
 
-    var mutex:std.Thread.Mutex = std.Thread.Mutex{};
-    var buffer:std.ArrayList([]const u8) = undefined;
-    var arena:std.heap.ArenaAllocator = undefined;
-    var alloc:std.mem.Allocator = undefined;
+    mutex:std.Thread.Mutex = .{},
     
-    const Self = @This(); 
+    const this = @This(); 
 
-    pub fn start() !void {
-        try init();
-        while (true) {
-            std.Thread.sleep(500 * std.time.ns_per_ms);
-            if (buffer.items.len > 0) try write();
-        }
-    }
-   
-    pub fn init() !void {
-        var thread_alloc = std.heap.ThreadSafeAllocator{
-            .child_allocator = std.heap.page_allocator,
+    pub fn init() handler {
+        const mutex = std.Thread.Mutex{};
+        return .{
+            .mutex = mutex,
         };
-        arena = std.heap.ArenaAllocator.init(thread_alloc.allocator());
-        alloc = Self.arena.allocator();
-        buffer = try std.ArrayList([]const u8).initCapacity(Self.alloc, 0);
     }
-    pub fn deinit() void {
-        mutex.lock();
-        defer mutex.unlock();
-        _ = buffer.deinit(Self.alloc);
-        _ = arena.reset(.free_all);
-        _ = arena.deinit();
+
+    pub fn deinit(Self:*handler) void {
+        Self.mutex.lock();
+        defer Self.mutex.unlock();
+        _ = Self.arena.reset(.free_all);
+        _ = Self.arena.deinit();
     }
-    pub fn push(msg:[]const u8) !void {
-        mutex.lock();
-        defer mutex.unlock();
-        try buffer.append(alloc, msg);
-    }
-    pub fn drain() !void {
-        defer mutex.unlock();
-        deinit();
-        mutex.lock();
-        try init();
-    }
-    pub fn write() !void {
-        mutex.lock();
-        for (buffer.items) |msg| {
-            std.debug.print("{s}\n", .{msg});
+    pub fn log(Self:*handler, comptime fmt:[]const u8, args:anytype) !void {
+        Self.mutex.lock();
+        var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+        const alloc = arena.allocator();
+        defer { _ = arena.reset(.free_all); Self.mutex.unlock(); }
+
+        var file = try std.fs.cwd().openFile("foo.log", .{
+            .mode = .read_write,
+        });
+        defer file.close();
+
+        var current_arr = try std.ArrayList(u8).initCapacity(alloc, 0);
+        defer { current_arr.clearAndFree(alloc); current_arr.deinit(alloc); }
+
+        var re = &@constCast(&file.reader(&.{})).interface;
+        if (@constCast(&(try file.stat())).size != 0) {
+            try re.appendRemainingUnlimited(alloc, &current_arr);
         }
-        mutex.unlock();
-        try drain();
+
+        const formatted = try std.fmt.allocPrint(alloc, fmt ++ "\n", args);
+
+        const lines = b: {
+            const a = try std.fmt.allocPrint(
+                alloc, "{s}{s}\n", .{current_arr.allocatedSlice(), formatted}
+            );
+            break :b try Self.break_into_lines(alloc, a);
+        };
+        const line_count = lines.len;
+        
+        var wr = &@constCast(&file.writer(&.{})).interface;
+
+        const diff:usize = if (line_count > 10) line_count - 10 else 0;
+        
+        var new = try std.ArrayList(u8).initCapacity(alloc, 0);
+        defer { new.clearAndFree(alloc) ; new.deinit(alloc); }
+
+        for (lines[diff..line_count]) |l| {
+            try new.appendSlice(alloc, l);
+            //std.debug.print("{{{s}}}\n", .{l});
+            try new.append(alloc, '\n');
+        }
+        //std.debug.print("{s}\n", .{new.items});
+        try wr.writeAll(new.items);
+    }
+    fn break_into_lines(Self:*handler, alloc:std.mem.Allocator, in:[]u8) ![][]const u8 {
+        _ = Self;
+        var res = try std.ArrayList([]const u8).initCapacity(alloc, 0);
+        var buf = try std.ArrayList(u8).initCapacity(alloc, 0);
+        defer {
+            res.clearAndFree(alloc) ; res.deinit(alloc);
+            buf.clearAndFree(alloc) ; buf.deinit(alloc);
+        }
+        loop: for (in) |b| switch (b) {
+            '0'...'~' => try buf.append(alloc, b),
+            '\n' => {
+                if (buf.items.len == 0) continue :loop;
+                try res.append(alloc, try buf.toOwnedSlice(alloc));
+                buf.clearAndFree(alloc);
+            },
+            else => {}
+        };
+        if (buf.items.len > 0) try res.append(alloc, try buf.toOwnedSlice(alloc));
+        return try res.toOwnedSlice(alloc);
     }
 };

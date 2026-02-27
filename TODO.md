@@ -49,3 +49,5 @@
 - [x] compression
 - [ ] comprehensive memory behavior testing
 - [ ] break-up web ui for smaller filesizes and better minification
+- [ ] password protected notes
+- [ ] confirmation before openning notes

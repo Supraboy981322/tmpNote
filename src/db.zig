@@ -10,6 +10,9 @@ pub const Note = struct {
     content: []u8,
     file: File,
     compression: globs.compression,
+    state: struct {
+        unlocked: bool = false
+    } = .{},
     encryption: struct {
         enabled: bool,
         key: ?[32]u8 = null,
@@ -78,7 +81,7 @@ pub const DB = struct {
             note = try n.clone(allocator);
 
             const is_file = n.file.is_file;
-            if (!is_req or is_file) {
+            if (!is_req and is_file) {
                 const id_alloc = try this.alloc.dupe(u8, id);
                 const duped_note = try n.clone(this.alloc);
                 try this.db.put(id_alloc, duped_note);

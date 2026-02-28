@@ -447,7 +447,7 @@ fn api_view(
         //fixes strange output from 'std.zig.stringEscape'
         break :blk fmt.allocPrint(
             alloc, "{s}", .{prev_wr.buffer[0..prev_wr.end]}
-        ) catch "failed to generate preview"; 
+        ) catch "failed to generate preview";
     };
 
     //only send headers if not internal request

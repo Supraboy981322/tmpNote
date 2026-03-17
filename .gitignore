@@ -9,7 +9,7 @@ scripts/magic.json
 include/*.a
 include/*.h
 .go/
-web_comp/
+#web_comp/
 node_modules/
 combined.*
 include/go.mod

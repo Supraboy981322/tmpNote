@@ -1,7 +1,11 @@
 const std = @import("std");
 const zh = @import("zig_http");
+const web_hlp = @import("web_helpers.zig");
 
 const PORT:u16 = 9284;
+
+const HandleResult:type = zh.types.HandleResult;
+const Connection:type = zh.types.Connection;
 
 pub fn main(init:std.process.Init) !u8 {
     const log:zh.types.Log = .default;
@@ -27,10 +31,12 @@ pub fn main(init:std.process.Init) !u8 {
     return 0;
 }
 
-pub fn handler(conn:*zh.types.Connection) !zh.types.HandleResult {
+pub fn handler(conn:*Connection) !HandleResult {
     const log = conn.log;
 
     log.request("connection", .{});
+
+    if (try web_hlp.handleBots(conn)) |handled| return handled;
 
     return try conn.sendStringClosing("foo", .{ .status = .ok });
 }

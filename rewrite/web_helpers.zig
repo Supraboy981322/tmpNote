@@ -10,7 +10,8 @@ pub fn handleBots(conn:*Connection) !?HandleResult {
     for (agent) |*b|
         b.* = std.ascii.toLower(b.*);
 
-    const Bots = enum{
+    // TODO: may be neat to fetch these dynamically
+    const Bots = enum {
         whatsapp, twitterbot, slackbot, applebot, bingpreview,
         telegrambot, linkedinbot, facebookexternalhit, googlebot,
     };

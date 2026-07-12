@@ -3,11 +3,13 @@ const hlp = @import("helpers.zig");
 
 const Alloc = std.mem.Allocator;
 
+pub const XorStreamer = @import("helpers.zig").XorStreamer;
+
 pub const Note = struct {
-    content:[]const u8,
+    content:[]u8,
     file:?File,
-    compression:?void, // TODO
-    encrypted:bool, // TODO
+    compression:?Compression, // TODO
+    encrypted:bool,
 
     pub fn free(self:*Note, alloc:Alloc) void {
         alloc.free(self.content);
@@ -51,6 +53,22 @@ pub const Note = struct {
             .encrypted = self.encrypted,
         };
     }
+
+    pub fn info(self:Note) NoteInfo {
+        return .{
+            .length = self.content.len,
+            .file = self.file,
+            .encrypted = self.encrypted,
+            .compression = self.compression,
+        };
+    }
+};
+
+pub const NoteInfo = struct {
+    length:usize,
+    file:?File,
+    encrypted:bool,
+    compression:?Compression, // TODO
 };
 
 pub const File = struct {
@@ -60,14 +78,14 @@ pub const File = struct {
     name:[]const u8,
     comment:[]const u8,
 
-    pub fn free(self:*File, alloc:Alloc) void {
+    pub fn free(self:File, alloc:Alloc) void {
         alloc.free(self.type);
         alloc.free(self.name);
         alloc.free(self.comment);
         self.magic.free(alloc);
     }
 
-    pub fn dupe(self:*File, alloc:Alloc) error{OutOfMemory}!File {
+    pub fn dupe(self:File, alloc:Alloc) error{OutOfMemory}!File {
         return .{
             .type = try alloc.dupe(u8, self.type),
             .magic = try self.magic.dupe(alloc),
@@ -82,17 +100,20 @@ pub const Magic = struct {
     raw:[]const u8,
     desc:[]const u8,
     class:[]const u8,
-    pub fn free(self:*Magic, alloc:Alloc) void {
+    pub fn free(self:Magic, alloc:Alloc) void {
         alloc.free(self.raw);
         alloc.free(self.desc);
         alloc.free(self.class);
     }
 
-    pub fn dupe(self:*Magic, alloc:Alloc) error{OutOfMemory}!Magic {
+    pub fn dupe(self:Magic, alloc:Alloc) error{OutOfMemory}!Magic {
         return .{
             .raw = try alloc.dupe(u8, self.raw),
             .desc = try alloc.dupe(u8, self.desc),
             .class = try alloc.dupe(u8, self.class),
         };
     }
+};
+
+pub const Compression = struct {
 };

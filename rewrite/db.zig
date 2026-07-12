@@ -3,10 +3,7 @@ const types = @import("types.zig");
 
 const DB = @This();
 const KeyType = u64;
-const MAX_ENCODED_KEY_LEN = blk: {
-    const width = @typeInfo(KeyType).int.bits;
-    break :blk 4 * (((width + 7) / 8 + 2) / 3);
-};
+pub const ENCODED_ID_LEN = 11;
 
 map:std.AutoHashMap(KeyType, Note),
 alloc:std.mem.Allocator,
@@ -23,7 +20,7 @@ const base64 = std.base64.url_safe_no_pad;
 pub fn init(alloc:Alloc) !DB {
     return .{
         .alloc = alloc,
-        .db = .init(alloc),
+        .map = .init(alloc),
     };
 }
 
@@ -39,7 +36,8 @@ pub fn deinit(self:*DB, io:Io) void {
 }
 
 pub const PutError = Alloc.Error || Io.Cancelable;
-pub fn put(self:*DB, io:Io, note:Note) PutError!void {
+//returns key
+pub fn put(self:*DB, io:Io, note:Note) PutError![ENCODED_ID_LEN]u8 {
     try self.mut.lock(io);
     defer self.mut.unlock(io);
 
@@ -52,6 +50,10 @@ pub fn put(self:*DB, io:Io, note:Note) PutError!void {
         if (!self.map.contains(key)) break;
     }
     try self.map.putNoClobber(key, duped);
+
+    var encode_buf:[ENCODED_ID_LEN]u8 = undefined;
+    const encoded = base64.Encoder.encode(&encode_buf, &key_buf);
+    return encoded[0..ENCODED_ID_LEN].*;
 }
 
 pub const GetError = PutError;
@@ -72,7 +74,7 @@ pub fn get(self:*DB, io:Io, key:KeyType, how:GetHow) GetError!?Note {
             assert(self.map.remove(key));
             return duped;
         },
-        .keep => return note,
+        .keep => return note.*,
     }
 
     unreachable;
@@ -80,8 +82,8 @@ pub fn get(self:*DB, io:Io, key:KeyType, how:GetHow) GetError!?Note {
 
 pub const GetBase64Error = GetError || error{InvalidKey};
 pub fn getBase64(self:*DB, io:Io, key_str:[]const u8, how:GetHow) GetBase64Error!?Note {
-    if (key_str.len > MAX_ENCODED_KEY_LEN) return error.InvalidKey;
-    var buf:[MAX_ENCODED_KEY_LEN]u8 = undefined;
+    if (key_str.len > ENCODED_ID_LEN) return error.InvalidKey;
+    var buf:[ENCODED_ID_LEN]u8 = undefined;
     base64.Decoder.decode(&buf, key_str) catch |e| switch (e) {
         error.NoSpaceLeft => unreachable, //increase MAX_ENCODED_KEY_LEN
         else => return error.InvalidKey,

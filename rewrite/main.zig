@@ -57,7 +57,7 @@ pub fn handler(conn:*Connection) !HandleResult {
             return try api.handle(conn, path);
     }
 
-    return try web.handle(conn, page orelse &.{"index.html"});
+    return try web.handle(conn, page orelse &.{"index"});
 }
 
 

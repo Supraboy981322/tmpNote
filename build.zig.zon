@@ -6,7 +6,7 @@
     .dependencies = .{
         .zig_http = .{
             .url = "https://github.com/Supraboy981322/zig_http/archive/refs/heads/main.zip",
-            .hash = "zig_http-0.0.1-0MmmuuRuAAA5uatCkqB5_ktWJY1MU2Cr5Te8wpDLAoeH",
+            .hash = "zig_http-0.0.1-0MmmulxyAACOrEokx3WP4EQ_1gw4BcKRfKwlB1jJFKZb",
         },
     },
     .paths = .{ "build.zig", "build.zig.zon", "src", "LICENSE", "README.md" },
